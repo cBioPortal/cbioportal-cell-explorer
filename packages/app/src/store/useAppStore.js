@@ -338,11 +338,12 @@ const useAppStore = create((set, get) => ({
       return;
     }
 
-    // Clear gene selection when obs column is selected
+    // Clear gene selection when obs column is selected.
+    // Keep the previous colorData visible until the new data arrives
+    // to avoid a flash of default (blue) coloring.
     set({
       colorColumn: colName,
       colorLoading: true,
-      colorData: null,
       selectedGene: null,
       geneExpression: null,
     });
