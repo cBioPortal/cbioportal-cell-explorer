@@ -50,6 +50,8 @@ export default function Dotplot({ genes, groups, data, width = 600, height = 400
   const xMax = svgWidth - MARGIN.left - MARGIN.right;
   const yMax = height - MARGIN.top - MARGIN.bottom;
 
+  if (svgWidth <= 0 || xMax <= 0 || yMax <= 0) return null;
+
   const xScale = scaleBand({ domain: xDomain, range: [0, xMax], padding: 0.05 });
   const yScale = scaleBand({ domain: yDomain, range: [0, yMax], padding: 0.05 });
 
@@ -90,7 +92,8 @@ export default function Dotplot({ genes, groups, data, width = 600, height = 400
   const gradientCSS = colorScaleGradient(palette, "to bottom");
 
   return (
-    <div style={{ position: "relative", display: "flex", gap: 12 }}>
+    <div style={{ position: "relative", overflowX: "auto" }}>
+      <div style={{ display: "inline-flex", gap: 12, minWidth: "100%" }}>
       <svg width={svgWidth} height={height}>
         <Group left={MARGIN.left} top={MARGIN.top}>
           {/* Horizontal gridlines */}
@@ -227,7 +230,7 @@ export default function Dotplot({ genes, groups, data, width = 600, height = 400
       </svg>
 
       {/* HTML legends */}
-      <div style={{ fontSize: 10, color: "#595959", paddingTop: MARGIN.top, flexShrink: 0, width: 74 }}>
+      <div style={{ fontSize: 10, color: "#595959", paddingTop: MARGIN.top, flexShrink: 0, width: 74, position: "sticky", right: 0, background: "white" }}>
         {/* Color legend */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: "bold", marginBottom: 4 }}>
@@ -273,6 +276,7 @@ export default function Dotplot({ genes, groups, data, width = 600, height = 400
             );
           })}
         </div>
+      </div>
       </div>
 
       {tooltipOpen && tooltipData && (

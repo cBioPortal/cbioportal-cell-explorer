@@ -168,7 +168,7 @@ export default function DotplotTab() {
           placement="right"
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}
-          width={360}
+          size={360}
           styles={{ mask: { background: "transparent" } }}
         >
           <Button
@@ -253,7 +253,7 @@ export default function DotplotTab() {
               width="90vw"
               style={{ top: 20 }}
               styles={{ body: { height: "80vh", padding: 12 } }}
-              destroyOnClose
+              destroyOnHidden
             >
               <div style={{ marginBottom: 8, fontSize: 12, color: "#595959", display: "flex", alignItems: "center", gap: 12 }}>
                 <Checkbox
@@ -279,15 +279,15 @@ export default function DotplotTab() {
                   style={{ width: 90 }}
                 />
               </div>
-              <div style={{ width: "100%", height: "calc(100% - 32px)" }}>
+              <div style={{ width: "100%", height: "calc(100% - 32px)", overflowX: "auto", overflowY: "auto" }}>
                 <ParentSize>
-                  {({ width, height }) => (
+                  {({ width: modalWidth, height: modalHeight }) => (
                     <Dotplot
                       genes={dotplotGenes}
                       groups={groups}
                       data={dotplotData}
-                      width={width}
-                      height={height}
+                      width={Math.max(chartWidth, modalWidth)}
+                      height={Math.max(chartHeight, modalHeight)}
                       showLabels={showLabels}
                       swapAxes={swapAxes}
                       colorScaleName={colorScaleName}
