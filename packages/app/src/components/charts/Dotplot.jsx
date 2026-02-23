@@ -92,8 +92,8 @@ export default function Dotplot({ genes, groups, data, width = 600, height = 400
   const gradientCSS = colorScaleGradient(palette, "to bottom");
 
   return (
-    <div style={{ position: "relative", display: "flex", gap: 12 }}>
-      <div style={{ flex: 1, minWidth: 0, overflowX: "auto" }}>
+    <div style={{ position: "relative", overflowX: "auto" }}>
+      <div style={{ display: "inline-flex", gap: 12, minWidth: "100%" }}>
       <svg width={svgWidth} height={height}>
         <Group left={MARGIN.left} top={MARGIN.top}>
           {/* Horizontal gridlines */}
@@ -228,10 +228,9 @@ export default function Dotplot({ genes, groups, data, width = 600, height = 400
           />
         </Group>
       </svg>
-      </div>
 
       {/* HTML legends */}
-      <div style={{ fontSize: 10, color: "#595959", paddingTop: MARGIN.top, flexShrink: 0, width: 74 }}>
+      <div style={{ fontSize: 10, color: "#595959", paddingTop: MARGIN.top, flexShrink: 0, width: 74, position: "sticky", right: 0, background: "white" }}>
         {/* Color legend */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: "bold", marginBottom: 4 }}>
@@ -277,6 +276,7 @@ export default function Dotplot({ genes, groups, data, width = 600, height = 400
             );
           })}
         </div>
+      </div>
       </div>
 
       {tooltipOpen && tooltipData && (
