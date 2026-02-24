@@ -23,7 +23,7 @@ afterEach(cleanup);
 describe("SelectionSummaryPanel", () => {
   it("renders selection count header", () => {
     render(<SelectionSummaryPanel {...baseProps} />);
-    expect(screen.getByText("Selection (150)")).toBeInTheDocument();
+    expect(screen.getByText("Selection Summary (150 cells)")).toBeInTheDocument();
   });
 
   it("renders category breakdown with color swatches and percentages", () => {
