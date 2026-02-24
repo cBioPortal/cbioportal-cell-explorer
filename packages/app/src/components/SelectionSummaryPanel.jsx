@@ -66,7 +66,7 @@ export default function SelectionSummaryPanel({
       <div style={{ position: "sticky", top: 0, background: "#fff", zIndex: 1, paddingBottom: 4 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Text strong style={{ fontSize: 12, whiteSpace: "nowrap" }}>
-            Selection ({selectedCount.toLocaleString()})
+            Selection Summary ({selectedCount.toLocaleString()} cells)
           </Text>
           {obsColumns && obsColumns.length > 0 && (
             <Select
