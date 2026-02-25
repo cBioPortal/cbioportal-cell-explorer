@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { Alert, Card, Checkbox, Typography, Spin, Select } from "antd";
 import SearchableList from "./SearchableList";
 import TabLayout from "./TabLayout";
 import useAppStore from "../store/useAppStore";
-import { computeBoxplotStats } from "../utils/boxplotUtils";
-import { computeViolinStats } from "../utils/violinUtils";
+import { usePlotsData } from "../hooks/usePlotsData";
 import ViolinPlot from "./charts/ViolinPlot";
 import RaincloudPlot from "./charts/RaincloudPlot";
 
@@ -49,58 +48,13 @@ export default function PlotsTab() {
     if (!plotObsColumn && obsColumns?.includes("cell_type")) setPlotObsColumn("cell_type");
   }, []);
 
-  // Compute top frequent rounded expression values for the exclude dropdown
-  const frequentValues = useMemo(() => {
-    if (!plotGeneExpression) return [];
-    const counts = new Map();
-    for (let i = 0; i < plotGeneExpression.length; i++) {
-      const v = Math.round(plotGeneExpression[i] * 10000) / 10000;
-      counts.set(v, (counts.get(v) || 0) + 1);
-    }
-    return [...counts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 20)
-      .map(([val, count]) => ({
-        value: val,
-        label: `${val} (${count.toLocaleString()}x)`,
-      }));
-  }, [plotGeneExpression]);
+  const { frequentValues, data, categoryCount, tooManyCategories, boxplotData, violinData, MAX_CATEGORIES } =
+    usePlotsData(plotGeneExpression, plotObsData, plotObsColumn, plotGene, filterExpression);
 
   // Reset filter when gene changes
   useEffect(() => {
     setFilterExpression(null);
   }, [plotGene]);
-
-  const data = useMemo(() => {
-    if (!plotGeneExpression || !plotObsData) return null;
-    const raw = Array.from(plotGeneExpression, (val, i) => ({
-      [plotObsColumn]: String(plotObsData[i]),
-      [plotGene]: Math.round(val * 10000) / 10000,
-    }));
-    if (filterExpression !== null) {
-      return raw.filter((d) => d[plotGene] !== filterExpression);
-    }
-    return raw;
-  }, [plotGeneExpression, plotObsData, plotObsColumn, plotGene, filterExpression]);
-
-  const MAX_CATEGORIES = 200;
-
-  const categoryCount = useMemo(() => {
-    if (!data) return 0;
-    return new Set(data.map((d) => d[plotObsColumn])).size;
-  }, [data, plotObsColumn]);
-
-  const tooManyCategories = categoryCount > MAX_CATEGORIES;
-
-  const boxplotData = useMemo(() => {
-    if (!data || tooManyCategories) return null;
-    return computeBoxplotStats(data, plotObsColumn, plotGene);
-  }, [data, plotObsColumn, plotGene, tooManyCategories]);
-
-  const violinData = useMemo(() => {
-    if (!data || tooManyCategories) return null;
-    return computeViolinStats(data, plotObsColumn, plotGene);
-  }, [data, plotObsColumn, plotGene, tooManyCategories]);
 
   const isLoading = plotGeneLoading || plotObsLoading;
   const hasSelections = plotGene && plotObsColumn;
