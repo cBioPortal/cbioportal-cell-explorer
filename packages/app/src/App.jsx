@@ -7,11 +7,11 @@ import {
   Tabs,
 } from "antd";
 import { GithubOutlined } from "@ant-design/icons";
-import ColumnsTab from "./components/ColumnsTab";
-import InfoTab from "./components/InfoTab";
-import ObsmTab from "./components/ObsmTab";
-import PlotsTab from "./components/PlotsTab";
-import DotplotTab from "./components/DotplotTab";
+import ColumnsTab from "./components/views/ColumnsTab";
+import InfoTab from "./components/views/InfoTab";
+import ObsmTab from "./components/views/ObsmTab";
+import PlotsTab from "./components/views/PlotsTab";
+import DotplotTab from "./components/views/DotplotTab";
 
 import useAppStore from "./store/useAppStore";
 import usePostMessage from "./hooks/usePostMessage";
