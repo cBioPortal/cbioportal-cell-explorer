@@ -155,7 +155,7 @@ export default function EmbeddingScatterplot({
 }: EmbeddingScatterplotProps) {
   const [hoverInfo, setHoverInfo] = useState<HoverState | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const [layerMode, setLayerMode] = useState<"hexbin" | "scatter">(showHexbinToggle ? "hexbin" : "scatter");
+  const [layerMode, setLayerMode] = useState<"hexbin" | "scatter">("scatter");
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
   const [hoveredExpression, setHoveredExpression] = useState<number | null>(null);
   const [hoveredTooltipFilter, setHoveredTooltipFilter] = useState<TooltipFilter | null>(null);
