@@ -23,9 +23,9 @@ export default function LoadPage() {
   const handleSubmit = () => {
     const trimmed = url.trim();
     if (!trimmed) return;
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(window.location.search);
     params.set("url", trimmed);
-    navigate(`/?${params.toString()}`);
+    navigate(`/?${decodeURIComponent(params.toString())}`);
   };
 
   const handleRemove = (urlToRemove) => {

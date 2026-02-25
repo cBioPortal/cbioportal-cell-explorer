@@ -9,10 +9,7 @@ import { useSearchParams } from "react-router";
 export default function useLinkWithParams() {
   const [searchParams] = useSearchParams();
   return useCallback(
-    (path) => {
-      const qs = searchParams.toString();
-      return qs ? `${path}?${qs}` : path;
-    },
-    [searchParams]
+    (path) => `${path}${window.location.search}`,
+    [searchParams] // re-create when params change
   );
 }
