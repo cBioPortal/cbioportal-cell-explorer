@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router";
-import { Card, Input, Button, Typography, Space, Alert } from "antd";
+import { Card, Input, Button, Typography, Space, Alert, List } from "antd";
+import { DeleteOutlined, ClearOutlined } from "@ant-design/icons";
+import { getRecentUrls, removeRecentUrl, clearRecentUrls } from "../utils/recentUrls";
 
 const { Title, Text } = Typography;
 
@@ -12,6 +14,11 @@ export default function LoadPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [url, setUrl] = useState(searchParams.get("url") || DEFAULT_URL);
+  const [recentUrls, setRecentUrls] = useState([]);
+
+  useEffect(() => {
+    setRecentUrls(getRecentUrls());
+  }, []);
 
   const handleSubmit = () => {
     const trimmed = url.trim();
@@ -19,6 +26,16 @@ export default function LoadPage() {
     const params = new URLSearchParams(searchParams);
     params.set("url", trimmed);
     navigate(`/?${params.toString()}`);
+  };
+
+  const handleRemove = (urlToRemove) => {
+    removeRecentUrl(urlToRemove);
+    setRecentUrls(getRecentUrls());
+  };
+
+  const handleClearAll = () => {
+    clearRecentUrls();
+    setRecentUrls([]);
   };
 
   if (isEmbedded) {
@@ -52,6 +69,51 @@ export default function LoadPage() {
           <Button type="primary" size="large" onClick={handleSubmit} block>
             Load
           </Button>
+          {recentUrls.length > 0 && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <Text strong>Recent Datasets</Text>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<ClearOutlined />}
+                  onClick={handleClearAll}
+                >
+                  Clear all
+                </Button>
+              </div>
+              <List
+                size="small"
+                bordered
+                dataSource={recentUrls}
+                renderItem={(entry) => (
+                  <List.Item
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setUrl(entry.url)}
+                    actions={[
+                      <Button
+                        key="delete"
+                        type="text"
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemove(entry.url);
+                        }}
+                      />,
+                    ]}
+                  >
+                    <Text
+                      ellipsis={{ tooltip: entry.url }}
+                      style={{ maxWidth: "100%" }}
+                    >
+                      {entry.url}
+                    </Text>
+                  </List.Item>
+                )}
+              />
+            </div>
+          )}
         </Space>
       </Card>
     </div>

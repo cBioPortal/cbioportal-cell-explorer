@@ -18,6 +18,8 @@ import LoadPage from "./pages/LoadPage";
 import useAppStore from "./store/useAppStore";
 import usePostMessage from "./hooks/usePostMessage";
 import useIframeResize from "./hooks/useIframeResize";
+import useLinkWithParams from "./hooks/useLinkWithParams";
+import { saveRecentUrl } from "./utils/recentUrls";
 
 const isEmbedded = window.self !== window.top || new URLSearchParams(window.location.search).has("embedded");
 
@@ -38,7 +40,10 @@ function ViewerContent() {
   } = useAppStore();
 
   useEffect(() => {
-    initialize(url);
+    initialize(url).then(() => {
+      const { error } = useAppStore.getState();
+      if (!error && url !== DEFAULT_URL) saveRecentUrl(url);
+    });
   }, [initialize, url]);
 
   const postMessageHandlers = useMemo(() => ({
@@ -112,6 +117,7 @@ function ViewerContent() {
 
 export default function App() {
   const { featureFlags } = useAppStore();
+  const linkTo = useLinkWithParams();
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -126,12 +132,12 @@ export default function App() {
             borderBottom: "1px solid #f0f0f0",
           }}
         >
-          <span style={{ fontSize: 18, fontWeight: 600 }}>
+          <Link to={linkTo("/")} style={{ fontSize: 18, fontWeight: 600, color: "inherit", textDecoration: "none" }}>
             cBioportal ZExplorer
-          </span>
+          </Link>
           <nav style={{ display: "flex", gap: 16, alignItems: "center" }}>
             {featureFlags.loadDataset && (
-              <Link to="/load">
+              <Link to={linkTo("/load")}>
                 <Button type="text" icon={<UploadOutlined />}>Load Dataset</Button>
               </Link>
             )}
