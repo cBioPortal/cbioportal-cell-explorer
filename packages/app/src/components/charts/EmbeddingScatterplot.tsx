@@ -21,6 +21,99 @@ import useSelectionInteraction from "../../hooks/useSelectionInteraction";
 
 const { Text } = Typography;
 
+export interface ScatterPoint {
+  position: [number, number];
+  category: string;
+  colorIndex: number;
+  index: number;
+  expression: number | null;
+}
+
+export interface ScatterBounds {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
+export interface ExpressionRange {
+  min: number;
+  max: number;
+}
+
+export interface SelectionSummary {
+  categoryBreakdown: Array<[string, number]> | null;
+  expressionStats: { min: number; max: number; mean: number; count: number } | null;
+  tooltipBreakdowns: Record<string, Array<[string, number]>>;
+}
+
+export type SelectionGeometry =
+  | { type: "rectangle"; bounds: [number, number, number, number] }
+  | { type: "lasso"; polygon: [number, number][] };
+
+export type HexColorMode = "expression" | "category" | "density";
+
+interface EmbeddingScatterplotProps {
+  // Passthrough
+  data: Float32Array;
+  shape: [number, number];
+  label: string;
+  maxPoints?: number;
+  onSaveSelection?: () => void;
+  showHexbinToggle?: boolean;
+  // Container-computed
+  points: ScatterPoint[];
+  categoryColorMap: Record<string, [number, number, number]>;
+  bounds: ScatterBounds | null;
+  expressionRange: ExpressionRange | null;
+  selectedSet: Set<number>;
+  hexColorConfig: Record<string, unknown>;
+  hexData: ScatterPoint[];
+  sortedCategories: Array<[string, [number, number, number]]>;
+  selectionSummary: SelectionSummary;
+  hasCategories: boolean;
+  hexColorMode: HexColorMode;
+  // Store reads
+  colorColumn: string | null;
+  colorData: unknown[] | null;
+  selectedGene: string | null;
+  geneExpression: Float32Array | null;
+  tooltipData: Record<string, unknown[]>;
+  tooltipColumns: string[];
+  tooltipColumnLoading: string | null;
+  metadata: { obsColumns: string[] } | null;
+  selectedPointIndices: number[];
+  selectionGeometry: SelectionGeometry | null;
+  colorScaleName: string;
+  // Store write callbacks
+  setSelectedPoints: (indices: number[]) => void;
+  clearSelectedPoints: () => void;
+  setSelectionGeometry: (geo: SelectionGeometry | null) => void;
+  setColorScaleName: (name: string) => void;
+  toggleTooltipColumn: (col: string) => void;
+}
+
+type SelectMode = "pan" | "rectangle" | "lasso";
+
+interface HexHoverObject {
+  hexCount: number;
+  binIndices?: number[];
+  meanExpression?: number;
+  dominantCategory?: string;
+  dominantCount?: number;
+}
+
+interface HoverState {
+  x: number;
+  y: number;
+  object: ScatterPoint | HexHoverObject;
+}
+
+interface TooltipFilter {
+  col: string;
+  value: string;
+}
+
 export default function EmbeddingScatterplot({
   // Passthrough
   data,
@@ -59,14 +152,14 @@ export default function EmbeddingScatterplot({
   setSelectionGeometry,
   setColorScaleName,
   toggleTooltipColumn,
-}) {
-  const [hoverInfo, setHoverInfo] = useState(null);
+}: EmbeddingScatterplotProps) {
+  const [hoverInfo, setHoverInfo] = useState<HoverState | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const [layerMode, setLayerMode] = useState(showHexbinToggle ? "hexbin" : "scatter");
-  const [hoveredCategory, setHoveredCategory] = useState(null);
-  const [hoveredExpression, setHoveredExpression] = useState(null);
-  const [hoveredTooltipFilter, setHoveredTooltipFilter] = useState(null);
-  const containerRef = useRef(null);
+  const [layerMode, setLayerMode] = useState<"hexbin" | "scatter">(showHexbinToggle ? "hexbin" : "scatter");
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+  const [hoveredExpression, setHoveredExpression] = useState<number | null>(null);
+  const [hoveredTooltipFilter, setHoveredTooltipFilter] = useState<TooltipFilter | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const deckRef = useRef(null);
   const [containerSize, setContainerSize] = useState({ width: 600, height: 600 });
 
@@ -121,21 +214,21 @@ export default function EmbeddingScatterplot({
   );
 
 
-  const hexHover = useCallback((info) => {
+  const hexHover = useCallback((info: any) => {
     if (!info.object) { setHoverInfo(null); return; }
     const pts = info.object.points;
     const count = info.object.count ?? pts?.length ?? info.object.colorValue;
-    const hex = { hexCount: count };
+    const hex: HexHoverObject = { hexCount: count };
 
     if (pts && pts.length > 0) {
-      const unwrap = (p) => p.source ?? p;
-      hex.binIndices = pts.map((p) => unwrap(p).index);
+      const unwrap = (p: any) => p.source ?? p;
+      hex.binIndices = pts.map((p: any) => unwrap(p).index);
       if (hexColorMode === "expression") {
-        const sum = pts.reduce((s, p) => s + (unwrap(p).expression ?? 0), 0);
+        const sum = pts.reduce((s: number, p: any) => s + (unwrap(p).expression ?? 0), 0);
         hex.meanExpression = sum / pts.length;
       }
       if (hexColorMode === "category") {
-        const counts = {};
+        const counts: Record<string, number> = {};
         for (const p of pts) {
           const cat = unwrap(p).category;
           counts[cat] = (counts[cat] || 0) + 1;
@@ -154,7 +247,7 @@ export default function EmbeddingScatterplot({
         new HexagonLayer({
           id: "hexbin",
           data: hexData,
-          getPosition: (d) => d.position,
+          getPosition: (d: ScatterPoint) => d.position,
           gpuAggregation: false,
           radius: 0.3,
           elevationScale: 0,
@@ -163,7 +256,7 @@ export default function EmbeddingScatterplot({
           opacity: 0.8,
           pickable: true,
           onHover: hexHover,
-          ...hexColorConfig,
+          ...(hexColorConfig as any),
           updateTriggers: {
             getColorWeight: [geneExpression, expressionRange, selectedPointIndices],
             getColorValue: [colorData, selectedPointIndices],
@@ -174,15 +267,15 @@ export default function EmbeddingScatterplot({
         new ScatterplotLayer({
           id: "scatterplot",
           data: points,
-          getPosition: (d) => d.position,
-          getFillColor: (d) => getPointFillColor(d, {
+          getPosition: (d: ScatterPoint) => d.position,
+          getFillColor: ((d: ScatterPoint) => getPointFillColor(d, {
             selectedSet,
             geneExpression,
             expressionRange,
             hasColorData: hasCategories,
-            colorScale: COLOR_SCALES[colorScaleName],
-          }),
-          getRadius: (d) => {
+            colorScale: (COLOR_SCALES as Record<string, number[][]>)[colorScaleName],
+          })) as any,
+          getRadius: (d: ScatterPoint) => {
             if (hoveredCategory != null && d.category === hoveredCategory) return 3;
             if (hoveredExpression != null && d.expression != null && expressionRange) {
               const tolerance = (expressionRange.max - expressionRange.min) * 0.05;
@@ -199,7 +292,7 @@ export default function EmbeddingScatterplot({
           radiusMaxPixels: (hoveredCategory != null || hoveredExpression != null || hoveredTooltipFilter != null) ? 3 : 1,
           opacity: 0.7,
           pickable: true,
-          onHover: (info) => setHoverInfo(info.object ? info : null),
+          onHover: (info: any) => setHoverInfo(info.object ? info : null),
           updateTriggers: {
             getFillColor: [colorData, geneExpression, expressionRange, colorScaleName, selectedPointIndices],
             getRadius: [hoveredCategory, hoveredExpression, hoveredTooltipFilter],
@@ -207,7 +300,7 @@ export default function EmbeddingScatterplot({
         }),
       ];
 
-  const handleTooltipChange = useCallback((newValues) => {
+  const handleTooltipChange = useCallback((newValues: string[]) => {
     const oldSet = new Set(tooltipColumns);
     const newSet = new Set(newValues);
     for (const col of newValues) {
