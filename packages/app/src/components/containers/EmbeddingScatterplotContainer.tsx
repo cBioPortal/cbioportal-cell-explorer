@@ -9,6 +9,35 @@ import {
   buildHexCategoryColorConfig,
 } from "../../utils/scatterplotUtils";
 import EmbeddingScatterplot from "../charts/EmbeddingScatterplot";
+import type { ScatterPoint, ScatterBounds, ExpressionRange, HexColorMode, SelectionGeometry, SelectionSummary } from "../charts/EmbeddingScatterplot";
+
+interface EmbeddingScatterplotContainerProps {
+  data: Float32Array;
+  shape: [number, number];
+  label: string;
+  maxPoints?: number;
+  onSaveSelection?: () => void;
+  showHexbinToggle?: boolean;
+}
+
+interface AppStoreSlice {
+  colorColumn: string | null;
+  colorData: unknown[] | null;
+  selectedGene: string | null;
+  geneExpression: Float32Array | null;
+  tooltipData: Record<string, unknown[]>;
+  tooltipColumns: string[];
+  toggleTooltipColumn: (col: string) => void;
+  tooltipColumnLoading: string | null;
+  metadata: { obsColumns: string[] } | null;
+  selectedPointIndices: number[];
+  setSelectedPoints: (indices: number[]) => void;
+  clearSelectedPoints: () => void;
+  selectionGeometry: SelectionGeometry | null;
+  setSelectionGeometry: (geo: SelectionGeometry | null) => void;
+  colorScaleName: string;
+  setColorScaleName: (name: string) => void;
+}
 
 export default function EmbeddingScatterplotContainer({
   data,
@@ -17,7 +46,7 @@ export default function EmbeddingScatterplotContainer({
   maxPoints = Infinity,
   onSaveSelection,
   showHexbinToggle = false,
-}) {
+}: EmbeddingScatterplotContainerProps) {
   const {
     colorColumn,
     colorData,
@@ -35,15 +64,19 @@ export default function EmbeddingScatterplotContainer({
     setSelectionGeometry,
     colorScaleName,
     setColorScaleName,
-  } = useAppStore();
+  } = useAppStore() as AppStoreSlice;
 
   const expressionRange = useMemo(
-    () => computeRange(geneExpression),
+    () => computeRange(geneExpression) as ExpressionRange | null,
     [geneExpression],
   );
 
   const { points, categoryColorMap, bounds } = useMemo(
-    () => buildScatterplotPoints({ data, shape, maxPoints, colorData, geneExpression }),
+    () => buildScatterplotPoints({ data, shape, maxPoints, colorData, geneExpression }) as {
+      points: ScatterPoint[];
+      categoryColorMap: Record<string, [number, number, number]>;
+      bounds: ScatterBounds | null;
+    },
     [data, shape, colorData, geneExpression, maxPoints],
   );
 
@@ -52,15 +85,15 @@ export default function EmbeddingScatterplotContainer({
     [selectedPointIndices],
   );
 
-  const hasCategories = colorData && Object.keys(categoryColorMap).length > 0;
-  const hexColorMode = geneExpression ? "expression" : hasCategories ? "category" : "density";
+  const hasCategories = !!(colorData && Object.keys(categoryColorMap).length > 0);
+  const hexColorMode: HexColorMode = geneExpression ? "expression" : hasCategories ? "category" : "density";
 
   const hexColorConfig = useMemo(() => {
     if (hexColorMode === "expression") {
       return {
-        getColorWeight: (d) => d.expression ?? 0,
+        getColorWeight: (d: ScatterPoint) => d.expression ?? 0,
         colorAggregation: "MEAN",
-        colorRange: COLOR_SCALES[colorScaleName],
+        colorRange: (COLOR_SCALES as Record<string, number[][]>)[colorScaleName],
         colorDomain: expressionRange ? [expressionRange.min, expressionRange.max] : undefined,
         colorScaleType: "linear",
       };
@@ -81,12 +114,12 @@ export default function EmbeddingScatterplotContainer({
   }, [hexColorMode, colorScaleName, expressionRange, points, categoryColorMap]);
 
   const hexData = useMemo(
-    () => selectedSet.size > 0 ? points.filter((p) => selectedSet.has(p.index)) : points,
+    () => selectedSet.size > 0 ? points.filter((p: ScatterPoint) => selectedSet.has(p.index)) : points,
     [points, selectedSet],
   );
 
   const sortedCategories = useMemo(
-    () => colorData ? sortCategoriesByCount(categoryColorMap, points) : [],
+    () => (colorData ? sortCategoriesByCount(categoryColorMap, points) : []) as Array<[string, [number, number, number]]>,
     [categoryColorMap, colorData, points],
   );
 
@@ -97,7 +130,7 @@ export default function EmbeddingScatterplotContainer({
       hasColorData: hasCategories,
       hasGeneExpression: !!geneExpression,
       tooltipData,
-    }),
+    }) as SelectionSummary,
     [selectedSet, points, hasCategories, geneExpression, tooltipData],
   );
 
