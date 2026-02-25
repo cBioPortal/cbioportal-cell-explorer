@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Card, Button } from "antd";
-import useAppStore from "../store/useAppStore";
+import useAppStore from "../../store/useAppStore";
 import SearchableList from "./SearchableList";
 
 export default function ColorByPanel({ height = 300, width = 220, style = {} }) {
