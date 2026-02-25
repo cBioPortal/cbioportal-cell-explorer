@@ -5,19 +5,13 @@ import DeckGL from "@deck.gl/react";
 import { ScatterplotLayer } from "@deck.gl/layers";
 import { HexagonLayer } from "@deck.gl/aggregation-layers";
 import { OrthographicView } from "@deck.gl/core";
-import useAppStore from "../store/useAppStore";
 import { calculatePlotDimensions } from "../utils/calculatePlotDimensions";
 import { COLOR_SCALES, CATEGORICAL_COLORS } from "../utils/colors";
 import {
   pointInPolygon,
   simplifyPolygon,
-  buildScatterplotPoints,
-  buildSelectionSummary,
-  computeRange,
   computeViewState,
   getPointFillColor,
-  sortCategoriesByCount,
-  buildHexCategoryColorConfig,
   MAX_CATEGORIES,
 } from "../utils/scatterplotUtils";
 import HoverTooltip from "./HoverTooltip";
@@ -28,37 +22,43 @@ import CollapsibleLegend from "./CollapsibleLegend";
 const { Text } = Typography;
 
 export default function EmbeddingScatterplot({
+  // Passthrough
   data,
   shape,
   label,
   maxPoints = Infinity,
   onSaveSelection,
   showHexbinToggle = false,
+  // Container-computed
+  points,
+  categoryColorMap,
+  bounds,
+  expressionRange,
+  selectedSet,
+  hexColorConfig,
+  hexData,
+  sortedCategories,
+  selectionSummary,
+  hasCategories,
+  hexColorMode,
+  // Store reads
+  colorColumn,
+  colorData,
+  selectedGene,
+  geneExpression,
+  tooltipData,
+  tooltipColumns,
+  tooltipColumnLoading,
+  metadata,
+  selectedPointIndices,
+  colorScaleName,
+  // Store write callbacks
+  setSelectedPoints,
+  clearSelectedPoints,
+  setSelectionGeometry,
+  setColorScaleName,
+  toggleTooltipColumn,
 }) {
-  const {
-    // Color by obs column
-    colorColumn,
-    colorData,
-    // Gene expression
-    selectedGene,
-    geneExpression,
-    // Tooltip
-    tooltipData,
-    tooltipColumns,
-    toggleTooltipColumn,
-    tooltipColumnLoading,
-    metadata,
-    // Selection
-    selectedPointIndices,
-    setSelectedPoints,
-    clearSelectedPoints,
-    selectionGeometry,
-    setSelectionGeometry,
-    // Color scale
-    colorScaleName,
-    setColorScaleName,
-  } = useAppStore();
-
   const [hoverInfo, setHoverInfo] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [layerMode, setLayerMode] = useState(showHexbinToggle ? "hexbin" : "scatter");
@@ -74,16 +74,6 @@ export default function EmbeddingScatterplot({
   const containerRef = useRef(null);
   const deckRef = useRef(null);
   const [containerSize, setContainerSize] = useState({ width: 600, height: 600 });
-
-  const expressionRange = useMemo(
-    () => computeRange(geneExpression),
-    [geneExpression],
-  );
-
-  const { points, categoryColorMap, bounds } = useMemo(
-    () => buildScatterplotPoints({ data, shape, maxPoints, colorData, geneExpression }),
-    [data, shape, colorData, geneExpression, maxPoints],
-  );
 
   // Calculate container dimensions based on available space and data aspect ratio
   useLayoutEffect(() => {
@@ -230,42 +220,6 @@ export default function EmbeddingScatterplot({
     }
   }, [selectMode, points, setSelectedPoints, setSelectionGeometry, updateSelectionRect]);
 
-  // Build selected indices set for fast lookup in getFillColor
-  const selectedSet = useMemo(
-    () => new Set(selectedPointIndices),
-    [selectedPointIndices],
-  );
-
-  // Determine hexbin coloring mode and config
-  const hasCategories = colorData && Object.keys(categoryColorMap).length > 0;
-  const hexColorMode = geneExpression ? "expression" : hasCategories ? "category" : "density";
-
-  const hexColorConfig = useMemo(() => {
-    if (hexColorMode === "expression") {
-      return {
-        getColorWeight: (d) => d.expression ?? 0,
-        colorAggregation: "MEAN",
-        colorRange: COLOR_SCALES[colorScaleName],
-        colorDomain: expressionRange ? [expressionRange.min, expressionRange.max] : undefined,
-        colorScaleType: "linear",
-      };
-    }
-    if (hexColorMode === "category") {
-      return buildHexCategoryColorConfig(categoryColorMap);
-    }
-    // Density fallback — blue ramp matching the default scatterplot color
-    return {
-      colorRange: [
-        [224, 240, 255],
-        [174, 214, 255],
-        [124, 186, 255],
-        [74, 160, 255],
-        [24, 144, 255],
-        [8, 100, 200],
-      ],
-    };
-  }, [hexColorMode, colorScaleName, expressionRange, points, categoryColorMap]);
-
   const hexHover = useCallback((info) => {
     if (!info.object) { setHoverInfo(null); return; }
     const pts = info.object.points;
@@ -273,9 +227,7 @@ export default function EmbeddingScatterplot({
     const hex = { hexCount: count };
 
     if (pts && pts.length > 0) {
-      // Each entry in pts may be the original point directly or wrapped in { source }
       const unwrap = (p) => p.source ?? p;
-      // Store unwrapped point indices for live tooltip breakdown computation
       hex.binIndices = pts.map((p) => unwrap(p).index);
       if (hexColorMode === "expression") {
         const sum = pts.reduce((s, p) => s + (unwrap(p).expression ?? 0), 0);
@@ -295,12 +247,6 @@ export default function EmbeddingScatterplot({
     }
     setHoverInfo({ x: info.x, y: info.y, object: hex });
   }, [hexColorMode]);
-
-  // When a selection exists in hexbin mode, only aggregate selected points
-  const hexData = useMemo(
-    () => selectedSet.size > 0 ? points.filter((p) => selectedSet.has(p.index)) : points,
-    [points, selectedSet],
-  );
 
   const layers = layerMode === "hexbin"
     ? [
@@ -360,34 +306,16 @@ export default function EmbeddingScatterplot({
         }),
       ];
 
-  const sortedCategories = useMemo(
-    () => colorData ? sortCategoriesByCount(categoryColorMap, points) : [],
-    [categoryColorMap, colorData, points],
-  );
-
   const handleTooltipChange = useCallback((newValues) => {
     const oldSet = new Set(tooltipColumns);
     const newSet = new Set(newValues);
-    // Added columns
     for (const col of newValues) {
       if (!oldSet.has(col)) toggleTooltipColumn(col);
     }
-    // Removed columns
     for (const col of tooltipColumns) {
       if (!newSet.has(col)) toggleTooltipColumn(col);
     }
   }, [tooltipColumns, toggleTooltipColumn]);
-
-  const selectionSummary = useMemo(
-    () => buildSelectionSummary({
-      selectedSet,
-      points,
-      hasColorData: hasCategories,
-      hasGeneExpression: !!geneExpression,
-      tooltipData,
-    }),
-    [selectedSet, points, hasCategories, geneExpression, tooltipData],
-  );
 
   return (
     <>
