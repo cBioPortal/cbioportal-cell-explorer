@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router";
 import { Card, Input, Button, Typography, Space, Alert, List } from "antd";
-import { DeleteOutlined, ClearOutlined } from "@ant-design/icons";
+import { DeleteOutlined, ClearOutlined, PushpinFilled } from "@ant-design/icons";
 import { getRecentUrls, removeRecentUrl, clearRecentUrls } from "../utils/recentUrls";
 
 const { Title, Text } = Typography;
@@ -69,51 +69,66 @@ export default function LoadPage() {
           <Button type="primary" size="large" onClick={handleSubmit} block>
             Load
           </Button>
-          {recentUrls.length > 0 && (
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <Text strong>Recent Datasets</Text>
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <Text strong>Datasets</Text>
+              {recentUrls.length > 0 && (
                 <Button
                   type="link"
                   size="small"
                   icon={<ClearOutlined />}
                   onClick={handleClearAll}
                 >
-                  Clear all
+                  Clear recents
                 </Button>
-              </div>
-              <List
-                size="small"
-                bordered
-                dataSource={recentUrls}
-                renderItem={(entry) => (
-                  <List.Item
-                    style={{ cursor: "pointer" }}
-                    onClick={() => setUrl(entry.url)}
-                    actions={[
-                      <Button
-                        key="delete"
-                        type="text"
-                        size="small"
-                        icon={<DeleteOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemove(entry.url);
-                        }}
-                      />,
-                    ]}
-                  >
+              )}
+            </div>
+            <List
+              size="small"
+              bordered
+              dataSource={[
+                { url: DEFAULT_URL, pinned: true },
+                ...recentUrls.filter((entry) => entry.url !== DEFAULT_URL),
+              ]}
+              renderItem={(entry) => (
+                <List.Item
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setUrl(entry.url)}
+                  actions={
+                    entry.pinned
+                      ? []
+                      : [
+                          <Button
+                            key="delete"
+                            type="text"
+                            size="small"
+                            icon={<DeleteOutlined />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemove(entry.url);
+                            }}
+                          />,
+                        ]
+                  }
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    {entry.pinned && (
+                      <Text type="secondary" style={{ fontSize: 12, display: "block" }}>
+                        <PushpinFilled style={{ marginRight: 4 }} />
+                        Default
+                      </Text>
+                    )}
                     <Text
                       ellipsis={{ tooltip: entry.url }}
                       style={{ maxWidth: "100%" }}
                     >
                       {entry.url}
                     </Text>
-                  </List.Item>
-                )}
-              />
-            </div>
-          )}
+                  </div>
+                </List.Item>
+              )}
+            />
+          </div>
         </Space>
       </Card>
     </div>
