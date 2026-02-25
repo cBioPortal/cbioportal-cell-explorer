@@ -12,12 +12,12 @@ import {
   message,
 } from "antd";
 import { ReloadOutlined, EditOutlined, CopyOutlined, InfoCircleOutlined } from "@ant-design/icons";
-import EmbeddingScatterplot from "./EmbeddingScatterplot";
-import SearchableList from "./SearchableList";
-import ColorByPanel from "./ColorByPanel";
+import EmbeddingScatterplotContainer from "../containers/EmbeddingScatterplotContainer";
+import SearchableList from "../ui/SearchableList";
+import ColorByPanel from "../ui/ColorByPanel";
 
-import TabLayout from "./TabLayout";
-import useAppStore from "../store/useAppStore";
+import TabLayout from "../layouts/TabLayout";
+import useAppStore from "../../store/useAppStore";
 
 const { Text } = Typography;
 
@@ -280,7 +280,7 @@ export default function ObsmTab() {
             {obsmData?.error ? (
               <Alert type="error" message={obsmData.error} />
             ) : isEmbedding ? (
-              <EmbeddingScatterplot
+              <EmbeddingScatterplotContainer
                 data={obsmData.data}
                 shape={obsmData.shape}
                 label={selectedObsm}

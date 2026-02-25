@@ -5,85 +5,86 @@ import DeckGL from "@deck.gl/react";
 import { ScatterplotLayer } from "@deck.gl/layers";
 import { HexagonLayer } from "@deck.gl/aggregation-layers";
 import { OrthographicView } from "@deck.gl/core";
-import useAppStore from "../store/useAppStore";
-import { calculatePlotDimensions } from "../utils/calculatePlotDimensions";
-import { COLOR_SCALES, CATEGORICAL_COLORS } from "../utils/colors";
+import { calculatePlotDimensions } from "../../utils/calculatePlotDimensions";
+import { COLOR_SCALES, CATEGORICAL_COLORS } from "../../utils/colors";
 import {
-  pointInPolygon,
-  simplifyPolygon,
-  buildScatterplotPoints,
-  buildSelectionSummary,
-  computeRange,
   computeViewState,
   getPointFillColor,
-  sortCategoriesByCount,
-  buildHexCategoryColorConfig,
   MAX_CATEGORIES,
-} from "../utils/scatterplotUtils";
-import HoverTooltip from "./HoverTooltip";
-import ExpressionLegend from "./ExpressionLegend";
-import SelectionSummaryPanel from "./SelectionSummaryPanel";
-import CollapsibleLegend from "./CollapsibleLegend";
+} from "../../utils/scatterplotUtils";
+import HoverTooltip from "../ui/HoverTooltip";
+import ExpressionLegend from "../ui/ExpressionLegend";
+import SelectionSummaryPanel from "../ui/SelectionSummaryPanel";
+import CollapsibleLegend from "../ui/CollapsibleLegend";
+import SelectionOverlay from "../ui/SelectionOverlay";
+import useSelectionInteraction from "../../hooks/useSelectionInteraction";
 
 const { Text } = Typography;
 
 export default function EmbeddingScatterplot({
+  // Passthrough
   data,
   shape,
   label,
   maxPoints = Infinity,
   onSaveSelection,
   showHexbinToggle = false,
+  // Container-computed
+  points,
+  categoryColorMap,
+  bounds,
+  expressionRange,
+  selectedSet,
+  hexColorConfig,
+  hexData,
+  sortedCategories,
+  selectionSummary,
+  hasCategories,
+  hexColorMode,
+  // Store reads
+  colorColumn,
+  colorData,
+  selectedGene,
+  geneExpression,
+  tooltipData,
+  tooltipColumns,
+  tooltipColumnLoading,
+  metadata,
+  selectedPointIndices,
+  selectionGeometry,
+  colorScaleName,
+  // Store write callbacks
+  setSelectedPoints,
+  clearSelectedPoints,
+  setSelectionGeometry,
+  setColorScaleName,
+  toggleTooltipColumn,
 }) {
-  const {
-    // Color by obs column
-    colorColumn,
-    colorData,
-    // Gene expression
-    selectedGene,
-    geneExpression,
-    // Tooltip
-    tooltipData,
-    tooltipColumns,
-    toggleTooltipColumn,
-    tooltipColumnLoading,
-    metadata,
-    // Selection
-    selectedPointIndices,
-    setSelectedPoints,
-    clearSelectedPoints,
-    selectionGeometry,
-    setSelectionGeometry,
-    // Color scale
-    colorScaleName,
-    setColorScaleName,
-  } = useAppStore();
-
   const [hoverInfo, setHoverInfo] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [layerMode, setLayerMode] = useState(showHexbinToggle ? "hexbin" : "scatter");
-  const [selectMode, setSelectMode] = useState("pan");
   const [hoveredCategory, setHoveredCategory] = useState(null);
   const [hoveredExpression, setHoveredExpression] = useState(null);
   const [hoveredTooltipFilter, setHoveredTooltipFilter] = useState(null);
-  const dragStartRef = useRef(null);
-  const dragEndRef = useRef(null);
-  const selectionRectRef = useRef(null);
-  const lassoPointsRef = useRef([]);
-  const lassoSvgRef = useRef(null);
   const containerRef = useRef(null);
   const deckRef = useRef(null);
   const [containerSize, setContainerSize] = useState({ width: 600, height: 600 });
 
-  const expressionRange = useMemo(
-    () => computeRange(geneExpression),
-    [geneExpression],
-  );
-
-  const { points, categoryColorMap, bounds } = useMemo(
-    () => buildScatterplotPoints({ data, shape, maxPoints, colorData, geneExpression }),
-    [data, shape, colorData, geneExpression, maxPoints],
-  );
+  const {
+    selectMode,
+    setSelectMode,
+    selectionRectRef,
+    lassoSvgRef,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+  } = useSelectionInteraction({
+    deckRef,
+    points,
+    setSelectedPoints,
+    setSelectionGeometry,
+    clearSelectedPoints,
+  });
 
   // Calculate container dimensions based on available space and data aspect ratio
   useLayoutEffect(() => {
@@ -119,152 +120,6 @@ export default function EmbeddingScatterplot({
     [bounds, containerSize],
   );
 
-  // Selection rectangle mouse handlers — use refs + direct DOM updates to avoid re-renders during drag
-  const updateSelectionRect = useCallback(() => {
-    const el = selectionRectRef.current;
-    const start = dragStartRef.current;
-    const end = dragEndRef.current;
-    if (!el || !start || !end) {
-      if (el) el.style.display = "none";
-      return;
-    }
-    el.style.display = "block";
-    el.style.left = `${Math.min(start.x, end.x)}px`;
-    el.style.top = `${Math.min(start.y, end.y)}px`;
-    el.style.width = `${Math.abs(end.x - start.x)}px`;
-    el.style.height = `${Math.abs(end.y - start.y)}px`;
-  }, []);
-
-  const handleMouseDown = useCallback((e) => {
-    if (selectMode === "pan") return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    if (selectMode === "rectangle") {
-      dragStartRef.current = pos;
-      dragEndRef.current = pos;
-      updateSelectionRect();
-    } else if (selectMode === "lasso") {
-      lassoPointsRef.current = [pos];
-      const svg = lassoSvgRef.current;
-      if (svg) {
-        svg.style.display = "block";
-        svg.querySelector("polyline").setAttribute("points", `${pos.x},${pos.y}`);
-      }
-    }
-  }, [selectMode, updateSelectionRect]);
-
-  const handleMouseMove = useCallback((e) => {
-    if (selectMode === "pan") return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    if (selectMode === "rectangle") {
-      if (!dragStartRef.current) return;
-      dragEndRef.current = pos;
-      updateSelectionRect();
-    } else if (selectMode === "lasso") {
-      if (lassoPointsRef.current.length === 0) return;
-      const last = lassoPointsRef.current[lassoPointsRef.current.length - 1];
-      if ((pos.x - last.x) ** 2 + (pos.y - last.y) ** 2 < 25) return; // 5px min distance
-      lassoPointsRef.current.push(pos);
-      const svg = lassoSvgRef.current;
-      if (svg) {
-        const pointsStr = lassoPointsRef.current.map(p => `${p.x},${p.y}`).join(" ");
-        svg.querySelector("polyline").setAttribute("points", pointsStr);
-      }
-    }
-  }, [selectMode, updateSelectionRect]);
-
-  const handleMouseUp = useCallback(() => {
-    if (selectMode === "pan") return;
-
-    if (selectMode === "rectangle") {
-      if (!dragStartRef.current || !dragEndRef.current) return;
-      const start = dragStartRef.current;
-      const end = dragEndRef.current;
-      const viewport = deckRef.current?.deck?.getViewports()?.[0];
-      if (viewport) {
-        const [wx1, wy1] = viewport.unproject([start.x, start.y]);
-        const [wx2, wy2] = viewport.unproject([end.x, end.y]);
-        const minWx = Math.min(wx1, wx2);
-        const maxWx = Math.max(wx1, wx2);
-        const minWy = Math.min(wy1, wy2);
-        const maxWy = Math.max(wy1, wy2);
-
-        const indices = [];
-        for (const pt of points) {
-          const [px, py] = pt.position;
-          if (px >= minWx && px <= maxWx && py >= minWy && py <= maxWy) {
-            indices.push(pt.index);
-          }
-        }
-        setSelectionGeometry({ type: "rectangle", bounds: [minWx, minWy, maxWx, maxWy] });
-        setSelectedPoints(indices);
-      }
-      dragStartRef.current = null;
-      dragEndRef.current = null;
-      updateSelectionRect();
-    } else if (selectMode === "lasso") {
-      const lassoPoints = lassoPointsRef.current;
-      if (lassoPoints.length < 3) {
-        lassoPointsRef.current = [];
-        const svg = lassoSvgRef.current;
-        if (svg) svg.style.display = "none";
-        return;
-      }
-      const viewport = deckRef.current?.deck?.getViewports()?.[0];
-      if (viewport) {
-        const worldPolygon = lassoPoints.map(p => viewport.unproject([p.x, p.y]));
-        const indices = [];
-        for (const pt of points) {
-          const [px, py] = pt.position;
-          if (pointInPolygon(px, py, worldPolygon)) {
-            indices.push(pt.index);
-          }
-        }
-        setSelectionGeometry({ type: "lasso", polygon: simplifyPolygon(worldPolygon) });
-        setSelectedPoints(indices);
-      }
-      lassoPointsRef.current = [];
-      const svg = lassoSvgRef.current;
-      if (svg) svg.style.display = "none";
-    }
-  }, [selectMode, points, setSelectedPoints, setSelectionGeometry, updateSelectionRect]);
-
-  // Build selected indices set for fast lookup in getFillColor
-  const selectedSet = useMemo(
-    () => new Set(selectedPointIndices),
-    [selectedPointIndices],
-  );
-
-  // Determine hexbin coloring mode and config
-  const hasCategories = colorData && Object.keys(categoryColorMap).length > 0;
-  const hexColorMode = geneExpression ? "expression" : hasCategories ? "category" : "density";
-
-  const hexColorConfig = useMemo(() => {
-    if (hexColorMode === "expression") {
-      return {
-        getColorWeight: (d) => d.expression ?? 0,
-        colorAggregation: "MEAN",
-        colorRange: COLOR_SCALES[colorScaleName],
-        colorDomain: expressionRange ? [expressionRange.min, expressionRange.max] : undefined,
-        colorScaleType: "linear",
-      };
-    }
-    if (hexColorMode === "category") {
-      return buildHexCategoryColorConfig(categoryColorMap);
-    }
-    // Density fallback — blue ramp matching the default scatterplot color
-    return {
-      colorRange: [
-        [224, 240, 255],
-        [174, 214, 255],
-        [124, 186, 255],
-        [74, 160, 255],
-        [24, 144, 255],
-        [8, 100, 200],
-      ],
-    };
-  }, [hexColorMode, colorScaleName, expressionRange, points, categoryColorMap]);
 
   const hexHover = useCallback((info) => {
     if (!info.object) { setHoverInfo(null); return; }
@@ -273,9 +128,7 @@ export default function EmbeddingScatterplot({
     const hex = { hexCount: count };
 
     if (pts && pts.length > 0) {
-      // Each entry in pts may be the original point directly or wrapped in { source }
       const unwrap = (p) => p.source ?? p;
-      // Store unwrapped point indices for live tooltip breakdown computation
       hex.binIndices = pts.map((p) => unwrap(p).index);
       if (hexColorMode === "expression") {
         const sum = pts.reduce((s, p) => s + (unwrap(p).expression ?? 0), 0);
@@ -295,12 +148,6 @@ export default function EmbeddingScatterplot({
     }
     setHoverInfo({ x: info.x, y: info.y, object: hex });
   }, [hexColorMode]);
-
-  // When a selection exists in hexbin mode, only aggregate selected points
-  const hexData = useMemo(
-    () => selectedSet.size > 0 ? points.filter((p) => selectedSet.has(p.index)) : points,
-    [points, selectedSet],
-  );
 
   const layers = layerMode === "hexbin"
     ? [
@@ -360,34 +207,16 @@ export default function EmbeddingScatterplot({
         }),
       ];
 
-  const sortedCategories = useMemo(
-    () => colorData ? sortCategoriesByCount(categoryColorMap, points) : [],
-    [categoryColorMap, colorData, points],
-  );
-
   const handleTooltipChange = useCallback((newValues) => {
     const oldSet = new Set(tooltipColumns);
     const newSet = new Set(newValues);
-    // Added columns
     for (const col of newValues) {
       if (!oldSet.has(col)) toggleTooltipColumn(col);
     }
-    // Removed columns
     for (const col of tooltipColumns) {
       if (!newSet.has(col)) toggleTooltipColumn(col);
     }
   }, [tooltipColumns, toggleTooltipColumn]);
-
-  const selectionSummary = useMemo(
-    () => buildSelectionSummary({
-      selectedSet,
-      points,
-      hasColorData: hasCategories,
-      hasGeneExpression: !!geneExpression,
-      tooltipData,
-    }),
-    [selectedSet, points, hasCategories, geneExpression, tooltipData],
-  );
 
   return (
     <>
@@ -432,39 +261,7 @@ export default function EmbeddingScatterplot({
             controller={{ dragPan: selectMode === "pan" }}
             layers={layers}
           />
-          {/* Selection rectangle overlay — styled directly via ref to avoid re-renders */}
-          <div
-            ref={selectionRectRef}
-            style={{
-              display: "none",
-              position: "absolute",
-              backgroundColor: "rgba(24, 144, 255, 0.15)",
-              border: "1px solid rgba(24, 144, 255, 0.6)",
-              pointerEvents: "none",
-              zIndex: 2,
-            }}
-          />
-          {/* Lasso SVG overlay — updated directly via ref to avoid re-renders */}
-          <svg
-            ref={lassoSvgRef}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              pointerEvents: "none",
-              zIndex: 2,
-              display: "none",
-            }}
-          >
-            <polyline
-              fill="rgba(24, 144, 255, 0.15)"
-              stroke="rgba(24, 144, 255, 0.6)"
-              strokeWidth="1"
-              points=""
-            />
-          </svg>
+          <SelectionOverlay selectionRectRef={selectionRectRef} lassoSvgRef={lassoSvgRef} />
           <div style={{ position: "absolute", top: 8, left: 8, zIndex: 1, display: "flex", gap: 4 }} onMouseDown={(e) => e.stopPropagation()}>
             <Button
               size="small"

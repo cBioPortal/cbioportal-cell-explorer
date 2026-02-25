@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Card, Checkbox, Drawer, Input, Modal, Select, Tag, Typography, Spin, message } from "antd";
 import { ExpandOutlined } from "@ant-design/icons";
 import { ParentSize } from "@visx/responsive";
-import SearchableList from "./SearchableList";
-import TabLayout from "./TabLayout";
-import Dotplot from "./charts/Dotplot";
-import useAppStore from "../store/useAppStore";
-import { computeDotplotStats } from "../utils/dotplotUtils";
+import SearchableList from "../ui/SearchableList";
+import TabLayout from "../layouts/TabLayout";
+import Dotplot from "../charts/Dotplot";
+import useAppStore from "../../store/useAppStore";
+import { useDotplotData } from "../../hooks/useDotplotData";
 
 const { Text } = Typography;
 
@@ -88,17 +88,7 @@ export default function DotplotTab() {
     });
   };
 
-  // Compute unique groups from obs data
-  const groups = useMemo(() => {
-    if (!dotplotObsData) return [];
-    return [...new Set(dotplotObsData)].sort();
-  }, [dotplotObsData]);
-
-  // Compute dotplot stats: for each gene × group, calculate fraction expressing and mean expression
-  const dotplotData = useMemo(
-    () => computeDotplotStats(dotplotGenes, dotplotGeneExpressions, dotplotObsData, groups),
-    [dotplotGenes, dotplotGeneExpressions, dotplotObsData, groups],
-  );
+  const { groups, dotplotData } = useDotplotData(dotplotGenes, dotplotGeneExpressions, dotplotObsData);
 
   const isLoading = dotplotGeneLoading || dotplotObsLoading;
   const [showLabels, setShowLabels] = useState(false);

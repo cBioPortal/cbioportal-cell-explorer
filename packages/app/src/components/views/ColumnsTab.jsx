@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Card, Button, Table } from "antd";
-import ColumnExplorer from "./ColumnExplorer";
-import SearchableList from "./SearchableList";
-import TabLayout from "./TabLayout";
-import useAppStore from "../store/useAppStore";
+import ColumnExplorer from "../ui/ColumnExplorer";
+import SearchableList from "../ui/SearchableList";
+import TabLayout from "../layouts/TabLayout";
+import useAppStore from "../../store/useAppStore";
+import { useColumnsData } from "../../hooks/useColumnsData";
 
 export default function ColumnsTab() {
   const {
@@ -40,18 +41,7 @@ export default function ColumnsTab() {
     ? selectedColumns[selectedCount - 1]
     : null;
 
-  const valueCounts = useMemo(() => {
-    if (!lastSelected || !columnsData[lastSelected]) return [];
-    const counts = {};
-    for (const v of columnsData[lastSelected]) {
-      const key = String(v);
-      counts[key] = (counts[key] || 0) + 1;
-    }
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 15)
-      .map(([value, count]) => ({ key: value, value, count }));
-  }, [lastSelected, columnsData]);
+  const { valueCounts } = useColumnsData(lastSelected, columnsData);
 
   return (
     <TabLayout

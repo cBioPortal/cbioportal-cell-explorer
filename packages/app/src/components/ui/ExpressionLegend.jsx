@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { COLOR_SCALES, colorScaleGradient } from "../utils/colors";
+import { COLOR_SCALES, colorScaleGradient } from "../../utils/colors";
 
 const BAR_HEIGHT = 200;
 
