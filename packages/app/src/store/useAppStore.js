@@ -25,6 +25,60 @@ const createCoreSlice = (set, get) => ({
   varIndex: null,
 
   initialize: async (url) => {
+    // Reset all dataset-dependent state before loading new data
+    set({
+      loading: true,
+      error: null,
+      // Embedding slice
+      selectedObsm: null,
+      obsmData: null,
+      obsmLoading: false,
+      obsmTime: null,
+      obsmStreamingData: null,
+      obsmStreamingLoading: false,
+      obsmStreamingTime: null,
+      obsmStreamingProgress: null,
+      selectedGene: null,
+      geneExpression: null,
+      geneLoading: false,
+      colorColumn: null,
+      colorData: null,
+      colorLoading: false,
+      tooltipColumns: [],
+      tooltipData: {},
+      tooltipColumnLoading: null,
+      selectedPointIndices: [],
+      selectionGeometry: null,
+      // Columns slice
+      obsColumnsSelected: [],
+      obsColumnsData: {},
+      obsColumnLoading: null,
+      obsColumnTime: null,
+      varColumnsSelected: [],
+      varColumnsData: {},
+      varColumnLoading: null,
+      varColumnTime: null,
+      // Plots slice
+      plotGene: null,
+      plotGeneExpression: null,
+      plotGeneLoading: false,
+      plotObsColumn: null,
+      plotObsData: null,
+      plotObsLoading: false,
+      // Dotplot slice
+      dotplotGenes: [],
+      dotplotGeneExpressions: {},
+      dotplotGeneLoading: null,
+      dotplotObsColumn: null,
+      dotplotObsData: null,
+      dotplotObsLoading: false,
+      // Config slice
+      filterJson: "",
+      viewConfigDefaults: {},
+      appliedSelections: [],
+      activeSelectionIndex: undefined,
+    });
+
     const timings = {};
 
     try {

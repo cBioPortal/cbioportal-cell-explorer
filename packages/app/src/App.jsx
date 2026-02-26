@@ -1,29 +1,35 @@
 import { useEffect, useMemo } from "react";
-import { Routes, Route } from "react-router";
+import { Routes, Route, Navigate, useSearchParams, Link } from "react-router";
 import {
   Layout,
   Spin,
   Alert,
   Tabs,
+  Button,
 } from "antd";
-import { GithubOutlined } from "@ant-design/icons";
+import { GithubOutlined, UploadOutlined } from "@ant-design/icons";
 import ColumnsTab from "./components/views/ColumnsTab";
 import InfoTab from "./components/views/InfoTab";
 import ObsmTab from "./components/views/ObsmTab";
 import PlotsTab from "./components/views/PlotsTab";
 import DotplotTab from "./components/views/DotplotTab";
+import LoadPage from "./pages/LoadPage";
 
 import useAppStore from "./store/useAppStore";
 import usePostMessage from "./hooks/usePostMessage";
 import useIframeResize from "./hooks/useIframeResize";
+import useLinkWithParams from "./hooks/useLinkWithParams";
+import { saveRecentUrl } from "./utils/recentUrls";
+import { DEFAULT_URL } from "./constants";
 
 const isEmbedded = window.self !== window.top || new URLSearchParams(window.location.search).has("embedded");
 
 const { Header, Content } = Layout;
 
-const URL = "https://cbioportal-public-imaging.assets.cbioportal.org/msk_spectrum_tme_2022/zarr/spectrum_all_cells.zarr";
+function ViewerContent() {
+  const [searchParams] = useSearchParams();
+  const url = searchParams.get("url") || DEFAULT_URL;
 
-export default function App() {
   const {
     loading,
     error,
@@ -33,8 +39,16 @@ export default function App() {
   } = useAppStore();
 
   useEffect(() => {
-    initialize(URL);
-  }, [initialize]);
+    if (!url) return;
+    initialize(url).then(() => {
+      const { error } = useAppStore.getState();
+      if (!error) saveRecentUrl(url);
+    });
+  }, [initialize, url]);
+
+  if (!url) {
+    return <Navigate to="/load" replace />;
+  }
 
   const postMessageHandlers = useMemo(() => ({
     applyConfig: async (payload) => {
@@ -50,7 +64,7 @@ export default function App() {
     return (
       <div style={{ padding: 24, textAlign: "center" }}>
         <Spin size="large" />
-        <p style={{ marginTop: 16 }}>Loading AnnData from {URL}...</p>
+        <p style={{ marginTop: 16 }}>Loading AnnData from {url}...</p>
       </div>
     );
   }
@@ -64,7 +78,7 @@ export default function App() {
           description={
             <>
               <p>{error}</p>
-              <p>Make sure the Zarr store is being served at {URL}</p>
+              <p>Make sure the Zarr store is being served at {url}</p>
             </>
           }
         />
@@ -99,6 +113,17 @@ export default function App() {
   ];
 
   return (
+    <div style={{ padding: isEmbedded ? "0 24px 24px" : 24 }}>
+      <Tabs items={tabItems} defaultActiveKey={import.meta.env.VITE_DEFAULT_TAB || "explorer"} />
+    </div>
+  );
+}
+
+export default function App() {
+  const { featureFlags } = useAppStore();
+  const linkTo = useLinkWithParams();
+
+  return (
     <Layout style={{ minHeight: "100vh" }}>
       {!isEmbedded && (
         <Header
@@ -111,10 +136,15 @@ export default function App() {
             borderBottom: "1px solid #f0f0f0",
           }}
         >
-          <span style={{ fontSize: 18, fontWeight: 600 }}>
+          <Link to={linkTo("/")} style={{ fontSize: 18, fontWeight: 600, color: "inherit", textDecoration: "none" }}>
             cBioportal ZExplorer
-          </span>
-          <nav style={{ display: "flex", gap: 16 }}>
+          </Link>
+          <nav style={{ display: "flex", gap: 16, alignItems: "center" }}>
+            {featureFlags.loadDataset && (
+              <Link to={linkTo("/load")}>
+                <Button type="text" icon={<UploadOutlined />}>Load Dataset</Button>
+              </Link>
+            )}
             <a
               href="https://github.com/cbioportal/cbioportal-zarr-loader"
               target="_blank"
@@ -127,14 +157,8 @@ export default function App() {
       )}
       <Content style={{ background: "#fff" }}>
         <Routes>
-          <Route
-            path="/*"
-            element={
-              <div style={{ padding: isEmbedded ? "0 24px 24px" : 24 }}>
-                <Tabs items={tabItems} defaultActiveKey={import.meta.env.VITE_DEFAULT_TAB || "explorer"} />
-              </div>
-            }
-          />
+          <Route path="/load" element={<LoadPage />} />
+          <Route path="/*" element={<ViewerContent />} />
         </Routes>
       </Content>
     </Layout>
