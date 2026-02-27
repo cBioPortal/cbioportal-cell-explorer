@@ -124,6 +124,26 @@ describe("computeDotplotStats", () => {
     expect(typeB.fractionExpressing).toBeCloseTo(0.5);
   });
 
+  it("groups null obs values under NA", () => {
+    const genes = ["EGFR"];
+    const geneExpressions = {
+      EGFR: [1.0, 2.0, 3.0, 4.0, 5.0],
+    };
+    // Simulate obs data after null → "NA" coercion (done by useDotplotData)
+    const obs = ["TypeA", "NA", "TypeA", "NA", "TypeA"];
+    const grps = ["NA", "TypeA"];
+    const stats = computeDotplotStats(genes, geneExpressions, obs, grps);
+
+    expect(stats).toHaveLength(2);
+
+    const naGroup = stats.find((s) => s.group === "NA");
+    expect(naGroup.cellCount).toBe(2); // indices 1, 3
+    expect(naGroup.meanExpression).toBeCloseTo((2.0 + 4.0) / 2);
+
+    const typeA = stats.find((s) => s.group === "TypeA");
+    expect(typeA.cellCount).toBe(3); // indices 0, 2, 4
+  });
+
   it("ignores obs values not in groups list", () => {
     const obs = ["TypeA", "TypeA", "TypeC", "TypeC", "TypeA"];
     const genes = ["EGFR"];
