@@ -6,14 +6,19 @@ export function useDotplotData(
   dotplotGeneExpressions: Record<string, Float32Array>,
   dotplotObsData: string[] | null,
 ) {
-  const groups = useMemo(() => {
-    if (!dotplotObsData) return [];
-    return [...new Set(dotplotObsData)].sort();
+  const normalizedObsData = useMemo(() => {
+    if (!dotplotObsData) return null;
+    return dotplotObsData.map((v) => (v == null ? "NA" : v));
   }, [dotplotObsData]);
 
+  const groups = useMemo(() => {
+    if (!normalizedObsData) return [];
+    return [...new Set(normalizedObsData)].sort();
+  }, [normalizedObsData]);
+
   const dotplotData = useMemo(
-    () => computeDotplotStats(dotplotGenes, dotplotGeneExpressions, dotplotObsData as string[], groups),
-    [dotplotGenes, dotplotGeneExpressions, dotplotObsData, groups],
+    () => computeDotplotStats(dotplotGenes, dotplotGeneExpressions, normalizedObsData as string[], groups),
+    [dotplotGenes, dotplotGeneExpressions, normalizedObsData, groups],
   );
 
   return { groups, dotplotData };
