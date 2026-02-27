@@ -75,7 +75,7 @@ export default function ObsmTab() {
   const [viewJson, setViewJson] = useState("");
 
   const { obsmKeys } = metadata;
-  const isEmbedding = selectedObsm && /umap|tsne|pca/i.test(selectedObsm) && obsmData?.shape?.[1] >= 2;
+  const isEmbedding = selectedObsm && obsmData?.shape?.[1] >= 2;
 
   useEffect(() => {
     if (obsmLoading) {
@@ -95,13 +95,11 @@ export default function ObsmTab() {
     }
   }, [obsmLoading, obsmTime, selectedObsm]);
 
-  // Auto-fetch UMAP embedding on mount
+  // Auto-fetch an embedding on mount (prefer UMAP, fall back to first key)
   useEffect(() => {
     if (!selectedObsm && obsmKeys.length > 0) {
-      const umapKey = obsmKeys.find(k => /umap/i.test(k));
-      if (umapKey) {
-        fetchObsm(umapKey);
-      }
+      const defaultKey = obsmKeys.find(k => /umap/i.test(k)) || obsmKeys[0];
+      fetchObsm(defaultKey);
     }
   }, [obsmKeys, selectedObsm, fetchObsm]);
 
