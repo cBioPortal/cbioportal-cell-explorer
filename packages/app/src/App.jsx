@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Routes, Route, Navigate, useSearchParams, Link } from "react-router";
 import {
   Layout,
@@ -7,13 +7,15 @@ import {
   Tabs,
   Button,
 } from "antd";
-import { GithubOutlined, UploadOutlined } from "@ant-design/icons";
+import { GithubOutlined, UploadOutlined, DashboardOutlined } from "@ant-design/icons";
 import ColumnsTab from "./components/views/ColumnsTab";
 import InfoTab from "./components/views/InfoTab";
 import ObsmTab from "./components/views/ObsmTab";
 import PlotsTab from "./components/views/PlotsTab";
 import DotplotTab from "./components/views/DotplotTab";
 import LoadPage from "./pages/LoadPage";
+import ProfilePage from "./pages/ProfilePage";
+import ProfileDrawer from "./components/ui/ProfileDrawer";
 
 import useAppStore from "./store/useAppStore";
 import usePostMessage from "./hooks/usePostMessage";
@@ -119,9 +121,18 @@ function ViewerContent() {
   );
 }
 
+function ProfileToggle({ onClick }) {
+  return (
+    <Button type="text" icon={<DashboardOutlined />} onClick={onClick}>
+      Profiler
+    </Button>
+  );
+}
+
 export default function App() {
   const { featureFlags } = useAppStore();
   const linkTo = useLinkWithParams();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -145,6 +156,14 @@ export default function App() {
                 <Button type="text" icon={<UploadOutlined />}>Load Dataset</Button>
               </Link>
             )}
+            {featureFlags.profile && (
+              <>
+                <Link to={linkTo("/profile")}>
+                  <Button type="text">Profile History</Button>
+                </Link>
+                <ProfileToggle onClick={() => setDrawerOpen(true)} />
+              </>
+            )}
             <a
               href="https://github.com/cbioportal/cbioportal-zarr-loader"
               target="_blank"
@@ -158,9 +177,13 @@ export default function App() {
       <Content style={{ background: "#fff" }}>
         <Routes>
           <Route path="/load" element={<LoadPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/*" element={<ViewerContent />} />
         </Routes>
       </Content>
+      {featureFlags.profile && (
+        <ProfileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      )}
     </Layout>
   );
 }
