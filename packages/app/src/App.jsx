@@ -42,6 +42,9 @@ function ViewerContent() {
 
   useEffect(() => {
     if (!url) return;
+    // Skip re-initialization if we already have data for this URL
+    const { url: currentUrl, adata } = useAppStore.getState();
+    if (currentUrl === url && adata) return;
     initialize(url).then(() => {
       const { error } = useAppStore.getState();
       if (!error) saveRecentUrl(url);
