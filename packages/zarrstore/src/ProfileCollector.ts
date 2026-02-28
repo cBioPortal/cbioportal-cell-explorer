@@ -1,17 +1,35 @@
 export const MEASURE_PREFIX = "czl:";
 
+export interface ChunkInfo {
+  arrayShape: number[];
+  chunkShape: number[];
+  dtype: string;
+  sharded: boolean;
+}
+
+export interface FetchInfo {
+  requests: number;
+  bytes: number;
+}
+
 export interface ProfileEntry {
   id: number;
   method: string;
   key: string;
+  label?: string;
   cacheHit: boolean;
   startTime: number;
   duration: number;
+  chunks?: ChunkInfo;
+  fetches?: FetchInfo;
 }
 
 export interface MeasureDetail {
   key: string;
+  label?: string;
   cacheHit: boolean;
+  chunks?: ChunkInfo;
+  fetches?: FetchInfo;
 }
 
 export class ProfileCollector {
@@ -33,14 +51,18 @@ export class ProfileCollector {
         if (!entry.name.startsWith(MEASURE_PREFIX)) continue;
         const detail = (entry as PerformanceMeasure).detail as MeasureDetail;
         if (!detail) continue;
-        this.entries.push({
+        const profileEntry: ProfileEntry = {
           id: this.#nextId++,
           method: detail.key.split(":")[0],
           key: detail.key,
           cacheHit: detail.cacheHit,
           startTime: entry.startTime,
           duration: entry.duration,
-        });
+          chunks: detail.chunks,
+          fetches: detail.fetches,
+        };
+        if (detail.label) profileEntry.label = detail.label;
+        this.entries.push(profileEntry);
       }
       this.#version++;
       this.#notify();
@@ -80,16 +102,31 @@ export class ProfileCollector {
 
 let measureSeq = 0;
 
+export interface MeasureExtra {
+  label?: string;
+  chunks?: ChunkInfo;
+  fetches?: FetchInfo;
+}
+
 /** Place a start mark and return a finish callback that records the measure. */
-export function startMeasure(key: string, cacheHit: boolean): () => void {
+export function startMeasure(
+  key: string,
+  cacheHit: boolean,
+): (extra?: MeasureExtra) => void {
   const seq = ++measureSeq;
   const startMark = `${MEASURE_PREFIX}${key}:${seq}:start`;
   const measureName = `${MEASURE_PREFIX}${key}:${seq}`;
   performance.mark(startMark);
-  return () => {
+  return (extra?: MeasureExtra) => {
     performance.measure(measureName, {
       start: startMark,
-      detail: { key, cacheHit } satisfies MeasureDetail,
+      detail: {
+        key,
+        cacheHit,
+        label: extra?.label,
+        chunks: extra?.chunks,
+        fetches: extra?.fetches,
+      } satisfies MeasureDetail,
     });
   };
 }
