@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Card,
   Drawer,
@@ -9,6 +9,7 @@ import {
   Input,
   Select,
   Popover,
+  Spin,
   message,
 } from "antd";
 import { ReloadOutlined, EditOutlined, CopyOutlined, InfoCircleOutlined } from "@ant-design/icons";
@@ -77,23 +78,14 @@ export default function ObsmTab() {
   const { obsmKeys } = metadata;
   const isEmbedding = selectedObsm && obsmData?.shape?.[1] >= 2;
 
-  useEffect(() => {
-    if (obsmLoading) {
-      message.open({
-        key: "obsm-fetch",
-        type: "loading",
-        content: `Loading ${selectedObsm}...`,
-        duration: 0,
-      });
-    } else if (obsmTime != null) {
-      message.open({
-        key: "obsm-fetch",
-        type: "success",
-        content: `Fetched ${selectedObsm} in ${obsmTime.toFixed(1)} ms`,
-        duration: 5,
-      });
-    }
-  }, [obsmLoading, obsmTime, selectedObsm]);
+  const debouncedFetchObsm = useMemo(() => {
+    let timer;
+    return (key) => {
+      clearTimeout(timer);
+      useAppStore.setState({ selectedObsm: key });
+      timer = setTimeout(() => fetchObsm(key), 250);
+    };
+  }, [fetchObsm]);
 
   // Auto-fetch an embedding on mount (prefer UMAP, fall back to first key)
   useEffect(() => {
@@ -195,7 +187,7 @@ export default function ObsmTab() {
             title="Keys"
             items={obsmKeys}
             selected={selectedObsm}
-            onSelect={fetchObsm}
+            onSelect={debouncedFetchObsm}
             loading={obsmLoading ? selectedObsm : null}
             placeholder="Search keys..."
             height={200}
@@ -277,16 +269,22 @@ export default function ObsmTab() {
           >
             {obsmData?.error ? (
               <Alert type="error" message={obsmData.error} />
-            ) : isEmbedding ? (
-              <EmbeddingScatterplotContainer
-                data={obsmData.data}
-                shape={obsmData.shape}
-                label={selectedObsm}
-                onSaveSelection={handleSaveSelection}
-                showHexbinToggle={!!featureFlags.hexbin}
-                debugMode={!!featureFlags.deckglDebug}
-              />
-            ) : null}
+            ) : (
+              <Spin spinning={obsmLoading} tip="Loading coordinates...">
+                {isEmbedding ? (
+                  <EmbeddingScatterplotContainer
+                    data={obsmData.data}
+                    shape={obsmData.shape}
+                    label={selectedObsm}
+                    onSaveSelection={handleSaveSelection}
+                    showHexbinToggle={!!featureFlags.hexbin}
+                    debugMode={!!featureFlags.deckglDebug}
+                  />
+                ) : (
+                  <div style={{ minHeight: 200 }} />
+                )}
+              </Spin>
+            )}
           </Card>
           <Drawer
             title="Current View"

@@ -1,3 +1,5 @@
+let obsmAbortController = null;
+
 export const createEmbeddingSlice = (set, get) => ({
   // Obsm state
   selectedObsm: null,
@@ -32,6 +34,11 @@ export const createEmbeddingSlice = (set, get) => ({
   selectionGeometry: null,
 
   fetchObsm: async (key) => {
+    // Abort any in-flight embedding fetch
+    if (obsmAbortController) obsmAbortController.abort();
+    obsmAbortController = new AbortController();
+    const { signal } = obsmAbortController;
+
     const { adata, obsIndex } = get();
     if (!adata) return;
 
@@ -39,18 +46,22 @@ export const createEmbeddingSlice = (set, get) => ({
 
     try {
       const start = performance.now();
-      let index = obsIndex;
-      if (!index) {
-        index = await adata.obsNames();
-        set({ obsIndex: index });
+      const result = await adata.obsm(key, signal);
+      if (signal.aborted) {
+        if (obsmAbortController?.signal === signal) set({ obsmLoading: false });
+        return;
       }
-      const result = await adata.obsm(key);
       set({
         obsmTime: performance.now() - start,
-        obsmData: { ...result, index },
+        obsmData: { ...result, index: obsIndex },
         obsmLoading: false,
       });
     } catch (err) {
+      if (err.name === "AbortError") {
+        // Only reset loading if no newer fetch superseded this one
+        if (obsmAbortController?.signal === signal) set({ obsmLoading: false });
+        return;
+      }
       console.error(err);
       set({ obsmData: { error: err.message }, obsmLoading: false });
     }

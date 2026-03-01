@@ -134,27 +134,36 @@ export class AnnDataStore {
     if (!cacheHit) {
       const before = this.#zarrStore.snapshotFetchStats();
       const finish = startMeasure(key, false);
-      this.#cache.set(
-        key,
-        fn().then(async (result) => {
-          const after = this.#zarrStore.snapshotFetchStats();
-          const fetches = {
-            requests: after.requests - before.requests,
-            bytes: after.bytes - before.bytes,
-          };
-          const chunks = opts?.getChunkInfo?.(result);
-          const label = await opts?.getLabel?.(result);
-          const extra: MeasureExtra = {};
-          if (label) {
-            extra.label = label;
-            this.#labelCache.set(key, label);
-          }
-          if (chunks) extra.chunks = chunks;
-          if (fetches.requests > 0 || fetches.bytes > 0) extra.fetches = fetches;
-          finish(extra);
-          return result;
-        }),
-      );
+      const promise = fn().then(async (result) => {
+        const after = this.#zarrStore.snapshotFetchStats();
+        const fetches = {
+          requests: after.requests - before.requests,
+          bytes: after.bytes - before.bytes,
+        };
+        const chunks = opts?.getChunkInfo?.(result);
+        const label = await opts?.getLabel?.(result);
+        const extra: MeasureExtra = {};
+        if (label) {
+          extra.label = label;
+          this.#labelCache.set(key, label);
+        }
+        if (chunks) extra.chunks = chunks;
+        if (fetches.requests > 0 || fetches.bytes > 0) extra.fetches = fetches;
+        finish(extra);
+        return result;
+      });
+      promise.catch((err) => {
+        this.#cache.delete(key);
+        const after = this.#zarrStore.snapshotFetchStats();
+        const fetches = {
+          requests: after.requests - before.requests,
+          bytes: after.bytes - before.bytes,
+        };
+        const extra: MeasureExtra = {};
+        if (fetches.requests > 0 || fetches.bytes > 0) extra.fetches = fetches;
+        finish(extra);
+      });
+      this.#cache.set(key, promise);
     } else {
       // Fire a zero-duration measure for cache hits
       const finish = startMeasure(key, true);
@@ -550,13 +559,13 @@ export class AnnDataStore {
     );
   }
 
-  #slotArray(path: string, key: string): Promise<ArrayResult | DecodeNodeResult> {
+  #slotArray(path: string, key: string, signal?: AbortSignal): Promise<ArrayResult | DecodeNodeResult> {
     return this.#cached(
       `${path}:${key}`,
       async () => {
         try {
           const arr = await this.#zarrStore.openArray(`${path}/${key}`);
-          return readArray(arr);
+          return readArray(arr, signal);
         } catch {
           const node = await this.#zarrStore.openGroup(`${path}/${key}`);
           return decodeNode(node);
@@ -566,8 +575,13 @@ export class AnnDataStore {
     );
   }
 
-  obsm(key: string): Promise<ArrayResult | DecodeNodeResult> {
-    return this.#slotArray("obsm", key);
+  obsm(key: string, signal?: AbortSignal): Promise<ArrayResult | DecodeNodeResult> {
+    // Evict any cached promise for this key when an abort signal is provided.
+    // This prevents a stale (aborted) promise from being returned to a retry caller.
+    if (signal) {
+      this.#cache.delete(`obsm:${key}`);
+    }
+    return this.#slotArray("obsm", key, signal);
   }
 
   async *obsmStreaming(key: string, batchSize?: number): AsyncGenerator<ObsmBatch> {

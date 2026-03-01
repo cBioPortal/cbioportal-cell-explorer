@@ -49,8 +49,11 @@ const defaultOpen: OpenFn = async (location, opts) => {
   }
 };
 
-export async function readArray(arr: ZarrArray): Promise<ArrayResult> {
-  const chunk = await zarr.get(arr);
+export async function readArray(
+  arr: ZarrArray,
+  signal?: AbortSignal,
+): Promise<ArrayResult> {
+  const chunk = await zarr.get(arr, null, signal ? { opts: { signal } } : {});
   return { data: chunk.data, shape: chunk.shape };
 }
 
