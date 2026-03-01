@@ -424,7 +424,6 @@ export default function EmbeddingScatterplot({
         >
           <DeckGL
             ref={deckRef}
-            key={`${containerSize.width}-${containerSize.height}`}
             width={containerSize.width}
             height={containerSize.height}
             views={new OrthographicView({ id: "ortho" })}
