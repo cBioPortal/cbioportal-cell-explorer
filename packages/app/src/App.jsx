@@ -14,8 +14,7 @@ import ObsmTab from "./components/views/ObsmTab";
 import PlotsTab from "./components/views/PlotsTab";
 import DotplotTab from "./components/views/DotplotTab";
 import LoadPage from "./pages/LoadPage";
-import ProfilePage from "./pages/ProfilePage";
-import ProfileBar, { PROFILE_BAR_HEIGHT } from "./components/ui/ProfileBar";
+import { ProfilePage, ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from "@cbioportal-zarr-loader/profiler";
 
 import useAppStore from "./store/useAppStore";
 import usePostMessage from "./hooks/usePostMessage";
@@ -128,6 +127,8 @@ function ViewerContent() {
 
 export default function App() {
   const { featureFlags } = useAppStore();
+  const adata = useAppStore((s) => s.adata);
+  const url = useAppStore((s) => s.url);
   const linkTo = useLinkWithParams();
 
   return (
@@ -174,7 +175,14 @@ export default function App() {
           <Route path="/*" element={<ViewerContent />} />
         </Routes>
       </Content>
-      {featureFlags.profile && <ProfileBar />}
+      {featureFlags.profile && (
+        <ProfileBar
+          profiler={adata?.profiler}
+          onSave={(entries) => {
+            if (adata) saveProfileSession(url, adata.nObs, adata.nVar, entries);
+          }}
+        />
+      )}
     </Layout>
   );
 }
