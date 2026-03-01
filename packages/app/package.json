@@ -18,7 +18,7 @@
     "@cbioportal-zarr-loader/profiler": "workspace:*",
     "@cbioportal-zarr-loader/zarrstore": "workspace:*",
     "@deck.gl/core": "^9.2.6",
-    "@deck.gl/layers": "^9.2.6",
+    "@deck.gl/layers": "^9.2.10",
     "@deck.gl/react": "^9.2.6",
     "@visx/visx": "^3.12.0",
     "antd": "^6.2.3",
