@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Routes, Route, Navigate, useSearchParams, Link } from "react-router";
 import {
   Layout,
@@ -14,6 +14,7 @@ import ObsmTab from "./components/views/ObsmTab";
 import PlotsTab from "./components/views/PlotsTab";
 import DotplotTab from "./components/views/DotplotTab";
 import LoadPage from "./pages/LoadPage";
+import { ProfilePage, ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from "@cbioportal-zarr-loader/profiler";
 
 import useAppStore from "./store/useAppStore";
 import usePostMessage from "./hooks/usePostMessage";
@@ -33,13 +34,20 @@ function ViewerContent() {
   const {
     loading,
     error,
-    metadata,
     featureFlags,
     initialize,
   } = useAppStore();
 
+  const initUrlRef = useRef(null);
+
   useEffect(() => {
     if (!url) return;
+    // Skip re-initialization if we already have data for this URL
+    const { url: currentUrl, adata } = useAppStore.getState();
+    if (currentUrl === url && adata) return;
+    // Deduplicate concurrent calls (e.g. React strict mode double-fire)
+    if (initUrlRef.current === url) return;
+    initUrlRef.current = url;
     initialize(url).then(() => {
       const { error } = useAppStore.getState();
       if (!error) saveRecentUrl(url);
@@ -86,8 +94,6 @@ function ViewerContent() {
     );
   }
 
-  const { obsColumns, varColumns } = metadata;
-
   const tabItems = [
     {
       key: "explorer",
@@ -96,7 +102,7 @@ function ViewerContent() {
     },
     {
       key: "columns",
-      label: `Data (${obsColumns.length + varColumns.length})`,
+      label: "Data",
       children: <ColumnsTab />,
     },
     {
@@ -121,6 +127,8 @@ function ViewerContent() {
 
 export default function App() {
   const { featureFlags } = useAppStore();
+  const adata = useAppStore((s) => s.adata);
+  const url = useAppStore((s) => s.url);
   const linkTo = useLinkWithParams();
 
   return (
@@ -145,6 +153,11 @@ export default function App() {
                 <Button type="text" icon={<UploadOutlined />}>Load Dataset</Button>
               </Link>
             )}
+            {featureFlags.profile && (
+              <Link to={linkTo("/profile")}>
+                <Button type="text">Profile History</Button>
+              </Link>
+            )}
             <a
               href="https://github.com/cbioportal/cbioportal-zarr-loader"
               target="_blank"
@@ -155,12 +168,21 @@ export default function App() {
           </nav>
         </Header>
       )}
-      <Content style={{ background: "#fff" }}>
+      <Content style={{ background: "#fff", paddingBottom: featureFlags.profile ? PROFILE_BAR_HEIGHT : 0 }}>
         <Routes>
           <Route path="/load" element={<LoadPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/*" element={<ViewerContent />} />
         </Routes>
       </Content>
+      {featureFlags.profile && (
+        <ProfileBar
+          profiler={adata?.profiler}
+          onSave={(entries) => {
+            if (adata) saveProfileSession(url, adata.nObs, adata.nVar, entries);
+          }}
+        />
+      )}
     </Layout>
   );
 }
