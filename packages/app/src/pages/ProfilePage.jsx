@@ -1,10 +1,12 @@
-import { useState, useMemo } from "react";
-import { Table, Tag, Button, Card, Space, Typography, Popconfirm, Statistic, Row, Col, Input } from "antd";
-import { DeleteOutlined, ClearOutlined, SearchOutlined } from "@ant-design/icons";
+import { useState, useMemo, useRef } from "react";
+import { Table, Tag, Button, Card, Space, Typography, Popconfirm, Statistic, Row, Col, Input, message } from "antd";
+import { DeleteOutlined, ClearOutlined, SearchOutlined, DownloadOutlined, UploadOutlined } from "@ant-design/icons";
 import {
   getProfileHistory,
   removeProfileSession,
   clearProfileHistory,
+  exportProfileHistory,
+  importProfileHistory,
 } from "../utils/profileStorage";
 import MethodBreakdownChart from "../components/charts/MethodBreakdownChart";
 import CacheEfficiencyChart from "../components/charts/CacheEfficiencyChart";
@@ -401,6 +403,20 @@ function SessionDetail({ record }) {
 
 export default function ProfilePage() {
   const [history, setHistory] = useState(() => getProfileHistory());
+  const fileInputRef = useRef(null);
+
+  const handleImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const result = await importProfileHistory(file);
+    if (result.success) {
+      setHistory(getProfileHistory());
+      message.success(`Imported ${result.count} new session${result.count !== 1 ? "s" : ""}`);
+    } else {
+      message.error(result.error);
+    }
+    e.target.value = "";
+  };
 
   const handleRemove = (index) => {
     removeProfileSession(index);
@@ -500,13 +516,35 @@ export default function ProfilePage() {
 
   return (
     <div style={{ padding: 24 }}>
+      <input
+        type="file"
+        accept=".json"
+        ref={fileInputRef}
+        style={{ display: "none" }}
+        onChange={handleImport}
+      />
       <Space style={{ marginBottom: 16, width: "100%", justifyContent: "space-between" }}>
         <Title level={4} style={{ margin: 0 }}>Profile History</Title>
-        {history.length > 0 && (
-          <Popconfirm title="Clear all profile history?" onConfirm={handleClearAll}>
-            <Button icon={<ClearOutlined />} danger>Clear All</Button>
-          </Popconfirm>
-        )}
+        <Space>
+          <Button
+            icon={<DownloadOutlined />}
+            disabled={history.length === 0}
+            onClick={exportProfileHistory}
+          >
+            Download
+          </Button>
+          <Button
+            icon={<UploadOutlined />}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Import
+          </Button>
+          {history.length > 0 && (
+            <Popconfirm title="Clear all profile history?" onConfirm={handleClearAll}>
+              <Button icon={<ClearOutlined />} danger>Clear All</Button>
+            </Popconfirm>
+          )}
+        </Space>
       </Space>
       {history.length === 0 ? (
         <Card>
