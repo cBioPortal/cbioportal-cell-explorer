@@ -312,14 +312,15 @@ function SummaryStats({ history }) {
 }
 
 function Charts({ history }) {
-  const sessions = useMemo(
-    () =>
-      history.map((s, i) => ({
-        label: s.url ? new URL(s.url).pathname.split("/").pop() || `Session ${i + 1}` : `Session ${i + 1}`,
-        entries: s.entries,
-      })),
-    [history],
-  );
+  const sessions = useMemo(() => {
+    const counts = {};
+    return history.map((s, i) => {
+      const base = s.url ? new URL(s.url).pathname.split("/").pop() || `Session ${i + 1}` : `Session ${i + 1}`;
+      counts[base] = (counts[base] || 0) + 1;
+      const label = counts[base] > 1 ? `${base} (${counts[base]})` : base;
+      return { label, entries: s.entries };
+    });
+  }, [history]);
 
   return (
     <Row gutter={24} style={{ marginBottom: 24 }}>
