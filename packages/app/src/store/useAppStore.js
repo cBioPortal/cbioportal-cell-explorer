@@ -9,6 +9,10 @@ import { createDotplotSlice } from "./slices/dotplotSlice";
 import { createConfigSlice } from "./slices/configSlice";
 
 const createCoreSlice = (set, get) => ({
+  // Embedded mode (iframe or ?embedded query param) — evaluated once at store creation
+  isEmbedded: window.self !== window.top ||
+    new URLSearchParams(window.location.search).has("embedded"),
+
   // Feature flags (fetched from GitHub, local fallback)
   featureFlags: {},
 

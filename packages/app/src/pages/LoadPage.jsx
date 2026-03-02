@@ -4,12 +4,12 @@ import { Card, Input, Button, Typography, Space, Alert, List } from "antd";
 import { DeleteOutlined, ClearOutlined, PushpinFilled } from "@ant-design/icons";
 import { getRecentUrls, removeRecentUrl, clearRecentUrls } from "../utils/recentUrls";
 import { DEFAULT_URL } from "../constants";
+import useAppStore from "../store/useAppStore";
 
 const { Title, Text } = Typography;
 
-const isEmbedded = window.self !== window.top || new URLSearchParams(window.location.search).has("embedded");
-
 export default function LoadPage() {
+  const { isEmbedded } = useAppStore();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [url, setUrl] = useState(searchParams.get("url") || "");
