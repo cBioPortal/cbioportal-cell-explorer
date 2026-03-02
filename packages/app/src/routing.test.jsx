@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import App, { ViewerContent } from "./App";
+import App, { ViewerLayout, ViewerTabs } from "./App";
 
 // Stub heavy child components so tests stay fast and focused on routing
 vi.mock("./components/views/ObsmTab", () => ({ default: () => <div>ObsmTab</div> }));
@@ -16,6 +16,7 @@ vi.mock("./store/useAppStore", () => {
   const store = () => ({
     loading: false,
     error: null,
+    isEmbedded: false,
     featureFlags: { loadDataset: true, profile: true, dotplot: false },
     initialize: vi.fn().mockResolvedValue(undefined),
     adata: null,
@@ -47,7 +48,13 @@ function renderWithRouter(initialPath = "/") {
         children: [
           { path: "load", element: <LoadPage /> },
           { path: "profile", element: <ProfilePage /> },
-          { path: "*", element: <ViewerContent /> },
+          {
+            element: <ViewerLayout />,
+            children: [
+              { index: true, element: <ViewerTabs /> },
+              { path: "*", element: <ViewerTabs /> },
+            ],
+          },
         ],
       },
     ],
@@ -61,7 +68,7 @@ import LoadPage from "./pages/LoadPage";
 import { ProfilePage } from "@cbioportal-zarr-loader/profiler";
 
 describe("Routing", () => {
-  it("renders ViewerContent at the root path", async () => {
+  it("renders ViewerTabs at the root path", async () => {
     renderWithRouter("/");
     expect(screen.getByText(/Loading AnnData|ObsmTab/)).toBeInTheDocument();
   });

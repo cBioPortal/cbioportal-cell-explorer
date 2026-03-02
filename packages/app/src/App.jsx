@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Routes, Route, Navigate, useSearchParams, Link } from "react-router";
+import { Navigate, Outlet, useSearchParams, Link } from "react-router";
 import {
   Layout,
   Spin,
@@ -13,8 +13,7 @@ import InfoTab from "./components/views/InfoTab";
 import ObsmTab from "./components/views/ObsmTab";
 import PlotsTab from "./components/views/PlotsTab";
 import DotplotTab from "./components/views/DotplotTab";
-import LoadPage from "./pages/LoadPage";
-import { ProfilePage, ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from "@cbioportal-zarr-loader/profiler";
+import { ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from "@cbioportal-zarr-loader/profiler";
 
 import useAppStore from "./store/useAppStore";
 import usePostMessage from "./hooks/usePostMessage";
@@ -23,18 +22,20 @@ import useLinkWithParams from "./hooks/useLinkWithParams";
 import { saveRecentUrl } from "./utils/recentUrls";
 import { DEFAULT_URL } from "./constants";
 
-const isEmbedded = window.self !== window.top || new URLSearchParams(window.location.search).has("embedded");
-
 const { Header, Content } = Layout;
 
-function ViewerContent() {
+/**
+ * ViewerLayout — pathless nested layout route.
+ * Handles URL extraction, store initialization, loading/error guards.
+ * Renders <Outlet /> (ViewerTabs) when data is ready.
+ */
+export function ViewerLayout() {
   const [searchParams] = useSearchParams();
   const url = searchParams.get("url") || DEFAULT_URL;
 
   const {
     loading,
     error,
-    featureFlags,
     initialize,
   } = useAppStore();
 
@@ -42,10 +43,6 @@ function ViewerContent() {
 
   useEffect(() => {
     if (!url) return;
-    // Skip re-initialization if we already have data for this URL
-    const { url: currentUrl, adata } = useAppStore.getState();
-    if (currentUrl === url && adata) return;
-    // Deduplicate concurrent calls (e.g. React strict mode double-fire)
     if (initUrlRef.current === url) return;
     initUrlRef.current = url;
     initialize(url).then(() => {
@@ -57,16 +54,6 @@ function ViewerContent() {
   if (!url) {
     return <Navigate to="/load" replace />;
   }
-
-  const postMessageHandlers = useMemo(() => ({
-    applyConfig: async (payload) => {
-      const result = await useAppStore.getState().applyFilterConfig(payload);
-      if (!result.success) console.error("[CZL:postMessage] applyConfig failed:", result.error);
-    },
-  }), []);
-
-  usePostMessage(postMessageHandlers, import.meta.env.VITE_POSTMESSAGE_ORIGIN || "*");
-  useIframeResize();
 
   if (loading) {
     return (
@@ -93,6 +80,16 @@ function ViewerContent() {
       </div>
     );
   }
+
+  return <Outlet />;
+}
+
+/**
+ * ViewerTabs — pure tabs UI.
+ * Reads featureFlags and isEmbedded from the store, renders tab items.
+ */
+export function ViewerTabs() {
+  const { featureFlags, isEmbedded } = useAppStore();
 
   const tabItems = [
     {
@@ -125,11 +122,25 @@ function ViewerContent() {
   );
 }
 
+/**
+ * App — root layout.
+ * Owns app-level hooks (postMessage, iframe resize) so they survive route navigation.
+ */
 export default function App() {
-  const { featureFlags } = useAppStore();
+  const { featureFlags, isEmbedded } = useAppStore();
   const adata = useAppStore((s) => s.adata);
   const url = useAppStore((s) => s.url);
   const linkTo = useLinkWithParams();
+
+  const postMessageHandlers = useMemo(() => ({
+    applyConfig: async (payload) => {
+      const result = await useAppStore.getState().applyFilterConfig(payload);
+      if (!result.success) console.error("[CZL:postMessage] applyConfig failed:", result.error);
+    },
+  }), []);
+
+  usePostMessage(postMessageHandlers, import.meta.env.VITE_POSTMESSAGE_ORIGIN || "*");
+  useIframeResize();
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -169,11 +180,7 @@ export default function App() {
         </Header>
       )}
       <Content style={{ background: "#fff", paddingBottom: featureFlags.profile ? PROFILE_BAR_HEIGHT : 0 }}>
-        <Routes>
-          <Route path="/load" element={<LoadPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/*" element={<ViewerContent />} />
-        </Routes>
+        <Outlet />
       </Content>
       {featureFlags.profile && (
         <ProfileBar
