@@ -214,7 +214,7 @@ export default function EmbeddingScatterplotGL({
         height={containerSize.height}
         views={new OrthographicView({ id: "ortho" })}
         initialViewState={initialViewState}
-        controller={{ dragPan: selectMode === "pan" }}
+        controller={{ dragPan: selectMode === "pan", scrollZoom: { speed: 0.002, smooth: true }, inertia: 300 }}
         layers={layers}
         widgets={debugWidgets}
         {...(debugMode ? { _onMetrics: onDebugMetrics } : {})}
