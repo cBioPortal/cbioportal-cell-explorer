@@ -8,6 +8,7 @@ interface Props {
   data: Float32Array | Float64Array;
   shape: [number, number];
   label: string;
+  debugMode?: boolean;
 }
 
 interface StoreSlice {
@@ -22,6 +23,7 @@ export default function EmbeddingScatterplotContainerGL({
   data,
   shape,
   label,
+  debugMode = false,
 }: Props) {
   const {
     selectedPointIndices,
@@ -43,6 +45,7 @@ export default function EmbeddingScatterplotContainerGL({
       clearSelectedPoints={clearSelectedPoints}
       selectionGeometry={selectionGeometry}
       setSelectionGeometry={setSelectionGeometry}
+      debugMode={debugMode}
     />
   );
 }

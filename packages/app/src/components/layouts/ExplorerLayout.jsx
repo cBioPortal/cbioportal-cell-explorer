@@ -21,6 +21,7 @@ export default function ExplorerLayout() {
     obsmData,
     obsmLoading,
     fetchObsm,
+    featureFlags,
   } = useAppStore();
 
   const { obsmKeys } = metadata;
@@ -47,6 +48,7 @@ export default function ExplorerLayout() {
           data={obsmData.data}
           shape={obsmData.shape}
           label={selectedObsm}
+          debugMode={!!featureFlags.deckglDebug}
         />
       ) : (
         <div

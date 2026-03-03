@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Button } from "antd";
 import {
   SelectOutlined,
@@ -10,6 +10,9 @@ import {
 import DeckGL from "@deck.gl/react";
 import { ScatterplotLayer } from "@deck.gl/layers";
 import { OrthographicView } from "@deck.gl/core";
+import { _StatsWidget as StatsWidget } from "@deck.gl/widgets";
+import "@deck.gl/widgets/stylesheet.css";
+import { Stats } from "@probe.gl/stats";
 import { computeBoundsFromBuffer, computeViewState } from "../../utils/scatterplotUtils";
 import SelectionOverlay from "../ui/SelectionOverlay";
 import useSelectionInteraction from "../../hooks/useSelectionInteraction";
@@ -27,6 +30,7 @@ interface EmbeddingScatterplotGLProps {
   clearSelectedPoints: () => void;
   selectionGeometry: SelectionGeometry | null;
   setSelectionGeometry: (geo: SelectionGeometry | null) => void;
+  debugMode?: boolean;
 }
 
 export default function EmbeddingScatterplotGL({
@@ -38,11 +42,73 @@ export default function EmbeddingScatterplotGL({
   clearSelectedPoints,
   selectionGeometry,
   setSelectionGeometry,
+  debugMode = false,
 }: EmbeddingScatterplotGLProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const deckRef = useRef(null);
   const [containerSize, setContainerSize] = useState({ width: 600, height: 400 });
+
+  // Debug stats widget — mirrors deck.gl _onMetrics into a stable Stats object
+  const customStatsRef = useRef<InstanceType<typeof Stats> | null>(null);
+  if (debugMode && !customStatsRef.current) {
+    customStatsRef.current = new Stats({ id: "deck.gl-metrics" });
+  }
+
+  const debugWidgets = useMemo(
+    () =>
+      debugMode && customStatsRef.current
+        ? [
+            new StatsWidget({
+              id: "deck-stats",
+              type: "custom",
+              stats: customStatsRef.current,
+              title: "Deck Stats",
+              framesPerUpdate: 1,
+              formatters: {
+                fps: "fps",
+                "CPU Time": "averageTime",
+                "GPU Time": "averageTime",
+                "Redraw Count": "count",
+                "Pick Count": "count",
+                "setProps Time": "totalTime",
+                "Pick Time": "totalTime",
+              },
+            }),
+          ]
+        : [],
+    [debugMode],
+  );
+
+  const onDebugMetrics = useCallback((metrics: Record<string, number>) => {
+    console.table(metrics);
+    const s = customStatsRef.current;
+    if (!s) return;
+    const fpsStat = s.get("fps", "count");
+    fpsStat.reset();
+    fpsStat.addCount(Math.round(metrics.fps));
+    const cpuStat = s.get("CPU Time", "totalTime");
+    cpuStat.reset();
+    cpuStat.addTime(metrics.cpuTime ?? 0);
+    const gpuStat = s.get("GPU Time", "totalTime");
+    gpuStat.reset();
+    gpuStat.addTime(metrics.gpuTime ?? 0);
+    const redrawStat = s.get("Redraw Count", "count");
+    redrawStat.reset();
+    redrawStat.addCount(metrics.framesRedrawn ?? 0);
+    const pickCountStat = s.get("Pick Count", "count");
+    pickCountStat.reset();
+    pickCountStat.addCount(metrics.pickCount ?? 0);
+    const setPropsStat = s.get("setProps Time", "totalTime");
+    setPropsStat.reset();
+    setPropsStat.addTime(metrics.setPropsTime ?? 0);
+    const pickTimeStat = s.get("Pick Time", "totalTime");
+    pickTimeStat.reset();
+    pickTimeStat.addTime(metrics.pickTime ?? 0);
+    for (const w of debugWidgets) {
+      w.updateHTML();
+    }
+  }, [debugWidgets]);
 
   // Fill available space via ResizeObserver
   useEffect(() => {
@@ -135,6 +201,8 @@ export default function EmbeddingScatterplotGL({
         initialViewState={initialViewState}
         controller={{ dragPan: selectMode === "pan" }}
         layers={layers}
+        widgets={debugWidgets}
+        {...(debugMode ? { _onMetrics: onDebugMetrics } : {})}
       />
       <SelectionOverlay selectionRectRef={selectionRectRef} lassoSvgRef={lassoSvgRef} />
 
