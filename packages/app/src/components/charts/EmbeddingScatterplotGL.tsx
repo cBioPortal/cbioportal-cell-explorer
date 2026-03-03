@@ -59,23 +59,23 @@ export default function EmbeddingScatterplotGL({
     () =>
       debugMode && customStatsRef.current
         ? [
-            new StatsWidget({
-              id: "deck-stats",
-              type: "custom",
-              stats: customStatsRef.current,
-              title: "Deck Stats",
-              framesPerUpdate: 1,
-              formatters: {
-                fps: "fps",
-                "CPU Time": "averageTime",
-                "GPU Time": "averageTime",
-                "Redraw Count": "count",
-                "Pick Count": "count",
-                "setProps Time": "totalTime",
-                "Pick Time": "totalTime",
-              },
-            }),
-          ]
+          new StatsWidget({
+            id: "deck-stats",
+            type: "custom",
+            stats: customStatsRef.current,
+            title: "Deck Stats",
+            framesPerUpdate: 1,
+            formatters: {
+              fps: "fps",
+              "CPU Time": "averageTime",
+              "GPU Time": "averageTime",
+              "Redraw Count": "count",
+              "Pick Count": "count",
+              "setProps Time": "totalTime",
+              "Pick Time": "totalTime",
+            },
+          }),
+        ]
         : [],
     [debugMode],
   );
@@ -214,7 +214,7 @@ export default function EmbeddingScatterplotGL({
         height={containerSize.height}
         views={new OrthographicView({ id: "ortho" })}
         initialViewState={initialViewState}
-        controller={{ dragPan: selectMode === "pan", scrollZoom: { speed: 0.002, smooth: true }, inertia: 300 }}
+        controller={{ dragPan: selectMode === "pan", scrollZoom: { speed: 0.01, smooth: false }, inertia: 1000 }}
         layers={layers}
         widgets={debugWidgets}
         {...(debugMode ? { _onMetrics: onDebugMetrics } : {})}
