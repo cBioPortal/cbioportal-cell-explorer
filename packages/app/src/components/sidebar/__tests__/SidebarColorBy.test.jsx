@@ -12,6 +12,7 @@ beforeEach(() => {
     colorColumn: null,
     selectedGene: null,
     colorLoading: false,
+    geneLoading: false,
     setColorColumn: vi.fn(),
     setSelectedGene: vi.fn(),
     clearGeneSelection: vi.fn(),
