@@ -179,7 +179,6 @@ export default function EmbeddingScatterplotGL({
         radiusMaxPixels: 2,
         opacity: 0.7,
         pickable: false,
-        parameters: { depthTest: false },
       }),
     ],
     [layerData],
