@@ -135,7 +135,7 @@ export default function EmbeddingScatterplotGL({
       return {
         ...vs,
         minZoom: vs.zoom - 1,
-        maxZoom: 20,
+        maxZoom: vs.zoom + 6,
       };
     },
     [bounds, containerSize],
