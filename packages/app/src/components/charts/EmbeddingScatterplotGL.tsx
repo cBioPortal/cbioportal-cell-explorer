@@ -154,16 +154,24 @@ export default function EmbeddingScatterplotGL({
     clearSelectedPoints,
   });
 
+  // Stable data descriptor — same reference unless data actually changes.
+  // Prevents deck.gl from re-uploading GPU buffers on unrelated re-renders.
+  const layerData = useMemo(
+    () => ({
+      length: numPoints,
+      attributes: {
+        getPosition: { value: data, size: 2 },
+      },
+    }),
+    [data, numPoints],
+  );
+
   const layers = useMemo(
     () => [
       new ScatterplotLayer({
         id: "scatterplot",
-        data: {
-          length: numPoints,
-          attributes: {
-            getPosition: { value: data, size: 2 },
-          },
-        },
+        data: layerData,
+        dataComparator: (newData, oldData) => newData === oldData,
         getFillColor: [180, 180, 180, 200],
         getRadius: 1,
         radiusUnits: "pixels",
@@ -171,9 +179,10 @@ export default function EmbeddingScatterplotGL({
         radiusMaxPixels: 2,
         opacity: 0.7,
         pickable: false,
+        parameters: { depthTest: false },
       }),
     ],
-    [data, numPoints],
+    [layerData],
   );
 
   return (
