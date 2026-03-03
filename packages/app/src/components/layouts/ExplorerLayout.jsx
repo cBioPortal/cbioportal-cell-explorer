@@ -3,7 +3,7 @@ import { Button, Drawer, Spin, Alert } from "antd";
 import { MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
 import useMediaQuery from "../../hooks/useMediaQuery";
 import useAppStore from "../../store/useAppStore";
-import EmbeddingScatterplotContainer from "../containers/EmbeddingScatterplotContainer";
+import EmbeddingScatterplotContainerV2 from "../containers/EmbeddingScatterplotContainerV2";
 import ExplorerLeftSidebar from "./ExplorerLeftSidebar";
 import ExplorerRightSidebar from "./ExplorerRightSidebar";
 
@@ -44,7 +44,7 @@ export default function ExplorerLayout() {
       {obsmData?.error ? (
         <Alert type="error" message={obsmData.error} />
       ) : isEmbedding ? (
-        <EmbeddingScatterplotContainer
+        <EmbeddingScatterplotContainerV2
           data={obsmData.data}
           shape={obsmData.shape}
           label={selectedObsm}
