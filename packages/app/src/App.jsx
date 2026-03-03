@@ -147,6 +147,8 @@ export default function App() {
   const adata = useAppStore((s) => s.adata);
   const url = useAppStore((s) => s.url);
   const linkTo = useLinkWithParams();
+  const [searchParams] = useSearchParams();
+  const isV3 = searchParams.get("layout") === "v3";
 
   const postMessageHandlers = useMemo(() => ({
     applyConfig: async (payload) => {
@@ -160,7 +162,7 @@ export default function App() {
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
-      {!isEmbedded && (
+      {!isEmbedded && !isV3 && (
         <Header
           style={{
             display: "flex",
