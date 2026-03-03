@@ -13,6 +13,7 @@ import InfoTab from "./components/views/InfoTab";
 import ObsmTab from "./components/views/ObsmTab";
 import PlotsTab from "./components/views/PlotsTab";
 import DotplotTab from "./components/views/DotplotTab";
+import ExplorerLayout from "./components/layouts/ExplorerLayout";
 import { ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from "@cbioportal-zarr-loader/profiler";
 
 import useAppStore from "./store/useAppStore";
@@ -120,6 +121,21 @@ export function ViewerTabs() {
       <Tabs items={tabItems} defaultActiveKey={import.meta.env.VITE_DEFAULT_TAB || "explorer"} />
     </div>
   );
+}
+
+/**
+ * ViewerContent — layout switcher.
+ * Reads ?layout=v3 to choose between tabbed layout and explorer layout.
+ */
+export function ViewerContent() {
+  const [searchParams] = useSearchParams();
+  const layoutVersion = searchParams.get("layout");
+
+  if (layoutVersion === "v3") {
+    return <ExplorerLayout />;
+  }
+
+  return <ViewerTabs />;
 }
 
 /**
