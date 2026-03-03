@@ -4,19 +4,6 @@ import { MemoryRouter } from "react-router";
 import useAppStore from "../../../store/useAppStore";
 import ExplorerLeftSidebar from "../../layouts/ExplorerLeftSidebar";
 
-// Mock VirtualizedList to avoid react-window v2 measurement renders
-vi.mock("../VirtualizedList", () => ({
-  default: ({ items, onSelect }) => (
-    <div data-testid="virtualized-list">
-      {items.map((item) => (
-        <div key={item} onClick={() => onSelect(item)}>
-          {item}
-        </div>
-      ))}
-    </div>
-  ),
-}));
-
 // Mock recentUrls utility
 vi.mock("../../../utils/recentUrls", () => ({
   getRecentUrls: () => [
