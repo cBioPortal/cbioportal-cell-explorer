@@ -21,7 +21,6 @@ vi.mock("../../../store/useAppStore", () => {
     obsmData: { data: new Float32Array([1, 2, 3, 4]), shape: [2, 2] },
     obsmLoading: false,
     fetchObsm: vi.fn(),
-    featureFlags: {},
   }));
   store.getState = vi.fn(() => store());
   store.setState = vi.fn();
