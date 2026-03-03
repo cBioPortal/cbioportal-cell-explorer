@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Navigate, Outlet, useSearchParams, Link } from "react-router";
 import {
   Layout,
@@ -159,6 +159,21 @@ export default function App() {
 
   usePostMessage(postMessageHandlers, import.meta.env.VITE_POSTMESSAGE_ORIGIN || "*");
   useIframeResize();
+
+  // Apply viewport height constraint on #app only for v3 layout.
+  // The old tab layout needs a scrollable page — hard-coding height: 100vh
+  // on #app causes scrollbar toggle loops with the scatterplot resize handler.
+  useLayoutEffect(() => {
+    const el = document.getElementById("app");
+    if (!el) return;
+    if (isV3) {
+      el.style.height = "100vh";
+      el.style.overflow = "hidden";
+    } else {
+      el.style.height = "";
+      el.style.overflow = "";
+    }
+  }, [isV3]);
 
   return (
     <Layout style={{ minHeight: "100vh", height: isV3 ? "100vh" : undefined }}>
