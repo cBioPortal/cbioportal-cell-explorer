@@ -9,7 +9,7 @@ vi.mock("../ExplorerLeftSidebar", () => ({
 vi.mock("../ExplorerRightSidebar", () => ({
   default: () => <div data-testid="right-sidebar">Right</div>,
 }));
-vi.mock("../../containers/EmbeddingScatterplotContainerV2", () => ({
+vi.mock("../../containers/EmbeddingScatterplotContainerGL", () => ({
   default: (props) => <div data-testid="scatterplot">Scatterplot: {props.label}</div>,
 }));
 

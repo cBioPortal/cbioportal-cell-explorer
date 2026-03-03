@@ -20,7 +20,6 @@ const mockSetSelectedPoints = vi.fn();
 const mockClearSelectedPoints = vi.fn();
 const mockSetSelectionGeometry = vi.fn();
 const mockSetColorScaleName = vi.fn();
-const mockToggleTooltipColumn = vi.fn();
 
 let storeState = {};
 
@@ -32,8 +31,8 @@ vi.mock("../../store/useAppStore", () => {
 });
 
 // Import after mocks
-const { default: EmbeddingScatterplotContainerV2 } = await import(
-  "./EmbeddingScatterplotContainerV2"
+const { default: EmbeddingScatterplotContainerGL } = await import(
+  "./EmbeddingScatterplotContainerGL"
 );
 
 const baseStoreState = {
@@ -42,9 +41,6 @@ const baseStoreState = {
   selectedGene: null,
   geneExpression: null,
   tooltipData: {},
-  tooltipColumns: [],
-  toggleTooltipColumn: mockToggleTooltipColumn,
-  tooltipColumnLoading: null,
   metadata: { obsColumns: [] },
   selectedPointIndices: [],
   setSelectedPoints: mockSetSelectedPoints,
@@ -61,7 +57,7 @@ const defaultProps = {
   label: "X_umap",
 };
 
-describe("EmbeddingScatterplotContainerV2", () => {
+describe("EmbeddingScatterplotContainerGL", () => {
   beforeEach(() => {
     storeState = { ...baseStoreState };
   });
@@ -69,19 +65,19 @@ describe("EmbeddingScatterplotContainerV2", () => {
   afterEach(cleanup);
 
   it("renders the V2 scatterplot with correct label", () => {
-    render(<EmbeddingScatterplotContainerV2 {...defaultProps} />);
+    render(<EmbeddingScatterplotContainerGL {...defaultProps} />);
     expect(screen.getByTestId("scatterplot-v2")).toBeInTheDocument();
     expect(screen.getByTestId("label")).toHaveTextContent("X_umap");
   });
 
   it("builds points from data and passes them through", () => {
-    render(<EmbeddingScatterplotContainerV2 {...defaultProps} />);
+    render(<EmbeddingScatterplotContainerGL {...defaultProps} />);
     // 3 points from shape [3, 2]
     expect(screen.getByTestId("point-count")).toHaveTextContent("3");
   });
 
   it("defaults to density hex color mode with no color data", () => {
-    render(<EmbeddingScatterplotContainerV2 {...defaultProps} />);
+    render(<EmbeddingScatterplotContainerGL {...defaultProps} />);
     expect(screen.getByTestId("hex-color-mode")).toHaveTextContent("density");
     expect(screen.getByTestId("has-categories")).toHaveTextContent("false");
   });
@@ -92,7 +88,7 @@ describe("EmbeddingScatterplotContainerV2", () => {
       selectedGene: "TP53",
       geneExpression: new Float32Array([0.1, 0.5, 0.9]),
     };
-    render(<EmbeddingScatterplotContainerV2 {...defaultProps} />);
+    render(<EmbeddingScatterplotContainerGL {...defaultProps} />);
     expect(screen.getByTestId("hex-color-mode")).toHaveTextContent("expression");
   });
 
@@ -101,7 +97,7 @@ describe("EmbeddingScatterplotContainerV2", () => {
       ...baseStoreState,
       selectedPointIndices: [0, 2],
     };
-    render(<EmbeddingScatterplotContainerV2 {...defaultProps} />);
+    render(<EmbeddingScatterplotContainerGL {...defaultProps} />);
     expect(screen.getByTestId("selected-count")).toHaveTextContent("2");
   });
 
@@ -110,7 +106,7 @@ describe("EmbeddingScatterplotContainerV2", () => {
       ...baseStoreState,
       colorScaleName: "magma",
     };
-    render(<EmbeddingScatterplotContainerV2 {...defaultProps} />);
+    render(<EmbeddingScatterplotContainerGL {...defaultProps} />);
     expect(screen.getByTestId("color-scale")).toHaveTextContent("magma");
   });
 });

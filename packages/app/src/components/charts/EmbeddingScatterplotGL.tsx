@@ -17,7 +17,6 @@ import {
 } from "../../utils/scatterplotUtils";
 import HoverTooltip from "../ui/HoverTooltip";
 import ExpressionLegend from "../ui/ExpressionLegend";
-import SelectionSummaryPanel from "../ui/SelectionSummaryPanel";
 import CollapsibleLegend from "../ui/CollapsibleLegend";
 import SelectionOverlay from "../ui/SelectionOverlay";
 import useSelectionInteraction from "../../hooks/useSelectionInteraction";
@@ -73,7 +72,6 @@ interface EmbeddingScatterplotProps {
   hexColorConfig: Record<string, unknown>;
   hexData: ScatterPoint[];
   sortedCategories: Array<[string, [number, number, number]]>;
-  selectionSummary: SelectionSummary;
   hasCategories: boolean;
   hexColorMode: HexColorMode;
   // Store reads
@@ -82,8 +80,6 @@ interface EmbeddingScatterplotProps {
   selectedGene: string | null;
   geneExpression: Float32Array | null;
   tooltipData: Record<string, unknown[]>;
-  tooltipColumns: string[];
-  tooltipColumnLoading: string | null;
   metadata: { obsColumns: string[] } | null;
   selectedPointIndices: number[];
   selectionGeometry: SelectionGeometry | null;
@@ -93,7 +89,6 @@ interface EmbeddingScatterplotProps {
   clearSelectedPoints: () => void;
   setSelectionGeometry: (geo: SelectionGeometry | null) => void;
   setColorScaleName: (name: string) => void;
-  toggleTooltipColumn: (col: string) => void;
   debugMode?: boolean;
 }
 
@@ -113,11 +108,6 @@ interface HoverState {
   object: ScatterPoint | HexHoverObject;
 }
 
-interface TooltipFilter {
-  col: string;
-  value: string;
-}
-
 export default function EmbeddingScatterplotGL({
   // Passthrough
   data,
@@ -135,7 +125,6 @@ export default function EmbeddingScatterplotGL({
   hexColorConfig,
   hexData,
   sortedCategories,
-  selectionSummary,
   hasCategories,
   hexColorMode,
   // Store reads
@@ -144,8 +133,6 @@ export default function EmbeddingScatterplotGL({
   selectedGene,
   geneExpression,
   tooltipData,
-  tooltipColumns,
-  tooltipColumnLoading,
   metadata,
   selectedPointIndices,
   selectionGeometry,
@@ -155,7 +142,6 @@ export default function EmbeddingScatterplotGL({
   clearSelectedPoints,
   setSelectionGeometry,
   setColorScaleName,
-  toggleTooltipColumn,
   debugMode = false,
 }: EmbeddingScatterplotProps) {
   const [hoverInfo, setHoverInfo] = useState<HoverState | null>(null);
@@ -163,7 +149,6 @@ export default function EmbeddingScatterplotGL({
   const [layerMode, setLayerMode] = useState<"hexbin" | "scatter">("scatter");
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
   const [hoveredExpression, setHoveredExpression] = useState<number | null>(null);
-  const [hoveredTooltipFilter, setHoveredTooltipFilter] = useState<TooltipFilter | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const deckRef = useRef(null);
   const [containerSize, setContainerSize] = useState({ width: 600, height: 600 });
@@ -359,35 +344,21 @@ export default function EmbeddingScatterplotGL({
               const tolerance = (expressionRange.max - expressionRange.min) * 0.05;
               if (Math.abs(d.expression - hoveredExpression) <= tolerance) return 3;
             }
-            if (hoveredTooltipFilter != null) {
-              const colValues = tooltipData[hoveredTooltipFilter.col];
-              if (colValues && String(colValues[d.index]) === hoveredTooltipFilter.value) return 3;
-            }
             return 1;
           },
           radiusUnits: "pixels",
           radiusMinPixels: 0.5,
-          radiusMaxPixels: (hoveredCategory != null || hoveredExpression != null || hoveredTooltipFilter != null) ? 3 : 1,
+          radiusMaxPixels: (hoveredCategory != null || hoveredExpression != null) ? 3 : 1,
           opacity: 0.7,
           pickable: true,
           onHover: (info: any) => setHoverInfo(info.object ? info : null),
           updateTriggers: {
             getFillColor: [colorData, geneExpression, expressionRange, colorScaleName, selectedPointIndices],
-            getRadius: [hoveredCategory, hoveredExpression, hoveredTooltipFilter],
+            getRadius: [hoveredCategory, hoveredExpression],
           },
         }),
       ];
 
-  const handleTooltipChange = useCallback((newValues: string[]) => {
-    const oldSet = new Set(tooltipColumns);
-    const newSet = new Set(newValues);
-    for (const col of newValues) {
-      if (!oldSet.has(col)) toggleTooltipColumn(col);
-    }
-    for (const col of tooltipColumns) {
-      if (!newSet.has(col)) toggleTooltipColumn(col);
-    }
-  }, [tooltipColumns, toggleTooltipColumn]);
 
   return (
     <>
@@ -621,23 +592,6 @@ export default function EmbeddingScatterplotGL({
           />
         )}
 
-        {/* Selection summary */}
-        {selectionSummary && (
-          <SelectionSummaryPanel
-            selectionSummary={selectionSummary}
-            selectedCount={selectedPointIndices.length || points.length}
-            categoryColorMap={categoryColorMap}
-            colorColumn={colorColumn}
-            selectedGene={selectedGene}
-            maxHeight={containerSize.height}
-            onHoverCategory={setHoveredCategory}
-            onHoverTooltipValue={setHoveredTooltipFilter}
-            obsColumns={metadata?.obsColumns}
-            tooltipColumns={tooltipColumns}
-            onTooltipChange={handleTooltipChange}
-            tooltipColumnLoading={tooltipColumnLoading}
-          />
-        )}
 
       </div>
     </>

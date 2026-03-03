@@ -1,15 +1,14 @@
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import useAppStore from "../../store/useAppStore";
 import { COLOR_SCALES } from "../../utils/colors";
 import {
   buildScatterplotPoints,
-  buildSelectionSummary,
   computeRange,
   sortCategoriesByCount,
   buildHexCategoryColorConfig,
 } from "../../utils/scatterplotUtils";
 import EmbeddingScatterplotGL from "../charts/EmbeddingScatterplotGL";
-import type { ScatterPoint, ScatterBounds, ExpressionRange, HexColorMode, SelectionGeometry, SelectionSummary } from "../charts/EmbeddingScatterplotGL";
+import type { ScatterPoint, ScatterBounds, ExpressionRange, HexColorMode, SelectionGeometry } from "../charts/EmbeddingScatterplotGL";
 
 interface EmbeddingScatterplotContainerProps {
   data: Float32Array;
@@ -27,9 +26,6 @@ interface AppStoreSlice {
   selectedGene: string | null;
   geneExpression: Float32Array | null;
   tooltipData: Record<string, unknown[]>;
-  tooltipColumns: string[];
-  toggleTooltipColumn: (col: string) => void;
-  tooltipColumnLoading: string | null;
   metadata: { obsColumns: string[] } | null;
   selectedPointIndices: number[];
   setSelectedPoints: (indices: number[]) => void;
@@ -40,7 +36,7 @@ interface AppStoreSlice {
   setColorScaleName: (name: string) => void;
 }
 
-export default function EmbeddingScatterplotContainerV2({
+export default function EmbeddingScatterplotContainerGL({
   data,
   shape,
   label,
@@ -55,9 +51,6 @@ export default function EmbeddingScatterplotContainerV2({
     selectedGene,
     geneExpression,
     tooltipData,
-    tooltipColumns,
-    toggleTooltipColumn,
-    tooltipColumnLoading,
     metadata,
     selectedPointIndices,
     setSelectedPoints,
@@ -125,16 +118,6 @@ export default function EmbeddingScatterplotContainerV2({
     [categoryColorMap, colorData, points],
   );
 
-  const selectionSummary = useMemo(
-    () => buildSelectionSummary({
-      selectedSet,
-      points,
-      hasColorData: hasCategories,
-      hasGeneExpression: !!geneExpression,
-      tooltipData,
-    }) as SelectionSummary,
-    [selectedSet, points, hasCategories, geneExpression, tooltipData],
-  );
 
   return (
     <EmbeddingScatterplotGL
@@ -152,7 +135,6 @@ export default function EmbeddingScatterplotContainerV2({
       hexColorConfig={hexColorConfig}
       hexData={hexData}
       sortedCategories={sortedCategories}
-      selectionSummary={selectionSummary}
       hasCategories={hasCategories}
       hexColorMode={hexColorMode}
       colorColumn={colorColumn}
@@ -160,9 +142,6 @@ export default function EmbeddingScatterplotContainerV2({
       selectedGene={selectedGene}
       geneExpression={geneExpression}
       tooltipData={tooltipData}
-      tooltipColumns={tooltipColumns}
-      toggleTooltipColumn={toggleTooltipColumn}
-      tooltipColumnLoading={tooltipColumnLoading}
       metadata={metadata}
       selectedPointIndices={selectedPointIndices}
       setSelectedPoints={setSelectedPoints}

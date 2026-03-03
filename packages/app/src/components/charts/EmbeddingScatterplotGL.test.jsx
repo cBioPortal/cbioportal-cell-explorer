@@ -28,9 +28,6 @@ vi.mock("../ui/HoverTooltip", () => ({
 vi.mock("../ui/ExpressionLegend", () => ({
   default: (props) => <div data-testid="expression-legend">{props.selectedGene}</div>,
 }));
-vi.mock("../ui/SelectionSummaryPanel", () => ({
-  default: () => <div data-testid="selection-summary" />,
-}));
 vi.mock("../ui/CollapsibleLegend", () => ({
   default: () => <div data-testid="collapsible-legend" />,
 }));
@@ -74,11 +71,6 @@ const defaultProps = {
   hexColorConfig: {},
   hexData: makePoints(3),
   sortedCategories: [],
-  selectionSummary: {
-    categoryBreakdown: null,
-    expressionStats: null,
-    tooltipBreakdowns: {},
-  },
   hasCategories: false,
   hexColorMode: "density",
   colorColumn: null,
@@ -86,8 +78,6 @@ const defaultProps = {
   selectedGene: null,
   geneExpression: null,
   tooltipData: {},
-  tooltipColumns: [],
-  tooltipColumnLoading: null,
   metadata: { obsColumns: [] },
   selectedPointIndices: [],
   selectionGeometry: null,
@@ -96,7 +86,6 @@ const defaultProps = {
   clearSelectedPoints: vi.fn(),
   setSelectionGeometry: vi.fn(),
   setColorScaleName: vi.fn(),
-  toggleTooltipColumn: vi.fn(),
 };
 
 describe("EmbeddingScatterplotGL", () => {
