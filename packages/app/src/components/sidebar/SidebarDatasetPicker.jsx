@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Select, Input } from "antd";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import useAppStore from "../../store/useAppStore";
 import { getRecentUrls } from "../../utils/recentUrls";
 
@@ -25,6 +25,7 @@ function filenameFromUrl(url) {
 export default function SidebarDatasetPicker() {
   const { url, isEmbedded } = useAppStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [pasteValue, setPasteValue] = useState("");
 
   const recentUrls = useMemo(() => getRecentUrls(), [url]);
@@ -41,9 +42,15 @@ export default function SidebarDatasetPicker() {
 
   if (isEmbedded) return null;
 
+  const navigateWithParams = (newUrl) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("url", newUrl);
+    navigate(`/?${params.toString()}`);
+  };
+
   const handleSelect = (selectedUrl) => {
     if (selectedUrl !== url) {
-      navigate(`/?url=${encodeURIComponent(selectedUrl)}`);
+      navigateWithParams(selectedUrl);
     }
   };
 
@@ -51,7 +58,7 @@ export default function SidebarDatasetPicker() {
     const trimmed = pasteValue.trim();
     if (trimmed) {
       setPasteValue("");
-      navigate(`/?url=${encodeURIComponent(trimmed)}`);
+      navigateWithParams(trimmed);
     }
   };
 
