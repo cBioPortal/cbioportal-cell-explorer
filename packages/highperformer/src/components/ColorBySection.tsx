@@ -2,6 +2,8 @@ import { Radio, Select, AutoComplete, Alert } from 'antd'
 import useAppStore from '../store/useAppStore'
 import type { ColorMode } from '../store/useAppStore'
 import { COLOR_SCALES } from '../utils/colors'
+import CategoricalLegend from './CategoricalLegend'
+import ContinuousLegend from './ContinuousLegend'
 
 const scaleOptions = Object.keys(COLOR_SCALES).map((name) => ({
   value: name,
@@ -85,6 +87,9 @@ export default function ColorBySection() {
           />
         </div>
       )}
+
+      {colorMode === 'category' && <CategoricalLegend />}
+      {colorMode === 'gene' && <ContinuousLegend />}
     </div>
   )
 }
