@@ -57,6 +57,22 @@ export async function readArray(
   return { data: chunk.data, shape: chunk.shape };
 }
 
+export async function readArraySliced(
+  arr: ZarrArray,
+  dims: number,
+  signal?: AbortSignal,
+): Promise<ArrayResult> {
+  if (arr.shape.length < 2 || arr.shape[1] <= dims) {
+    return readArray(arr, signal);
+  }
+  const chunk = await zarr.get(
+    arr,
+    [null, zarr.slice(0, dims)],
+    signal ? { opts: { signal } } : {},
+  );
+  return { data: chunk.data, shape: chunk.shape };
+}
+
 export function toStringArray(
   data: zarr.TypedArray<zarr.DataType> | string[],
 ): string[] {

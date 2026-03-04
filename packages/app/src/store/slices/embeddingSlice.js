@@ -48,7 +48,7 @@ export const createEmbeddingSlice = (set, get) => ({
 
     try {
       const start = performance.now();
-      const result = await adata.obsm(key, signal);
+      const result = await adata.obsm(key, signal, 2);
       if (signal.aborted) {
         if (obsmAbortController?.signal === signal) set({ obsmLoading: false });
         return;

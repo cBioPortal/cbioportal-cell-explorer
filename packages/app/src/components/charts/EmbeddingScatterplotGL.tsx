@@ -69,25 +69,10 @@ export default function EmbeddingScatterplotGL({
     return () => observer.disconnect();
   }, []);
 
-  // Extract only the first 2 columns (x, y) into a compact buffer.
-  // Embeddings like X_pca have 50+ dims — uploading the full buffer to the GPU
-  // wastes VRAM and bandwidth (e.g. 800MB vs 32MB for 4M cells).
-  const xyData = useMemo(() => {
-    const cols = shape[1];
-    if (cols === 2) return data; // already compact
-    const n = shape[0];
-    const buf = new Float32Array(n * 2);
-    for (let i = 0; i < n; i++) {
-      buf[i * 2] = data[i * cols];
-      buf[i * 2 + 1] = data[i * cols + 1];
-    }
-    return buf;
-  }, [data, shape]);
-
   const initialViewState = useMemo(() => {
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (let i = 0; i < xyData.length; i += 2) {
-      const x = xyData[i], y = xyData[i + 1];
+    for (let i = 0; i < data.length; i += 2) {
+      const x = data[i], y = data[i + 1];
       if (x < minX) minX = x;
       if (x > maxX) maxX = x;
       if (y < minY) minY = y;
@@ -95,14 +80,14 @@ export default function EmbeddingScatterplotGL({
     }
     const rangeX = maxX - minX || 1;
     const rangeY = maxY - minY || 1;
-    const zoom = Math.log2(Math.min(containerSize.width / rangeX, containerSize.height / rangeY)) - 0.5;
+    const zoom = Math.log2(Math.min(containerSize.width / rangeX, containerSize.height / rangeY)) + 0.1;
     return {
       target: [(minX + maxX) / 2, (minY + maxY) / 2] as [number, number],
       zoom,
       minZoom: zoom - 4,
       maxZoom: zoom + 6,
     };
-  }, [xyData, containerSize]);
+  }, [data, containerSize]);
 
   // No pan clamping — bounds computation disabled for perf testing.
 
@@ -118,7 +103,7 @@ export default function EmbeddingScatterplotGL({
     handleMouseUp,
   } = useSelectionInteraction({
     deckRef,
-    positionBuffer: xyData,
+    positionBuffer: data,
     stride: 2,
     numPoints,
     setSelectedPoints,
@@ -132,10 +117,10 @@ export default function EmbeddingScatterplotGL({
     () => ({
       length: numPoints,
       attributes: {
-        getPosition: { value: xyData, size: 2 },
+        getPosition: { value: data, size: 2 },
       },
     }),
-    [xyData, numPoints],
+    [data, numPoints],
   );
 
   const layers = useMemo(

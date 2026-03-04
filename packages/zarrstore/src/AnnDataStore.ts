@@ -3,6 +3,7 @@ import type { Readable } from "zarrita";
 import { ZarrStore } from "./ZarrStore";
 import {
   readArray,
+  readArraySliced,
   decodeDataframe,
   decodeColumn,
   decodeCategorical,
@@ -597,7 +598,27 @@ export class AnnDataStore {
     );
   }
 
-  obsm(key: string, signal?: AbortSignal): Promise<ArrayResult | DecodeNodeResult> {
+  obsm(key: string, signal?: AbortSignal, dims?: number): Promise<ArrayResult | DecodeNodeResult> {
+    if (dims != null) {
+      const cacheKey = `obsm:${key}:d${dims}`;
+      if (signal && this.#cache.has(cacheKey) && !this.#settled.has(cacheKey)) {
+        this.#cache.delete(cacheKey);
+      }
+      return this.#cached(
+        cacheKey,
+        async () => {
+          try {
+            const arr = await this.#zarrStore.openArray(`obsm/${key}`);
+            return readArraySliced(arr, dims, signal);
+          } catch {
+            // Group-encoded obsm (e.g. sparse) — fall back to full decode
+            const node = await this.#zarrStore.openGroup(`obsm/${key}`);
+            return decodeNode(node);
+          }
+        },
+        { getChunkInfo: () => this.#chunkInfoFromMetadata(`obsm/${key}`) },
+      );
+    }
     const cacheKey = `obsm:${key}`;
     // Only evict pending (unsettled) cache entries when a new signal is provided.
     // Settled (resolved) entries contain valid data — return them as-is so that
