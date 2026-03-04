@@ -8,6 +8,7 @@ import { CollisionFilterExtension } from '@deck.gl/extensions'
 import { _StatsWidget as StatsWidget } from '@deck.gl/widgets'
 import { ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from '@cbioportal-zarr-loader/profiler'
 import useAppStore from '../store/useAppStore'
+import ColorBySection from '../components/ColorBySection'
 
 const { Sider, Content } = Layout
 
@@ -51,6 +52,7 @@ function Sidebar() {
         />
       )}
 
+      <ColorBySection />
       <RenderingControls />
     </Sider>
   )
