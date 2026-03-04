@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "antd";
 import {
   SelectOutlined,
@@ -10,7 +10,7 @@ import { ScatterplotLayer } from "@deck.gl/layers";
 import { OrthographicView } from "@deck.gl/core";
 import { _StatsWidget as StatsWidget } from "@deck.gl/widgets";
 import "@deck.gl/widgets/stylesheet.css";
-import { computeBoundsFromBuffer, computeViewState } from "../../utils/scatterplotUtils";
+// bounds/viewState utils disabled for perf baseline
 import SelectionOverlay from "../ui/SelectionOverlay";
 import useSelectionInteraction from "../../hooks/useSelectionInteraction";
 
@@ -69,71 +69,42 @@ export default function EmbeddingScatterplotGL({
     return () => observer.disconnect();
   }, []);
 
-  // Negate Y so the plot matches the mathematical convention (Y increases upward),
-  // consistent with scanpy/matplotlib output. deck.gl's OrthographicView has Y
-  // increasing downward by default (screen convention).
-  const flippedData = useMemo(() => {
+  // Extract only the first 2 columns (x, y) into a compact buffer.
+  // Embeddings like X_pca have 50+ dims — uploading the full buffer to the GPU
+  // wastes VRAM and bandwidth (e.g. 800MB vs 32MB for 4M cells).
+  const xyData = useMemo(() => {
     const cols = shape[1];
-    const buf = new Float32Array(data.length);
-    for (let i = 0; i < data.length; i += cols) {
-      buf[i] = data[i];         // x unchanged
-      buf[i + 1] = -data[i + 1]; // y negated
+    if (cols === 2) return data; // already compact
+    const n = shape[0];
+    const buf = new Float32Array(n * 2);
+    for (let i = 0; i < n; i++) {
+      buf[i * 2] = data[i * cols];
+      buf[i * 2 + 1] = data[i * cols + 1];
     }
     return buf;
   }, [data, shape]);
 
-  const bounds = useMemo(
-    () => computeBoundsFromBuffer(flippedData, shape),
-    [flippedData, shape],
-  );
+  const initialViewState = useMemo(() => {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < xyData.length; i += 2) {
+      const x = xyData[i], y = xyData[i + 1];
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    const rangeX = maxX - minX || 1;
+    const rangeY = maxY - minY || 1;
+    const zoom = Math.log2(Math.min(containerSize.width / rangeX, containerSize.height / rangeY)) - 0.5;
+    return {
+      target: [(minX + maxX) / 2, (minY + maxY) / 2] as [number, number],
+      zoom,
+      minZoom: zoom - 4,
+      maxZoom: zoom + 6,
+    };
+  }, [xyData, containerSize]);
 
-  const initialViewState = useMemo(
-    () => {
-      const vs = computeViewState(bounds, containerSize);
-      return {
-        ...vs,
-        minZoom: vs.zoom - 1,
-        maxZoom: vs.zoom + 6,
-      };
-    },
-    [bounds, containerSize],
-  );
-
-  // Clamp panning so the data can't be dragged completely off-canvas.
-  // At any zoom level, keep at least some data visible in the viewport.
-  const onViewStateChange = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ({ viewState }: { viewState: any }) => {
-      if (!bounds) return viewState;
-
-      const zoom = Number(viewState.zoom ?? 0);
-      const target = viewState.target as [number, number];
-      const scale = Math.pow(2, zoom);
-      const halfVisibleX = containerSize.width / scale / 2;
-      const halfVisibleY = containerSize.height / scale / 2;
-
-      // Keep at least ~1/3 of the data range visible on each axis.
-      const rangeX = bounds.maxX - bounds.minX;
-      const rangeY = bounds.maxY - bounds.minY;
-      const keepX = rangeX / 3;
-      const keepY = rangeY / 3;
-
-      const minTargetX = bounds.minX - halfVisibleX + keepX;
-      const maxTargetX = bounds.maxX + halfVisibleX - keepX;
-      const minTargetY = bounds.minY - halfVisibleY + keepY;
-      const maxTargetY = bounds.maxY + halfVisibleY - keepY;
-
-      const clampedX = minTargetX < maxTargetX
-        ? Math.max(minTargetX, Math.min(maxTargetX, target[0]))
-        : (bounds.minX + bounds.maxX) / 2;
-      const clampedY = minTargetY < maxTargetY
-        ? Math.max(minTargetY, Math.min(maxTargetY, target[1]))
-        : (bounds.minY + bounds.maxY) / 2;
-
-      return { ...viewState, target: [clampedX, clampedY] };
-    },
-    [bounds, containerSize],
-  );
+  // No pan clamping — bounds computation disabled for perf testing.
 
   const numPoints = shape[0];
 
@@ -147,8 +118,8 @@ export default function EmbeddingScatterplotGL({
     handleMouseUp,
   } = useSelectionInteraction({
     deckRef,
-    positionBuffer: flippedData,
-    stride: shape[1],
+    positionBuffer: xyData,
+    stride: 2,
     numPoints,
     setSelectedPoints,
     setSelectionGeometry,
@@ -161,10 +132,10 @@ export default function EmbeddingScatterplotGL({
     () => ({
       length: numPoints,
       attributes: {
-        getPosition: { value: flippedData, size: 2 },
+        getPosition: { value: xyData, size: 2 },
       },
     }),
-    [flippedData, numPoints],
+    [xyData, numPoints],
   );
 
   const layers = useMemo(
@@ -208,7 +179,6 @@ export default function EmbeddingScatterplotGL({
         height={containerSize.height}
         views={new OrthographicView({ id: "ortho" })}
         initialViewState={initialViewState}
-        onViewStateChange={onViewStateChange}
         controller={{ dragPan: selectMode === "pan", scrollZoom: { speed: 0.01, smooth: false }, inertia: false }}
         useDevicePixels={false}
         layers={layers}
