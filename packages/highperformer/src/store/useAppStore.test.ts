@@ -1,21 +1,19 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 
-// Mock the worker import before importing the store
-const mockPostMessage = vi.fn()
-let mockWorkerInstance: { onmessage: ((e: MessageEvent) => void) | null } | null = null
-vi.mock('../workers/colorBuffer.worker.ts?worker', () => {
+// Mock the WorkerPool before importing the store
+const mockDispatch = vi.fn()
+vi.mock('../pool/WorkerPool', () => {
   return {
-    default: class MockWorker {
-      onmessage: ((e: MessageEvent) => void) | null = null
-      constructor() {
-        mockWorkerInstance = this
-      }
-      postMessage(...args: unknown[]) {
-        mockPostMessage(...args)
-      }
-      terminate() {}
+    WorkerPool: class MockPool {
+      dispatch = mockDispatch
+      dispose() {}
     },
   }
+})
+
+// Mock the worker import (still needed for WorkerPool factory, but pool is mocked)
+vi.mock('../workers/universal.worker.ts?worker', () => {
+  return { default: class MockWorker {} }
 })
 
 const { default: useAppStore, getColorBuildVersion, resetColorBuildVersion } = await import('./useAppStore')
@@ -24,8 +22,10 @@ describe('useAppStore', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     useAppStore.setState(useAppStore.getInitialState())
-    mockPostMessage.mockClear()
+    mockDispatch.mockClear()
     resetColorBuildVersion()
+    // Default: dispatch resolves immediately with a fake colorBuffer response
+    mockDispatch.mockResolvedValue({ type: 'colorBuffer', buffer: new Uint8Array(8), version: 1 })
   })
 
   afterEach(() => {
@@ -92,12 +92,10 @@ describe('useAppStore', () => {
           bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
         },
       })
-      mockPostMessage.mockClear()
+      mockDispatch.mockClear()
 
       useAppStore.getState().setOpacity(0.5)
-
-      // Worker should NOT have been called yet (debounce pending)
-      expect(mockPostMessage).not.toHaveBeenCalled()
+      expect(mockDispatch).not.toHaveBeenCalled()
     })
 
     it('fires rebuildColorBuffer after debounce delay', () => {
@@ -108,12 +106,13 @@ describe('useAppStore', () => {
           bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
         },
       })
-      mockPostMessage.mockClear()
+      mockDispatch.mockClear()
+      mockDispatch.mockResolvedValue({ type: 'colorBuffer', buffer: new Uint8Array(8), version: 1 })
 
       useAppStore.getState().setOpacity(0.5)
       vi.advanceTimersByTime(150)
 
-      expect(mockPostMessage).toHaveBeenCalledWith({
+      expect(mockDispatch).toHaveBeenCalledWith({
         type: 'buildDefault',
         numPoints: 2,
         rgb: [100, 150, 255],
@@ -130,15 +129,16 @@ describe('useAppStore', () => {
           bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
         },
       })
-      mockPostMessage.mockClear()
+      mockDispatch.mockClear()
+      mockDispatch.mockResolvedValue({ type: 'colorBuffer', buffer: new Uint8Array(8), version: 1 })
 
       useAppStore.getState().setOpacity(0.3)
       useAppStore.getState().setOpacity(0.5)
       useAppStore.getState().setOpacity(0.8)
       vi.advanceTimersByTime(150)
 
-      expect(mockPostMessage).toHaveBeenCalledTimes(1)
-      expect(mockPostMessage).toHaveBeenCalledWith({
+      expect(mockDispatch).toHaveBeenCalledTimes(1)
+      expect(mockDispatch).toHaveBeenCalledWith({
         type: 'buildDefault',
         numPoints: 2,
         rgb: [100, 150, 255],
@@ -151,10 +151,10 @@ describe('useAppStore', () => {
   describe('rebuildColorBuffer', () => {
     it('does nothing when embeddingData is null', () => {
       useAppStore.getState().rebuildColorBuffer()
-      expect(mockPostMessage).not.toHaveBeenCalled()
+      expect(mockDispatch).not.toHaveBeenCalled()
     })
 
-    it('posts buildDefault message with version to worker', () => {
+    it('dispatches buildDefault message with version', () => {
       useAppStore.setState({
         embeddingData: {
           positions: new Float32Array([0, 0, 1, 1, 2, 2]),
@@ -166,7 +166,7 @@ describe('useAppStore', () => {
 
       useAppStore.getState().rebuildColorBuffer()
 
-      expect(mockPostMessage).toHaveBeenCalledWith({
+      expect(mockDispatch).toHaveBeenCalledWith({
         type: 'buildDefault',
         numPoints: 3,
         rgb: [100, 150, 255],
@@ -175,7 +175,7 @@ describe('useAppStore', () => {
       })
     })
 
-    it('worker response with matching version updates store', () => {
+    it('matching version response updates store', async () => {
       useAppStore.setState({
         embeddingData: {
           positions: new Float32Array([0, 0, 1, 1]),
@@ -185,21 +185,20 @@ describe('useAppStore', () => {
         colorBufferLoading: true,
       })
 
-      // Trigger rebuildColorBuffer to increment version
-      useAppStore.getState().rebuildColorBuffer()
-      const currentVersion = getColorBuildVersion()
-
-      // Simulate the worker posting back a matching response
       const fakeBuffer = new Uint8Array(8)
-      mockWorkerInstance!.onmessage!({
-        data: { type: 'colorBuffer', buffer: fakeBuffer, version: currentVersion },
-      } as MessageEvent)
+      // dispatch resolves with version matching what rebuildColorBuffer sends (version 1)
+      mockDispatch.mockResolvedValue({ type: 'colorBuffer', buffer: fakeBuffer, version: 1 })
 
-      expect(useAppStore.getState().colorBufferLoading).toBe(false)
+      useAppStore.getState().rebuildColorBuffer()
+
+      // Wait for the Promise to resolve
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().colorBufferLoading).toBe(false)
+      })
       expect(useAppStore.getState().colorBuffer).toBe(fakeBuffer)
     })
 
-    it('discards stale worker responses with outdated version', () => {
+    it('discards stale responses with outdated version', async () => {
       useAppStore.setState({
         embeddingData: {
           positions: new Float32Array([0, 0, 1, 1]),
@@ -209,47 +208,32 @@ describe('useAppStore', () => {
         colorBufferLoading: true,
       })
 
-      // First rebuild — version becomes 1
+      // First rebuild (version 1) — resolves slowly with stale version
+      let resolveFirst!: (v: unknown) => void
+      mockDispatch.mockImplementationOnce(() => new Promise((r) => { resolveFirst = r }))
+
       useAppStore.getState().rebuildColorBuffer()
-      const staleVersion = getColorBuildVersion()
 
-      // Second rebuild — version becomes 2
-      useAppStore.getState().rebuildColorBuffer()
-
-      // Simulate the FIRST (stale) response arriving
-      const staleBuffer = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])
-      mockWorkerInstance!.onmessage!({
-        data: { type: 'colorBuffer', buffer: staleBuffer, version: staleVersion },
-      } as MessageEvent)
-
-      // Store should NOT have been updated — response was stale
-      expect(useAppStore.getState().colorBuffer).toBeNull()
-      expect(useAppStore.getState().colorBufferLoading).toBe(true)
-    })
-
-    it('accepts response after stale one is discarded', () => {
-      useAppStore.setState({
-        embeddingData: {
-          positions: new Float32Array([0, 0, 1, 1]),
-          numPoints: 2,
-          bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
-        },
-        colorBufferLoading: true,
-      })
-
-      // Two rebuilds
-      useAppStore.getState().rebuildColorBuffer()
-      useAppStore.getState().rebuildColorBuffer()
-      const currentVersion = getColorBuildVersion()
-
-      // Simulate the second (current) response arriving
+      // Second rebuild (version 2) — resolves immediately
       const currentBuffer = new Uint8Array([10, 20, 30, 40, 50, 60, 70, 80])
-      mockWorkerInstance!.onmessage!({
-        data: { type: 'colorBuffer', buffer: currentBuffer, version: currentVersion },
-      } as MessageEvent)
+      mockDispatch.mockResolvedValueOnce({ type: 'colorBuffer', buffer: currentBuffer, version: 2 })
 
-      expect(useAppStore.getState().colorBufferLoading).toBe(false)
-      expect(useAppStore.getState().colorBuffer).toBe(currentBuffer)
+      useAppStore.getState().rebuildColorBuffer()
+
+      // Wait for the second dispatch's Promise to resolve and update store
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().colorBuffer).toBe(currentBuffer)
+      })
+
+      // Now the first (stale) response arrives — should be discarded
+      const staleBuffer = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])
+      resolveFirst({ type: 'colorBuffer', buffer: staleBuffer, version: 1 })
+
+      // Give microtasks time to settle
+      await vi.waitFor(() => {
+        // colorBuffer should still be the current one, not the stale one
+        expect(useAppStore.getState().colorBuffer).toBe(currentBuffer)
+      })
     })
   })
 })
