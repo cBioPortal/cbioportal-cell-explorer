@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import { AnnDataStore } from '@cbioportal-zarr-loader/zarrstore'
 import type { ArrayResult } from '@cbioportal-zarr-loader/zarrstore'
-import ColorBufferWorker from '../workers/colorBuffer.worker.ts?worker'
-import { ColorBufferResponseSchema } from '../workers/colorBuffer.schemas'
+import { WorkerPool } from '../pool/WorkerPool'
+import UniversalWorker from '../workers/universal.worker.ts?worker'
+import type { ColorBufferResponse } from '../workers/colorBuffer.schemas'
 import type { RGB } from '../utils/colors'
 
 export interface EmbeddingBounds {
@@ -78,21 +79,11 @@ let colorBuildVersion = 0
 export function getColorBuildVersion(): number { return colorBuildVersion }
 export function resetColorBuildVersion(): void { colorBuildVersion = 0 }
 
-// Singleton worker — created lazily, shared across all store actions.
-// onmessage is set once at creation time (not per-rebuild).
-let colorWorker: Worker | null = null
-function getColorWorker(): Worker {
-  if (!colorWorker) {
-    colorWorker = new ColorBufferWorker()
-    colorWorker.onmessage = (e) => {
-      const result = ColorBufferResponseSchema.safeParse(e.data)
-      if (!result.success) return
-      const { buffer, version } = result.data
-      if (version !== colorBuildVersion) return // stale — discard
-      useAppStore.setState({ colorBuffer: buffer, colorBufferLoading: false })
-    }
-  }
-  return colorWorker
+// Singleton pool — created lazily
+let pool: WorkerPool | null = null
+function getPool(): WorkerPool {
+  if (!pool) pool = new WorkerPool(() => new UniversalWorker())
+  return pool
 }
 
 // Debounce timer for opacity-driven color buffer rebuilds
@@ -197,16 +188,21 @@ const useAppStore = create<AppState>((set, get) => ({
     const { embeddingData, opacity } = get()
     if (!embeddingData) return
 
-    const worker = getColorWorker()
     colorBuildVersion++
+    const version = colorBuildVersion
 
-    worker.postMessage({
-      type: 'buildDefault',
-      numPoints: embeddingData.numPoints,
-      rgb: DEFAULT_RGB,
-      alpha: opacity,
-      version: colorBuildVersion,
-    })
+    getPool()
+      .dispatch<ColorBufferResponse>({
+        type: 'buildDefault',
+        numPoints: embeddingData.numPoints,
+        rgb: DEFAULT_RGB,
+        alpha: opacity,
+        version,
+      })
+      .then((response) => {
+        if (version !== colorBuildVersion) return // stale
+        set({ colorBuffer: response.buffer, colorBufferLoading: false })
+      })
   },
 }))
 
