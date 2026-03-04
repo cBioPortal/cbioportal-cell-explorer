@@ -42,7 +42,7 @@ describe('WorkerPool', () => {
     // Simulate worker response
     workers[0].respond({ _poolTaskId: sent._poolTaskId, type: 'colorBuffer', buffer: new Uint8Array(4), version: 1 })
 
-    const result = await promise
+    const result = await promise as Record<string, unknown>
     expect(result.type).toBe('colorBuffer')
   })
 
@@ -102,7 +102,7 @@ describe('WorkerPool', () => {
 
     workers[0].respond({ _poolTaskId: sent._poolTaskId, type: 'colorBuffer', buffer: new Uint8Array(4), version: 1 })
 
-    const result = await promise
+    const result = await promise as Record<string, unknown>
     expect(result).not.toHaveProperty('_poolTaskId')
     expect(result.type).toBe('colorBuffer')
   })
