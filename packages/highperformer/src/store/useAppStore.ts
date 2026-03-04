@@ -5,6 +5,7 @@ import { WorkerPool } from '../pool/WorkerPool'
 import UniversalWorker from '../workers/universal.worker.ts?worker'
 import type { ColorBufferResponse } from '../workers/colorBuffer.schemas'
 import type { RGB } from '../utils/colors'
+import { encodeCategories, MAX_CATEGORIES } from '../utils/categoryEncoding'
 
 export interface EmbeddingBounds {
   minX: number
@@ -18,6 +19,8 @@ export interface EmbeddingData {
   numPoints: number
   bounds: EmbeddingBounds
 }
+
+export type ColorMode = 'default' | 'category' | 'gene'
 
 export interface AppState {
   // Dataset
@@ -52,11 +55,31 @@ export interface AppState {
   colorBuffer: Uint8Array | null
   colorBufferLoading: boolean
 
+  // Color By state
+  colorMode: ColorMode
+  selectedObsColumn: string | null
+  selectedGene: string | null
+  colorScaleName: string
+  obsColumnNames: string[]
+  varNames: string[]
+  categoryMap: { label: string; color: RGB }[]
+  expressionRange: { min: number; max: number } | null
+  categoryWarning: string | null
+
+  // Internal — cached data for rebuilds (not for UI consumption)
+  _categoryCodes: Uint8Array | null
+  _expressionData: Float32Array | null
+  _colorAbort: AbortController | null
+
   // Actions
   openDataset: (url: string) => Promise<void>
   setSelectedEmbedding: (key: string) => void
   fetchEmbedding: (key: string) => Promise<void>
   rebuildColorBuffer: () => void
+  setColorMode: (mode: ColorMode) => void
+  selectObsColumn: (name: string) => void
+  selectGene: (name: string) => void
+  setColorScaleName: (name: string) => void
 }
 
 const DEFAULT_RGB: RGB = [100, 150, 255]
@@ -72,6 +95,15 @@ function computeBounds(positions: Float32Array, numPoints: number): EmbeddingBou
     if (y > maxY) maxY = y
   }
   return { minX, maxX, minY, maxY }
+}
+
+function computeRange(data: Float32Array): { min: number; max: number } {
+  let min = Infinity, max = -Infinity
+  for (let i = 0; i < data.length; i++) {
+    if (data[i] < min) min = data[i]
+    if (data[i] > max) max = data[i]
+  }
+  return { min, max }
 }
 
 // Version counter for stale response detection
@@ -127,10 +159,32 @@ const useAppStore = create<AppState>((set, get) => ({
   colorBuffer: null,
   colorBufferLoading: false,
 
+  // Color By state
+  colorMode: 'default',
+  selectedObsColumn: null,
+  selectedGene: null,
+  colorScaleName: 'viridis',
+  obsColumnNames: [],
+  varNames: [],
+  categoryMap: [],
+  expressionRange: null,
+  categoryWarning: null,
+
+  // Internal
+  _categoryCodes: null,
+  _expressionData: null,
+  _colorAbort: null,
+
   // Actions
   openDataset: async (url) => {
     if (url === get().datasetUrl && get().adata) return
-    set({ datasetUrl: url, loading: true, adata: null, obsmKeys: [], selectedEmbedding: null, embeddingData: null, colorBuffer: null })
+    set({
+      datasetUrl: url, loading: true, adata: null, obsmKeys: [],
+      selectedEmbedding: null, embeddingData: null, colorBuffer: null,
+      colorMode: 'default', selectedObsColumn: null, selectedGene: null,
+      obsColumnNames: [], varNames: [], categoryMap: [], expressionRange: null,
+      categoryWarning: null, _categoryCodes: null, _expressionData: null,
+    })
     try {
       const adata = await AnnDataStore.open(url)
       const obsmKeys = adata.obsmKeys()
@@ -177,6 +231,12 @@ const useAppStore = create<AppState>((set, get) => ({
       })
       // Build default color buffer for the new embedding
       get().rebuildColorBuffer()
+
+      // Fetch obs column names and var names in the background (after embedding loads)
+      Promise.all([adata.obsColumns(), adata.varNames()]).then(([obsColumnNames, varNamesRaw]) => {
+        const varNames = varNamesRaw.map((v) => String(v ?? ''))
+        set({ obsColumnNames, varNames })
+      })
     } catch (err) {
       if (err instanceof Error && err.name !== 'AbortError') {
         set({ embeddingLoading: false, _embeddingAbort: null })
@@ -185,24 +245,133 @@ const useAppStore = create<AppState>((set, get) => ({
   },
 
   rebuildColorBuffer: () => {
-    const { embeddingData, opacity } = get()
+    const { embeddingData, opacity, colorMode, _categoryCodes, _expressionData, expressionRange, colorScaleName } = get()
     if (!embeddingData) return
 
     colorBuildVersion++
     const version = colorBuildVersion
 
-    getPool()
-      .dispatch<ColorBufferResponse>({
+    let message: Record<string, unknown>
+
+    if (colorMode === 'category' && _categoryCodes) {
+      message = {
+        type: 'buildFromCategories',
+        numPoints: embeddingData.numPoints,
+        categories: _categoryCodes,
+        alpha: opacity,
+        version,
+      }
+    } else if (colorMode === 'gene' && _expressionData && expressionRange) {
+      message = {
+        type: 'buildFromExpression',
+        numPoints: embeddingData.numPoints,
+        expression: _expressionData,
+        min: expressionRange.min,
+        max: expressionRange.max,
+        alpha: opacity,
+        scaleName: colorScaleName,
+        version,
+      }
+    } else {
+      message = {
         type: 'buildDefault',
         numPoints: embeddingData.numPoints,
         rgb: DEFAULT_RGB,
         alpha: opacity,
         version,
-      })
+      }
+    }
+
+    getPool()
+      .dispatch<ColorBufferResponse>(message)
       .then((response) => {
         if (version !== colorBuildVersion) return // stale
         set({ colorBuffer: response.buffer, colorBufferLoading: false })
       })
+  },
+
+  setColorMode: (mode) => {
+    set({
+      colorMode: mode,
+      categoryWarning: null,
+    })
+    // If switching to default, clear cached data and rebuild immediately
+    if (mode === 'default') {
+      set({ _categoryCodes: null, _expressionData: null, categoryMap: [], expressionRange: null })
+      get().rebuildColorBuffer()
+    }
+    // For category/gene, user still needs to select a column/gene — don't rebuild yet
+  },
+
+  selectObsColumn: (name) => {
+    const { adata, _colorAbort } = get()
+    if (!adata) return
+
+    if (_colorAbort) _colorAbort.abort()
+    const abortController = new AbortController()
+    set({
+      selectedObsColumn: name,
+      colorBufferLoading: true,
+      categoryWarning: null,
+      _colorAbort: abortController,
+    })
+
+    adata.obsColumn(name, abortController.signal).then((values) => {
+      const valuesArray = Array.isArray(values) ? values : Array.from(values as Iterable<number>)
+      const { codes, categoryMap, uniqueCount } = encodeCategories(valuesArray as (string | number | null)[])
+
+      if (uniqueCount > MAX_CATEGORIES) {
+        set({
+          categoryWarning: `This column has ${uniqueCount} unique values (likely continuous). Please choose a categorical column.`,
+          colorBufferLoading: false,
+          _categoryCodes: null,
+          categoryMap: [],
+          _colorAbort: null,
+        })
+        return
+      }
+
+      set({
+        _categoryCodes: codes,
+        categoryMap,
+        categoryWarning: null,
+        _colorAbort: null,
+      })
+      get().rebuildColorBuffer()
+    })
+  },
+
+  selectGene: (name) => {
+    const { adata, _colorAbort } = get()
+    if (!adata) return
+
+    if (_colorAbort) _colorAbort.abort()
+    const abortController = new AbortController()
+    set({
+      selectedGene: name,
+      colorBufferLoading: true,
+      _colorAbort: abortController,
+    })
+
+    adata.geneExpression(name, abortController.signal).then((expression) => {
+      const data = expression instanceof Float32Array
+        ? expression
+        : new Float32Array(expression as ArrayLike<number>)
+      const range = computeRange(data)
+      set({
+        _expressionData: data,
+        expressionRange: range,
+        _colorAbort: null,
+      })
+      get().rebuildColorBuffer()
+    })
+  },
+
+  setColorScaleName: (name) => {
+    set({ colorScaleName: name })
+    if (get().colorMode === 'gene' && get()._expressionData) {
+      get().rebuildColorBuffer()
+    }
   },
 }))
 

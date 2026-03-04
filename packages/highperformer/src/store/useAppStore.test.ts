@@ -11,7 +11,7 @@ vi.mock('../pool/WorkerPool', () => {
   }
 })
 
-// Mock the worker import (still needed for WorkerPool factory, but pool is mocked)
+// Mock the worker import
 vi.mock('../workers/universal.worker.ts?worker', () => {
   return { default: class MockWorker {} }
 })
@@ -24,7 +24,6 @@ describe('useAppStore', () => {
     useAppStore.setState(useAppStore.getInitialState())
     mockDispatch.mockClear()
     resetColorBuildVersion()
-    // Default: dispatch resolves immediately with a fake colorBuffer response
     mockDispatch.mockResolvedValue({ type: 'colorBuffer', buffer: new Uint8Array(8), version: 1 })
   })
 
@@ -48,6 +47,19 @@ describe('useAppStore', () => {
       expect(state.colorBufferLoading).toBe(false)
       expect(state.obsmKeys).toEqual([])
       expect(state.selectedEmbedding).toBeNull()
+    })
+
+    it('has correct color state defaults', () => {
+      const state = useAppStore.getState()
+      expect(state.colorMode).toBe('default')
+      expect(state.selectedObsColumn).toBeNull()
+      expect(state.selectedGene).toBeNull()
+      expect(state.colorScaleName).toBe('viridis')
+      expect(state.obsColumnNames).toEqual([])
+      expect(state.varNames).toEqual([])
+      expect(state.categoryMap).toEqual([])
+      expect(state.expressionRange).toBeNull()
+      expect(state.categoryWarning).toBeNull()
     })
   })
 
@@ -154,7 +166,7 @@ describe('useAppStore', () => {
       expect(mockDispatch).not.toHaveBeenCalled()
     })
 
-    it('dispatches buildDefault message with version', () => {
+    it('dispatches buildDefault in default mode', () => {
       useAppStore.setState({
         embeddingData: {
           positions: new Float32Array([0, 0, 1, 1, 2, 2]),
@@ -162,6 +174,7 @@ describe('useAppStore', () => {
           bounds: { minX: 0, maxX: 2, minY: 0, maxY: 2 },
         },
         opacity: 0.7,
+        colorMode: 'default',
       })
 
       useAppStore.getState().rebuildColorBuffer()
@@ -171,6 +184,59 @@ describe('useAppStore', () => {
         numPoints: 3,
         rgb: [100, 150, 255],
         alpha: 0.7,
+        version: 1,
+      })
+    })
+
+    it('dispatches buildFromCategories in category mode', () => {
+      const codes = new Uint8Array([0, 1, 0])
+      useAppStore.setState({
+        embeddingData: {
+          positions: new Float32Array([0, 0, 1, 1, 2, 2]),
+          numPoints: 3,
+          bounds: { minX: 0, maxX: 2, minY: 0, maxY: 2 },
+        },
+        opacity: 0.7,
+        colorMode: 'category',
+        _categoryCodes: codes,
+      })
+
+      useAppStore.getState().rebuildColorBuffer()
+
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'buildFromCategories',
+        numPoints: 3,
+        categories: codes,
+        alpha: 0.7,
+        version: 1,
+      })
+    })
+
+    it('dispatches buildFromExpression in gene mode', () => {
+      const expression = new Float32Array([0.5, 1.0, 0.0])
+      useAppStore.setState({
+        embeddingData: {
+          positions: new Float32Array([0, 0, 1, 1, 2, 2]),
+          numPoints: 3,
+          bounds: { minX: 0, maxX: 2, minY: 0, maxY: 2 },
+        },
+        opacity: 0.7,
+        colorMode: 'gene',
+        colorScaleName: 'viridis',
+        _expressionData: expression,
+        expressionRange: { min: 0.0, max: 1.0 },
+      })
+
+      useAppStore.getState().rebuildColorBuffer()
+
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'buildFromExpression',
+        numPoints: 3,
+        expression,
+        min: 0.0,
+        max: 1.0,
+        alpha: 0.7,
+        scaleName: 'viridis',
         version: 1,
       })
     })
@@ -186,12 +252,10 @@ describe('useAppStore', () => {
       })
 
       const fakeBuffer = new Uint8Array(8)
-      // dispatch resolves with version matching what rebuildColorBuffer sends (version 1)
       mockDispatch.mockResolvedValue({ type: 'colorBuffer', buffer: fakeBuffer, version: 1 })
 
       useAppStore.getState().rebuildColorBuffer()
 
-      // Wait for the Promise to resolve
       await vi.waitFor(() => {
         expect(useAppStore.getState().colorBufferLoading).toBe(false)
       })
@@ -208,32 +272,163 @@ describe('useAppStore', () => {
         colorBufferLoading: true,
       })
 
-      // First rebuild (version 1) — resolves slowly with stale version
       let resolveFirst!: (v: unknown) => void
       mockDispatch.mockImplementationOnce(() => new Promise((r) => { resolveFirst = r }))
 
       useAppStore.getState().rebuildColorBuffer()
 
-      // Second rebuild (version 2) — resolves immediately
       const currentBuffer = new Uint8Array([10, 20, 30, 40, 50, 60, 70, 80])
       mockDispatch.mockResolvedValueOnce({ type: 'colorBuffer', buffer: currentBuffer, version: 2 })
 
       useAppStore.getState().rebuildColorBuffer()
 
-      // Wait for the second dispatch's Promise to resolve and update store
       await vi.waitFor(() => {
         expect(useAppStore.getState().colorBuffer).toBe(currentBuffer)
       })
 
-      // Now the first (stale) response arrives — should be discarded
       const staleBuffer = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])
       resolveFirst({ type: 'colorBuffer', buffer: staleBuffer, version: 1 })
 
-      // Give microtasks time to settle
       await vi.waitFor(() => {
-        // colorBuffer should still be the current one, not the stale one
         expect(useAppStore.getState().colorBuffer).toBe(currentBuffer)
       })
+    })
+  })
+
+  describe('setColorMode', () => {
+    it('switches to default mode and rebuilds', () => {
+      useAppStore.setState({
+        embeddingData: {
+          positions: new Float32Array([0, 0, 1, 1]),
+          numPoints: 2,
+          bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
+        },
+        colorMode: 'category',
+      })
+      mockDispatch.mockClear()
+
+      useAppStore.getState().setColorMode('default')
+
+      expect(useAppStore.getState().colorMode).toBe('default')
+      expect(useAppStore.getState().categoryWarning).toBeNull()
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'buildDefault' }),
+      )
+    })
+  })
+
+  describe('selectObsColumn', () => {
+    it('fetches column, encodes categories, and rebuilds buffer', async () => {
+      const mockAdata = {
+        obsColumn: vi.fn().mockResolvedValue(['A', 'B', 'A']),
+      }
+      useAppStore.setState({
+        adata: mockAdata as any,
+        embeddingData: {
+          positions: new Float32Array([0, 0, 1, 1, 2, 2]),
+          numPoints: 3,
+          bounds: { minX: 0, maxX: 2, minY: 0, maxY: 2 },
+        },
+        colorMode: 'category',
+      })
+      mockDispatch.mockClear()
+
+      useAppStore.getState().selectObsColumn('cluster')
+
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().selectedObsColumn).toBe('cluster')
+      })
+      expect(mockAdata.obsColumn).toHaveBeenCalledWith('cluster', expect.any(AbortSignal))
+      expect(useAppStore.getState().categoryMap.length).toBe(2)
+      expect(useAppStore.getState().categoryWarning).toBeNull()
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'buildFromCategories' }),
+      )
+    })
+
+    it('shows warning when unique values exceed threshold', async () => {
+      const manyValues = Array.from({ length: 1001 }, (_, i) => `val_${i}`)
+      const mockAdata = {
+        obsColumn: vi.fn().mockResolvedValue(manyValues),
+      }
+      useAppStore.setState({
+        adata: mockAdata as any,
+        embeddingData: {
+          positions: new Float32Array(1001 * 2),
+          numPoints: 1001,
+          bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
+        },
+        colorMode: 'category',
+      })
+      mockDispatch.mockClear()
+
+      useAppStore.getState().selectObsColumn('continuous_col')
+
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().categoryWarning).toContain('1001')
+      })
+      // Should NOT dispatch a color buffer build
+      expect(mockDispatch).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('selectGene', () => {
+    it('fetches expression data, computes range, and rebuilds buffer', async () => {
+      const expression = new Float32Array([0.0, 2.5, 5.0])
+      const mockAdata = {
+        geneExpression: vi.fn().mockResolvedValue(expression),
+      }
+      useAppStore.setState({
+        adata: mockAdata as any,
+        embeddingData: {
+          positions: new Float32Array([0, 0, 1, 1, 2, 2]),
+          numPoints: 3,
+          bounds: { minX: 0, maxX: 2, minY: 0, maxY: 2 },
+        },
+        colorMode: 'gene',
+        colorScaleName: 'viridis',
+      })
+      mockDispatch.mockClear()
+
+      useAppStore.getState().selectGene('TP53')
+
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().selectedGene).toBe('TP53')
+      })
+      expect(mockAdata.geneExpression).toHaveBeenCalledWith('TP53', expect.any(AbortSignal))
+      expect(useAppStore.getState().expressionRange).toEqual({ min: 0.0, max: 5.0 })
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'buildFromExpression',
+          expression,
+          min: 0.0,
+          max: 5.0,
+          scaleName: 'viridis',
+        }),
+      )
+    })
+  })
+
+  describe('setColorScaleName', () => {
+    it('updates scale and rebuilds when in gene mode with expression data', () => {
+      useAppStore.setState({
+        embeddingData: {
+          positions: new Float32Array([0, 0, 1, 1]),
+          numPoints: 2,
+          bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
+        },
+        colorMode: 'gene',
+        _expressionData: new Float32Array([0, 1]),
+        expressionRange: { min: 0, max: 1 },
+      })
+      mockDispatch.mockClear()
+
+      useAppStore.getState().setColorScaleName('magma')
+
+      expect(useAppStore.getState().colorScaleName).toBe('magma')
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'buildFromExpression', scaleName: 'magma' }),
+      )
     })
   })
 })
