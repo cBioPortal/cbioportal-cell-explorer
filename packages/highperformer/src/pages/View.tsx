@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
-import { InputNumber, Layout, Switch, Typography, Select, Spin } from 'antd'
+import { Collapse, InputNumber, Layout, Switch, Typography, Select, Spin } from 'antd'
 import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HistoryOutlined, HolderOutlined, LeftOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons'
 import { DeckGL } from '@deck.gl/react'
 import { OrthographicView } from '@deck.gl/core'
@@ -239,38 +239,44 @@ function RenderingControls() {
   const setCollisionRadiusScale = useAppStore((s) => s.setCollisionRadiusScale)
 
   return (
-    <div style={{ padding: '12px 16px' }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: '#666', textTransform: 'uppercase', marginBottom: 8 }}>
-        Rendering
-      </div>
+    <Collapse
+      ghost
+      size="small"
+      items={[{
+        key: 'rendering',
+        label: <span style={{ fontSize: 12, fontWeight: 600, color: '#666', textTransform: 'uppercase' }}>Rendering</span>,
+        children: (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Point radius (px)</Typography.Text>
+              <InputNumber min={0.5} max={20} step={0.5} size="small" value={pointRadius} onChange={(v) => v != null && setPointRadius(v)} style={{ width: 70 }} />
+            </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>Point radius (px)</Typography.Text>
-        <InputNumber min={0.5} max={20} step={0.5} size="small" value={pointRadius} onChange={(v) => v != null && setPointRadius(v)} style={{ width: 70 }} />
-      </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Opacity</Typography.Text>
+              <InputNumber min={0.01} max={1} step={0.05} size="small" value={opacity} onChange={(v) => v != null && setOpacity(v)} style={{ width: 70 }} />
+            </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>Opacity</Typography.Text>
-        <InputNumber min={0.01} max={1} step={0.05} size="small" value={opacity} onChange={(v) => v != null && setOpacity(v)} style={{ width: 70 }} />
-      </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Antialiasing</Typography.Text>
+              <Switch size="small" checked={antialiasing} onChange={setAntialiasing} />
+            </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>Antialiasing</Typography.Text>
-        <Switch size="small" checked={antialiasing} onChange={setAntialiasing} />
-      </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Collision detection</Typography.Text>
+              <Switch size="small" checked={collisionEnabled} onChange={setCollisionEnabled} />
+            </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>Collision detection</Typography.Text>
-        <Switch size="small" checked={collisionEnabled} onChange={setCollisionEnabled} />
-      </div>
-
-      {collisionEnabled && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>Collision scale</Typography.Text>
-          <InputNumber min={0.5} max={10} step={0.5} size="small" value={collisionRadiusScale} onChange={(v) => v != null && setCollisionRadiusScale(v)} style={{ width: 70 }} />
-        </div>
-      )}
-    </div>
+            {collisionEnabled && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>Collision scale</Typography.Text>
+                <InputNumber min={0.5} max={10} step={0.5} size="small" value={collisionRadiusScale} onChange={(v) => v != null && setCollisionRadiusScale(v)} style={{ width: 70 }} />
+              </div>
+            )}
+          </>
+        ),
+      }]}
+    />
   )
 }
 
