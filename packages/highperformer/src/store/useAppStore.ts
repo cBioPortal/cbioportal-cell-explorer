@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { AnnDataStore } from '@cbioportal-zarr-loader/zarrstore'
+import { AnnDataStore, GENE_SYMBOL_COLUMNS } from '@cbioportal-zarr-loader/zarrstore'
 import type { ArrayResult } from '@cbioportal-zarr-loader/zarrstore'
 import { WorkerPool } from '../pool/WorkerPool'
 import UniversalWorker from '../workers/universal.worker.ts?worker'
@@ -20,7 +20,7 @@ export interface EmbeddingData {
   bounds: EmbeddingBounds
 }
 
-export type ColorMode = 'default' | 'category' | 'gene'
+export type ColorMode = 'category' | 'gene'
 
 export interface AppState {
   // Dataset
@@ -66,6 +66,11 @@ export interface AppState {
   expressionRange: { min: number; max: number } | null
   categoryWarning: string | null
 
+  // Gene label resolution
+  varColumns: string[]
+  geneLabelColumn: string | null
+  geneLabelMap: Map<string, string> | null
+
   // Internal — cached data for rebuilds (not for UI consumption)
   _categoryCodes: Uint8Array | null
   _expressionData: Float32Array | null
@@ -78,8 +83,12 @@ export interface AppState {
   rebuildColorBuffer: () => void
   setColorMode: (mode: ColorMode) => void
   selectObsColumn: (name: string) => void
+  clearObsColumn: () => void
   selectGene: (name: string) => void
+  clearGene: () => void
   setColorScaleName: (name: string) => void
+  setGeneLabelColumn: (col: string | null) => void
+  _resolveGeneLabels: () => Promise<void>
 }
 
 const DEFAULT_RGB: RGB = [100, 150, 255]
@@ -160,7 +169,7 @@ const useAppStore = create<AppState>((set, get) => ({
   colorBufferLoading: false,
 
   // Color By state
-  colorMode: 'default',
+  colorMode: 'category',
   selectedObsColumn: null,
   selectedGene: null,
   colorScaleName: 'viridis',
@@ -169,6 +178,11 @@ const useAppStore = create<AppState>((set, get) => ({
   categoryMap: [],
   expressionRange: null,
   categoryWarning: null,
+
+  // Gene label resolution
+  varColumns: [],
+  geneLabelColumn: null,
+  geneLabelMap: null,
 
   // Internal
   _categoryCodes: null,
@@ -181,9 +195,10 @@ const useAppStore = create<AppState>((set, get) => ({
     set({
       datasetUrl: url, loading: true, adata: null, obsmKeys: [],
       selectedEmbedding: null, embeddingData: null, colorBuffer: null,
-      colorMode: 'default', selectedObsColumn: null, selectedGene: null,
+      colorMode: 'category', selectedObsColumn: null, selectedGene: null,
       obsColumnNames: [], varNames: [], categoryMap: [], expressionRange: null,
       categoryWarning: null, _categoryCodes: null, _expressionData: null,
+      varColumns: [], geneLabelColumn: null, geneLabelMap: null,
     })
     try {
       const adata = await AnnDataStore.open(url)
@@ -232,10 +247,24 @@ const useAppStore = create<AppState>((set, get) => ({
       // Build default color buffer for the new embedding
       get().rebuildColorBuffer()
 
-      // Fetch obs column names and var names in the background (after embedding loads)
-      Promise.all([adata.obsColumns(), adata.varNames()]).then(([obsColumnNames, varNamesRaw]) => {
+      // Fetch obs column names, var names, and var columns in the background
+      Promise.all([adata.obsColumns(), adata.varNames(), adata.varColumns()]).then(([obsColumnNames, varNamesRaw, varCols]) => {
         const varNames = varNamesRaw.map((v) => String(v ?? ''))
-        set({ obsColumnNames, varNames })
+
+        // Auto-detect gene label column
+        const colsLower = varCols.map((c) => c.toLowerCase())
+        let detectedCol: string | null = null
+        for (const candidate of GENE_SYMBOL_COLUMNS) {
+          // Exact match first
+          const exactIdx = varCols.indexOf(candidate)
+          if (exactIdx !== -1) { detectedCol = varCols[exactIdx]; break }
+          // Case-insensitive fallback
+          const lowerIdx = colsLower.indexOf(candidate.toLowerCase())
+          if (lowerIdx !== -1) { detectedCol = varCols[lowerIdx]; break }
+        }
+
+        set({ obsColumnNames, varNames, varColumns: varCols, geneLabelColumn: detectedCol })
+        if (detectedCol) get()._resolveGeneLabels()
       })
     } catch (err) {
       if (err instanceof Error && err.name !== 'AbortError') {
@@ -295,12 +324,12 @@ const useAppStore = create<AppState>((set, get) => ({
       colorMode: mode,
       categoryWarning: null,
     })
-    // If switching to default, clear cached data and rebuild immediately
-    if (mode === 'default') {
-      set({ _categoryCodes: null, _expressionData: null, categoryMap: [], expressionRange: null })
+    // When switching modes, rebuild if cached data exists for the new mode
+    if (mode === 'category' && get()._categoryCodes) {
+      get().rebuildColorBuffer()
+    } else if (mode === 'gene' && get()._expressionData) {
       get().rebuildColorBuffer()
     }
-    // For category/gene, user still needs to select a column/gene — don't rebuild yet
   },
 
   selectObsColumn: (name) => {
@@ -341,6 +370,19 @@ const useAppStore = create<AppState>((set, get) => ({
     })
   },
 
+  clearObsColumn: () => {
+    const { _colorAbort } = get()
+    if (_colorAbort) _colorAbort.abort()
+    set({
+      selectedObsColumn: null,
+      _categoryCodes: null,
+      categoryMap: [],
+      categoryWarning: null,
+      _colorAbort: null,
+    })
+    get().rebuildColorBuffer()
+  },
+
   selectGene: (name) => {
     const { adata, _colorAbort } = get()
     if (!adata) return
@@ -367,10 +409,56 @@ const useAppStore = create<AppState>((set, get) => ({
     })
   },
 
+  clearGene: () => {
+    const { _colorAbort } = get()
+    if (_colorAbort) _colorAbort.abort()
+    set({
+      selectedGene: null,
+      _expressionData: null,
+      expressionRange: null,
+      _colorAbort: null,
+    })
+    get().rebuildColorBuffer()
+  },
+
   setColorScaleName: (name) => {
     set({ colorScaleName: name })
     if (get().colorMode === 'gene' && get()._expressionData) {
       get().rebuildColorBuffer()
+    }
+  },
+
+  setGeneLabelColumn: (col) => {
+    set({ geneLabelColumn: col, geneLabelMap: null })
+    if (col) {
+      get()._resolveGeneLabels()
+    }
+  },
+
+  _resolveGeneLabels: async () => {
+    const { adata, geneLabelColumn, varNames } = get()
+    if (!adata || !geneLabelColumn) return
+
+    try {
+      const [symbols, varNamesRaw] = await Promise.all([
+        adata.varColumn(geneLabelColumn),
+        varNames.length > 0 ? Promise.resolve(varNames) : adata.varNames().then((raw) => raw.map((v) => String(v ?? ''))),
+      ])
+      const symbolsArr = Array.isArray(symbols) ? symbols : Array.from(symbols as Iterable<unknown>)
+      const map = new Map<string, string>()
+      for (let i = 0; i < varNamesRaw.length; i++) {
+        const varIndex = String(varNamesRaw[i])
+        const label = String(symbolsArr[i] ?? '')
+        if (label && label !== varIndex) {
+          map.set(varIndex, label)
+        }
+      }
+      // Only update if the column hasn't changed while we were fetching
+      if (get().geneLabelColumn === geneLabelColumn) {
+        set({ geneLabelMap: map })
+      }
+    } catch {
+      // Silently fail — labels are a nicety, not critical
     }
   },
 }))
