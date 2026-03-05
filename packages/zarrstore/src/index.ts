@@ -1,5 +1,5 @@
 export { ZarrStore } from "./ZarrStore";
-export { AnnDataStore } from "./AnnDataStore";
+export { AnnDataStore, GENE_SYMBOL_COLUMNS } from "./AnnDataStore";
 export { InstrumentedStore } from "./InstrumentedStore";
 export type { FetchStats } from "./InstrumentedStore";
 export { ProfileCollector } from "./ProfileCollector";

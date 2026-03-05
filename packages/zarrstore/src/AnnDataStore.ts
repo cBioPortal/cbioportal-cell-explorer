@@ -39,6 +39,19 @@ interface CachedOpts<T> {
   getLabel?: (result: T) => Promise<string | undefined> | string | undefined;
 }
 
+/** Common var column names that hold human-readable gene symbols (case-sensitive candidates). */
+export const GENE_SYMBOL_COLUMNS: readonly string[] = [
+  "gene_symbol",
+  "GeneSymbol",
+  "gene_symbols",
+  "feature_name",
+  "var_name",
+  "gene_name",
+  "gene_short_name",
+  "symbol",
+  "name",
+];
+
 export class AnnDataStore {
   #zarrStore: ZarrStore;
   #shape: number[];
@@ -327,18 +340,7 @@ export class AnnDataStore {
     return result;
   }
 
-  /** Common var column names that hold human-readable gene symbols (case-sensitive candidates). */
-  static readonly #GENE_SYMBOL_COLUMNS = [
-    "gene_symbol",
-    "GeneSymbol",
-    "gene_symbols",
-    "feature_name",
-    "var_name",
-    "gene_name",
-    "gene_short_name",
-    "symbol",
-    "name",
-  ];
+  static readonly #GENE_SYMBOL_COLUMNS = GENE_SYMBOL_COLUMNS;
 
   /**
    * Try to resolve a human-readable gene symbol for a var-index gene name.
