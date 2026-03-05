@@ -10,6 +10,8 @@ import { _StatsWidget as StatsWidget } from '@deck.gl/widgets'
 import { ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from '@cbioportal-zarr-loader/profiler'
 import useAppStore from '../store/useAppStore'
 import ColorBySection from '../components/ColorBySection'
+import SelectionOverlay from '../components/SelectionOverlay'
+import SelectionToolbar from '../components/SelectionToolbar'
 import { loadDatasets, saveDatasets } from '../utils/datasets'
 
 const { Sider, Content } = Layout
@@ -484,6 +486,7 @@ function View() {
   const openDataset = useAppStore((s) => s.openDataset)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightWidth, setRightWidth] = useState(RIGHT_SIDEBAR_WIDTH)
+  const deckRef = useRef<DeckGL>(null)
 
   const { onMouseDown: onDragStart, setSnappedRef } = useRightSidebarDrag(setRightWidth)
 
@@ -514,7 +517,9 @@ function View() {
             onClick={() => setLeftCollapsed((c) => !c)}
             icon={leftCollapsed ? <RightOutlined /> : <LeftOutlined />}
           />
-          <MemoizedVisualization />
+          <MemoizedVisualization deckRef={deckRef} />
+          <SelectionOverlay deckRef={deckRef} />
+          <SelectionToolbar />
           <CanvasLoadingOverlay />
           <EdgeTab
             side="right"
