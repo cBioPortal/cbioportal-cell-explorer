@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { Group } from '@visx/group'
 import { scaleBand, scaleLinear } from '@visx/scale'
-import { Bar } from '@visx/shape'
-import { AxisLeft } from '@visx/axis'
-import { Typography } from 'antd'
+import { AxisBottom, AxisLeft } from '@visx/axis'
+import { Popover, Segmented, Typography } from 'antd'
 import { ExpandOutlined } from '@ant-design/icons'
 import type { SelectionGroup } from '../store/useAppStore'
 import type { RGB } from '../utils/colors'
@@ -22,11 +21,11 @@ interface CategoryRow {
   total: Record<number, number>
 }
 
+type StackMode = 'count' | 'percent'
+
 const MARGIN = { top: 4, right: 12, bottom: 4, left: 100 }
-const MODAL_MARGIN = { top: 4, right: 16, bottom: 4, left: 140 }
-const BAR_HEIGHT = 14
-const BAR_GAP = 2
-const MAX_CATS_INLINE = 15
+const BAR_HEIGHT = 16
+const MAX_CATS_INLINE = 5
 
 function buildData(
   categoryMap: { label: string; color: RGB }[],
@@ -58,20 +57,41 @@ function buildData(
   return data
 }
 
-function CategoryBarChart({ data, activeGroups, width, margin }: {
+interface GroupInfo {
+  groupId: number
+  color: string
+  count: number
+  pct: string
+}
+
+interface PopoverData {
+  label: string
+  highlightGroupId: number
+  groups: GroupInfo[]
+}
+
+function StackedBarChart({ data, activeGroups, width, margin, mode }: {
   data: CategoryRow[]
   activeGroups: SelectionGroup[]
   width: number
   margin: typeof MARGIN
+  mode: StackMode
 }) {
-  const numGroups = activeGroups.length
-  const rowHeight = numGroups * BAR_HEIGHT + (numGroups - 1) * BAR_GAP + 4
+  const [hoverKey, setHoverKey] = useState<string | null>(null)
+  const [popover, setPopover] = useState<{ key: string; data: PopoverData } | null>(null)
+  const rowHeight = BAR_HEIGHT + 4
   const height = data.length * rowHeight + margin.top + margin.bottom
+  const innerWidth = width - margin.left - margin.right
 
-  const maxCount = Math.max(
-    ...data.flatMap((d) => activeGroups.map((g) => d.counts[g.id] ?? 0)),
-    1,
-  )
+  let maxValue = 1
+  if (mode === 'count') {
+    for (const d of data) {
+      const sum = activeGroups.reduce((acc, g) => acc + (d.counts[g.id] ?? 0), 0)
+      if (sum > maxValue) maxValue = sum
+    }
+  } else {
+    maxValue = 100
+  }
 
   const yScale = scaleBand({
     domain: data.map((d) => d.label),
@@ -80,39 +100,96 @@ function CategoryBarChart({ data, activeGroups, width, margin }: {
   })
 
   const xScale = scaleLinear({
-    domain: [0, maxCount],
-    range: [0, width - margin.left - margin.right],
-  })
-
-  const groupScale = scaleBand({
-    domain: activeGroups.map((g) => String(g.id)),
-    range: [0, yScale.bandwidth()],
-    padding: 0.1,
+    domain: [0, maxValue],
+    range: [0, innerWidth],
   })
 
   return (
-    <svg width={width} height={height}>
+    <svg
+      width={width}
+      height={height}
+      onMouseLeave={() => setHoverKey(null)}
+    >
       <Group left={margin.left}>
         {data.map((d) => {
-          const y0 = yScale(d.label) ?? 0
+          const y = yScale(d.label) ?? 0
+          const barH = yScale.bandwidth()
+          const totalCount = activeGroups.reduce((acc, g) => acc + (d.counts[g.id] ?? 0), 0)
+          let xOffset = 0
+
           return activeGroups.map((g) => {
-            const barY = y0 + (groupScale(String(g.id)) ?? 0)
-            const barWidth = xScale(d.counts[g.id] ?? 0)
-            return (
-              <Bar
-                key={`${d.label}-${g.id}`}
-                x={0}
-                y={barY}
-                width={barWidth}
-                height={groupScale.bandwidth()}
-                fill={`rgb(${g.color.join(',')})`}
-                rx={2}
+            const count = d.counts[g.id] ?? 0
+            const value = mode === 'percent'
+              ? (totalCount > 0 ? (count / totalCount) * 100 : 0)
+              : count
+            const barWidth = xScale(value)
+            const x = xScale(xOffset)
+            xOffset += value
+            const key = `${d.label}-${g.id}`
+            const rowKey = d.label
+            const isHovered = hoverKey === key
+            const isPopoverOpen = popover?.key === rowKey && popover.data.highlightGroupId === g.id
+            const color = `rgb(${g.color.join(',')})`
+
+            const handleClick = () => {
+              if (popover?.key === rowKey && popover.data.highlightGroupId === g.id) {
+                setPopover(null)
+              } else {
+                const groups: GroupInfo[] = activeGroups.map((ag) => {
+                  const c = d.counts[ag.id] ?? 0
+                  const p = totalCount > 0 ? ((c / totalCount) * 100).toFixed(1) : '0.0'
+                  return { groupId: ag.id, color: `rgb(${ag.color.join(',')})`, count: c, pct: p }
+                })
+                setPopover({ key: rowKey, data: { label: d.label, highlightGroupId: g.id, groups } })
+              }
+            }
+
+            const rectEl = (
+              <rect
+                key={key}
+                fill={color}
+                stroke={isHovered || isPopoverOpen ? '#333' : 'none'}
+                strokeWidth={isHovered || isPopoverOpen ? 1.5 : 0}
+                style={{
+                  x, y, width: barWidth, height: barH,
+                  transition: 'x 300ms ease, width 300ms ease',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={() => setHoverKey(key)}
+                onMouseLeave={() => setHoverKey(null)}
+                onClick={handleClick}
               />
             )
+
+            if (isPopoverOpen) {
+              return (
+                <Popover
+                  key={key}
+                  open
+                  placement="left"
+                  onOpenChange={(open) => { if (!open) setPopover(null) }}
+                  content={
+                    <div style={{ fontSize: 12 }}>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>{popover.data.label}</div>
+                      {popover.data.groups.map((gi) => (
+                        <div key={gi.groupId} style={{ fontWeight: gi.groupId === g.id ? 600 : 400 }}>
+                          <span style={{ color: gi.color }}>G{gi.groupId}</span>: {gi.count.toLocaleString()} ({gi.pct}%)
+                        </div>
+                      ))}
+                    </div>
+                  }
+                >
+                  {rectEl}
+                </Popover>
+              )
+            }
+
+            return rectEl
           })
         })}
         <AxisLeft
           scale={yScale}
+          tickValues={data.map((d) => d.label)}
           stroke="#e8e8e8"
           tickStroke="none"
           tickLabelProps={{
@@ -124,6 +201,170 @@ function CategoryBarChart({ data, activeGroups, width, margin }: {
           tickFormat={(v) => {
             const s = String(v)
             return s.length > 18 ? s.slice(0, 16) + '\u2026' : s
+          }}
+        />
+      </Group>
+    </svg>
+  )
+}
+
+const VERTICAL_MARGIN_BASE = { top: 12, right: 16, left: 48 }
+const LABEL_MAX_CHARS = 30
+const BAND_WIDTH = 32
+const MIN_CHART_WIDTH = 400
+
+function VerticalStackedBarChart({ data, activeGroups, mode }: {
+  data: CategoryRow[]
+  activeGroups: SelectionGroup[]
+  mode: StackMode
+}) {
+  const [hoverKey, setHoverKey] = useState<string | null>(null)
+  const [popover, setPopover] = useState<{ key: string; data: PopoverData } | null>(null)
+  const maxLabelLen = Math.min(
+    data.reduce((max, d) => Math.max(max, d.label.length), 0),
+    LABEL_MAX_CHARS,
+  )
+  // fontSize 10, ~6px per char. Rotated 45° with textAnchor 'end':
+  // vertical extent = len * 6 * sin(45°), horizontal extent = len * 6 * cos(45°)
+  const COS45 = 0.707
+  const charPx = 6
+  const bottomMargin = Math.max(48, maxLabelLen * charPx * COS45 + 30)
+  const leftMargin = Math.max(VERTICAL_MARGIN_BASE.left, maxLabelLen * charPx * COS45 + 8)
+  const margin = { ...VERTICAL_MARGIN_BASE, bottom: bottomMargin, left: leftMargin }
+  const innerWidth = Math.max(data.length * BAND_WIDTH, MIN_CHART_WIDTH)
+  const width = innerWidth + margin.left + margin.right
+  const innerHeight = 300
+
+  let maxValue = 1
+  if (mode === 'count') {
+    for (const d of data) {
+      const sum = activeGroups.reduce((acc, g) => acc + (d.counts[g.id] ?? 0), 0)
+      if (sum > maxValue) maxValue = sum
+    }
+  } else {
+    maxValue = 100
+  }
+
+  const xScale = scaleBand({
+    domain: data.map((d) => d.label),
+    range: [0, innerWidth],
+    padding: 0.2,
+  })
+
+  const yScale = scaleLinear({
+    domain: [0, maxValue],
+    range: [innerHeight, 0],
+    nice: true,
+  })
+
+  return (
+    <svg
+      width={width}
+      height={innerHeight + margin.top + margin.bottom}
+      onMouseLeave={() => setHoverKey(null)}
+    >
+      <Group left={margin.left} top={margin.top}>
+        {data.map((d) => {
+          const x = xScale(d.label) ?? 0
+          const barW = Math.min(xScale.bandwidth(), BAND_WIDTH)
+          const barOffset = (xScale.bandwidth() - barW) / 2
+          const totalCount = activeGroups.reduce((acc, g) => acc + (d.counts[g.id] ?? 0), 0)
+          let yOffset = 0
+
+          return activeGroups.map((g) => {
+            const count = d.counts[g.id] ?? 0
+            const value = mode === 'percent'
+              ? (totalCount > 0 ? (count / totalCount) * 100 : 0)
+              : count
+            const barHeight = innerHeight - yScale(value)
+            const barY = yScale(yOffset + value)
+            yOffset += value
+            const key = `${d.label}-${g.id}`
+            const rowKey = d.label
+            const isHovered = hoverKey === key
+            const isPopoverOpen = popover?.key === rowKey && popover.data.highlightGroupId === g.id
+            const color = `rgb(${g.color.join(',')})`
+
+            const handleClick = () => {
+              if (popover?.key === rowKey && popover.data.highlightGroupId === g.id) {
+                setPopover(null)
+              } else {
+                const groups: GroupInfo[] = activeGroups.map((ag) => {
+                  const c = d.counts[ag.id] ?? 0
+                  const p = totalCount > 0 ? ((c / totalCount) * 100).toFixed(1) : '0.0'
+                  return { groupId: ag.id, color: `rgb(${ag.color.join(',')})`, count: c, pct: p }
+                })
+                setPopover({ key: rowKey, data: { label: d.label, highlightGroupId: g.id, groups } })
+              }
+            }
+
+            const rectEl = (
+              <rect
+                key={key}
+                fill={color}
+                stroke={isHovered || isPopoverOpen ? '#333' : 'none'}
+                strokeWidth={isHovered || isPopoverOpen ? 1.5 : 0}
+                x={x + barOffset}
+                y={barY}
+                width={barW}
+                height={barHeight}
+                style={{ cursor: 'pointer', transition: 'y 300ms ease, height 300ms ease' }}
+                onMouseEnter={() => setHoverKey(key)}
+                onMouseLeave={() => setHoverKey(null)}
+                onClick={handleClick}
+              />
+            )
+
+            if (isPopoverOpen) {
+              return (
+                <Popover
+                  key={key}
+                  open
+                  placement="top"
+                  onOpenChange={(open) => { if (!open) setPopover(null) }}
+                  content={
+                    <div style={{ fontSize: 12 }}>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>{popover.data.label}</div>
+                      {popover.data.groups.map((gi) => (
+                        <div key={gi.groupId} style={{ fontWeight: gi.groupId === g.id ? 600 : 400 }}>
+                          <span style={{ color: gi.color }}>G{gi.groupId}</span>: {gi.count.toLocaleString()} ({gi.pct}%)
+                        </div>
+                      ))}
+                    </div>
+                  }
+                >
+                  {rectEl}
+                </Popover>
+              )
+            }
+
+            return rectEl
+          })
+        })}
+        <AxisLeft
+          scale={yScale}
+          numTicks={5}
+          stroke="#e8e8e8"
+          tickStroke="#e8e8e8"
+          tickLabelProps={{ fill: '#666', fontSize: 10 }}
+        />
+        <AxisBottom
+          scale={xScale}
+          top={innerHeight}
+          tickValues={data.map((d) => d.label)}
+          stroke="#e8e8e8"
+          tickStroke="none"
+          tickLabelProps={{
+            fill: '#666',
+            fontSize: 10,
+            textAnchor: 'end',
+            angle: -45,
+            dx: -4,
+            dy: -2,
+          }}
+          tickFormat={(v) => {
+            const s = String(v)
+            return s.length > LABEL_MAX_CHARS ? s.slice(0, LABEL_MAX_CHARS - 2) + '\u2026' : s
           }}
         />
       </Group>
@@ -173,8 +414,10 @@ function CategoryTable({ data, activeGroups }: { data: CategoryRow[]; activeGrou
   )
 }
 
+type InlineView = 'count' | 'percent' | 'table'
+
 export default function CategorySummaryChart({ name, categoryMap, countsByGroup, groups }: CategorySummaryChartProps) {
-  const [showTable, setShowTable] = useState(false)
+  const [inlineView, setInlineView] = useState<InlineView>('count')
   const [modalOpen, setModalOpen] = useState(false)
 
   const activeGroups = groups.filter((g) => countsByGroup.has(g.id))
@@ -184,37 +427,51 @@ export default function CategorySummaryChart({ name, categoryMap, countsByGroup,
   const data = buildData(categoryMap, countsByGroup, activeGroups)
   if (data.length === 0) return null
 
-  const inlineData = data.slice(0, MAX_CATS_INLINE)
-  const truncated = data.length > MAX_CATS_INLINE
-
-  const headerLinks = (
-    <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-      <Typography.Link style={{ fontSize: 11 }} onClick={() => setShowTable(!showTable)}>
-        {showTable ? 'Chart' : 'Table'}
-      </Typography.Link>
-      <ExpandOutlined
-        style={{ fontSize: 11, cursor: 'pointer', color: '#1677ff' }}
-        onClick={() => setModalOpen(true)}
-      />
-    </span>
+  // Filter out near-zero categories for the chart only
+  const chartData = data.filter((d) =>
+    activeGroups.some((g) => {
+      const total = d.total[g.id]
+      return total > 0 && (d.counts[g.id] / total) >= 0.005
+    })
   )
+
+  const inlineChartData = chartData.slice(0, MAX_CATS_INLINE)
+  const inlineTableData = data.slice(0, MAX_CATS_INLINE)
+  const truncatedChart = chartData.length > MAX_CATS_INLINE
+  const truncatedTable = data.length > MAX_CATS_INLINE
 
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <Typography.Text strong style={{ fontSize: 12 }}>{name}</Typography.Text>
-        {headerLinks}
+        <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Segmented
+            size="small"
+            value={inlineView}
+            onChange={(v) => setInlineView(v as InlineView)}
+            options={[
+              { label: 'Count', value: 'count' },
+              { label: '%', value: 'percent' },
+              { label: 'Table', value: 'table' },
+            ]}
+            style={{ fontSize: 11 }}
+          />
+          <ExpandOutlined
+            style={{ fontSize: 11, cursor: 'pointer', color: '#1677ff' }}
+            onClick={() => setModalOpen(true)}
+          />
+        </span>
       </div>
 
-      {showTable ? (
+      {inlineView === 'table' ? (
         <>
-          <CategoryTable data={inlineData} activeGroups={activeGroups} />
-          {truncated && <Typography.Text type="secondary" style={{ fontSize: 10 }}>...and {data.length - MAX_CATS_INLINE} more</Typography.Text>}
+          <CategoryTable data={inlineTableData} activeGroups={activeGroups} />
+          {truncatedTable && <Typography.Text type="secondary" style={{ fontSize: 10 }}>...and {data.length - MAX_CATS_INLINE} more</Typography.Text>}
         </>
       ) : (
         <>
-          <CategoryBarChart data={inlineData} activeGroups={activeGroups} width={280} margin={MARGIN} />
-          {truncated && <Typography.Text type="secondary" style={{ fontSize: 10 }}>...and {data.length - MAX_CATS_INLINE} more</Typography.Text>}
+          <StackedBarChart data={inlineChartData} activeGroups={activeGroups} width={280} margin={MARGIN} mode={inlineView} />
+          {truncatedChart && <Typography.Text type="secondary" style={{ fontSize: 10 }}>...and {chartData.length - MAX_CATS_INLINE} more</Typography.Text>}
         </>
       )}
 
@@ -222,7 +479,7 @@ export default function CategorySummaryChart({ name, categoryMap, countsByGroup,
         title={name}
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        chart={<CategoryBarChart data={data} activeGroups={activeGroups} width={640} margin={MODAL_MARGIN} />}
+        chart={<VerticalStackedBarChart data={chartData} activeGroups={activeGroups} mode={inlineView === 'table' ? 'count' : inlineView} />}
         table={<CategoryTable data={data} activeGroups={activeGroups} />}
       />
     </div>

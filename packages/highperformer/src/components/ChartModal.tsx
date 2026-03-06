@@ -16,8 +16,8 @@ export default function ChartModal({ title, open, onClose, chart, table }: Chart
       open={open}
       onCancel={onClose}
       footer={null}
-      width={720}
-      styles={{ body: { maxHeight: '70vh', overflow: 'auto' } }}
+      width={960}
+      styles={{ body: { maxHeight: '75vh', overflow: 'auto' } }}
     >
       <Tabs
         size="small"
