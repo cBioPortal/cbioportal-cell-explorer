@@ -33,20 +33,21 @@ workerSelf.onmessage = (e: MessageEvent) => {
     return
   }
 
-  // Summary messages
-  if (msg.type === 'summarizeCategory' || msg.type === 'summarizeExpression') {
+  if (msg.type === 'summarizeCategory') {
     const response = handleSummaryMessage(msg)
-    if (response.type === 'categorySummary') {
-      workerSelf.postMessage(
-        { ...response, _poolTaskId },
-        [response.counts.buffer] as Transferable[],
-      )
-    } else {
-      workerSelf.postMessage(
-        { ...response, _poolTaskId },
-        [response.bins.buffer, response.binEdges.buffer] as Transferable[],
-      )
-    }
+    workerSelf.postMessage(
+      { ...response, _poolTaskId },
+      response.type === 'categorySummary' ? [response.counts.buffer] as Transferable[] : [],
+    )
+    return
+  }
+
+  if (msg.type === 'summarizeExpression') {
+    const response = handleSummaryMessage(msg)
+    workerSelf.postMessage(
+      { ...response, _poolTaskId },
+      response.type === 'expressionSummary' ? [response.bins.buffer, response.binEdges.buffer] as Transferable[] : [],
+    )
     return
   }
 
