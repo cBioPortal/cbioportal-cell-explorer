@@ -6,7 +6,7 @@ function mockInnerStore(responses: Record<string, Uint8Array | undefined> = {}) 
     url: "http://example.com/test.zarr",
     get: vi.fn(async (key: string) => responses[key]),
     getRange: vi.fn(async () => new Uint8Array([1, 2, 3])),
-    snapshot: vi.fn(() => ({ requests: 0, bytes: 0 })),
+    snapshot: vi.fn(() => ({ requests: 0, bytes: 0, cacheHits: 0 })),
   };
 }
 
@@ -55,6 +55,38 @@ describe("ConsolidatedStore", () => {
     const store = new ConsolidatedStore(inner as any, new Map());
     store.snapshot();
     expect(inner.snapshot).toHaveBeenCalled();
+  });
+
+  it("tracks cache hits in snapshot()", async () => {
+    const inner = mockInnerStore();
+    const cache = new Map<string, Uint8Array>();
+    cache.set("/obs/zarr.json", encoder.encode("{}"));
+    cache.set("/var/zarr.json", encoder.encode("{}"));
+    const store = new ConsolidatedStore(inner as any, cache);
+
+    await store.get("/obs/zarr.json" as any);
+    await store.get("/var/zarr.json" as any);
+    await store.get("/missing/path" as any); // falls through — not a cache hit
+
+    const stats = store.snapshot();
+    expect(stats.cacheHits).toBe(2);
+    expect(stats.requests).toBe(2); // 2 cache hits + 0 network (inner reports 0)
+  });
+
+  it("combines inner store requests with cache hits in snapshot()", async () => {
+    const inner = mockInnerStore();
+    // Simulate inner store having 3 network requests
+    inner.snapshot.mockReturnValue({ requests: 3, bytes: 1000, cacheHits: 0 });
+    const cache = new Map<string, Uint8Array>();
+    cache.set("/obs/zarr.json", encoder.encode("{}"));
+    const store = new ConsolidatedStore(inner as any, cache);
+
+    await store.get("/obs/zarr.json" as any); // cache hit
+
+    const stats = store.snapshot();
+    expect(stats.requests).toBe(4);    // 3 network + 1 cache hit
+    expect(stats.bytes).toBe(1000);     // network bytes only
+    expect(stats.cacheHits).toBe(1);    // 1 consolidated cache hit
   });
 });
 

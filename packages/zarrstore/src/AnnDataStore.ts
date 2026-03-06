@@ -159,6 +159,7 @@ export class AnnDataStore {
         const fetches = {
           requests: after.requests - before.requests,
           bytes: after.bytes - before.bytes,
+          cacheHits: after.cacheHits - before.cacheHits,
         };
         const chunks = opts?.getChunkInfo?.(result);
         const label = await opts?.getLabel?.(result);
@@ -184,6 +185,7 @@ export class AnnDataStore {
         const fetches = {
           requests: after.requests - before.requests,
           bytes: after.bytes - before.bytes,
+          cacheHits: after.cacheHits - before.cacheHits,
         };
         const extra: MeasureExtra = {};
         if (aborted) extra.aborted = true;
@@ -195,7 +197,7 @@ export class AnnDataStore {
       // Fire a zero-duration measure for cache hits
       const finish = startMeasure(key, true);
       const cachedLabel = this.#labelCache.get(key);
-      const extra: MeasureExtra = { fetches: { requests: 0, bytes: 0 } };
+      const extra: MeasureExtra = { fetches: { requests: 0, bytes: 0, cacheHits: 0 } };
       if (cachedLabel) extra.label = cachedLabel;
       finish(extra);
     }
@@ -331,6 +333,7 @@ export class AnnDataStore {
     const fetches = {
       requests: after.requests - before.requests,
       bytes: after.bytes - before.bytes,
+      cacheHits: after.cacheHits - before.cacheHits,
     };
     const chunks = this.#chunkInfoFromMetadata("X");
     const extra: MeasureExtra = {};
@@ -650,6 +653,7 @@ export class AnnDataStore {
     const fetches = {
       requests: after.requests - before.requests,
       bytes: after.bytes - before.bytes,
+      cacheHits: after.cacheHits - before.cacheHits,
     };
     const chunks = this.#chunkInfoFromMetadata(`obsm/${key}`);
     const extra: MeasureExtra = {};

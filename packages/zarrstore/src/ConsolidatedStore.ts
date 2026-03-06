@@ -13,6 +13,7 @@ interface StoreWithStats extends AsyncReadable<RequestInit> {
 export class ConsolidatedStore implements AsyncReadable<RequestInit> {
   #inner: StoreWithStats;
   #cache: Map<string, Uint8Array>;
+  #cacheHits = 0;
 
   constructor(inner: StoreWithStats, cache: Map<string, Uint8Array>) {
     this.#inner = inner;
@@ -28,7 +29,10 @@ export class ConsolidatedStore implements AsyncReadable<RequestInit> {
     opts?: RequestInit,
   ): Promise<Uint8Array | undefined> {
     const cached = this.#cache.get(key);
-    if (cached) return cached;
+    if (cached) {
+      this.#cacheHits++;
+      return cached;
+    }
     return this.#inner.get(key, opts);
   }
 
@@ -40,8 +44,14 @@ export class ConsolidatedStore implements AsyncReadable<RequestInit> {
     return this.#inner.getRange!(key, range, opts);
   }
 
+  /** Combined stats: inner store network stats + consolidated cache hits. */
   snapshot(): FetchStats {
-    return this.#inner.snapshot();
+    const inner = this.#inner.snapshot();
+    return {
+      requests: inner.requests + this.#cacheHits,
+      bytes: inner.bytes,
+      cacheHits: inner.cacheHits + this.#cacheHits,
+    };
   }
 }
 
