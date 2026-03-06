@@ -221,10 +221,7 @@ export class AnnDataStore {
     }
 
     const shape = await AnnDataStore.#resolveShape(zarrStore);
-    const consolidatedMetadata = await AnnDataStore.#loadConsolidatedMetadata(
-      zarrStore,
-    );
-    return new AnnDataStore(zarrStore, shape, consolidatedMetadata);
+    return new AnnDataStore(zarrStore, shape, zarrStore.consolidatedMetadata);
   }
 
   static async fromZarrStore(zarrStore: ZarrStore): Promise<AnnDataStore> {
@@ -237,39 +234,7 @@ export class AnnDataStore {
     }
 
     const shape = await AnnDataStore.#resolveShape(zarrStore);
-    const consolidatedMetadata = await AnnDataStore.#loadConsolidatedMetadata(
-      zarrStore,
-    );
-    return new AnnDataStore(zarrStore, shape, consolidatedMetadata);
-  }
-
-  static async #loadConsolidatedMetadata(
-    zarrStore: ZarrStore,
-  ): Promise<ConsolidatedMetadata | null> {
-    const baseUrl = String(zarrStore.store.url).replace(/\/$/, "");
-
-    // Try v2 consolidated metadata first
-    try {
-      const response = await fetch(baseUrl + "/.zmetadata");
-      if (response.ok) {
-        const data = (await response.json()) as { metadata?: ConsolidatedMetadata };
-        if (data.metadata) return data.metadata;
-      }
-    } catch {
-      // fall through to v3
-    }
-
-    // Try v3 consolidated metadata (inside zarr.json)
-    try {
-      const response = await fetch(baseUrl + "/zarr.json");
-      if (!response.ok) return null;
-      const data = (await response.json()) as {
-        consolidated_metadata?: { metadata?: ConsolidatedMetadata };
-      };
-      return data.consolidated_metadata?.metadata || null;
-    } catch {
-      return null;
-    }
+    return new AnnDataStore(zarrStore, shape, zarrStore.consolidatedMetadata);
   }
 
   static async #resolveShape(zarrStore: ZarrStore): Promise<number[]> {
