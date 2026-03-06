@@ -12,6 +12,7 @@ import useAppStore from '../store/useAppStore'
 import ColorBySection from '../components/ColorBySection'
 import SelectionOverlay from '../components/SelectionOverlay'
 import SelectionToolbar from '../components/SelectionToolbar'
+import SummaryPanel from '../components/SummaryPanel'
 import { loadDatasets, saveDatasets } from '../utils/datasets'
 
 const { Sider, Content } = Layout
@@ -567,7 +568,7 @@ function View() {
               zIndex: 10,
             }}
           />
-          {/* Right sidebar — placeholder for future content */}
+          <SummaryPanel />
         </Sider>
       </Layout>
       <ProfileBarWrapper />
