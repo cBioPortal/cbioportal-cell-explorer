@@ -14,7 +14,7 @@ export function handleSummaryMessage(msg: SummaryMessage): SummaryResponse {
   }
 
   // summarizeExpression
-  const { expression, indices, numBins } = msg
+  const { expression, indices, numBins, clipMin } = msg
 
   if (indices.length === 0) {
     return {
@@ -26,24 +26,51 @@ export function handleSummaryMessage(msg: SummaryMessage): SummaryResponse {
       max: 0,
       bins: new Uint32Array(numBins),
       binEdges: new Float32Array(numBins + 1),
+      clippedCount: 0,
       version,
     }
   }
 
-  // Collect values for selected indices
-  const values = new Float32Array(indices.length)
+  // Collect values for selected indices, optionally clipping below threshold
+  let clippedCount = 0
+  const raw = new Float32Array(indices.length)
+  let count = 0
+  for (let i = 0; i < indices.length; i++) {
+    const v = expression[indices[i]]
+    if (clipMin !== undefined && v < clipMin) {
+      clippedCount++
+      continue
+    }
+    raw[count++] = v
+  }
+  const values = raw.subarray(0, count)
+
+  if (count === 0) {
+    return {
+      type: 'expressionSummary',
+      mean: 0,
+      median: 0,
+      std: 0,
+      min: 0,
+      max: 0,
+      bins: new Uint32Array(numBins),
+      binEdges: new Float32Array(numBins + 1),
+      clippedCount,
+      version,
+    }
+  }
+
   let sum = 0
   let min = Infinity
   let max = -Infinity
-  for (let i = 0; i < indices.length; i++) {
-    const v = expression[indices[i]]
-    values[i] = v
+  for (let i = 0; i < count; i++) {
+    const v = values[i]
     sum += v
     if (v < min) min = v
     if (v > max) max = v
   }
 
-  const n = values.length
+  const n = count
   const mean = sum / n
 
   // Sort for median
@@ -93,6 +120,7 @@ export function handleSummaryMessage(msg: SummaryMessage): SummaryResponse {
     max,
     bins,
     binEdges,
+    clippedCount,
     version,
   }
 }

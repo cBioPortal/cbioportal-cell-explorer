@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Group } from '@visx/group'
 import { scaleLinear } from '@visx/scale'
 import { Bar } from '@visx/shape'
 import { AxisBottom, AxisLeft } from '@visx/axis'
-import { Typography } from 'antd'
+import { Checkbox, InputNumber, Typography } from 'antd'
 import { ExpandOutlined } from '@ant-design/icons'
+import useAppStore, { getPool } from '../store/useAppStore'
 import type { SelectionGroup } from '../store/useAppStore'
+import type { ExpressionSummaryResponse } from '../workers/summary.schemas'
 import { ALL_CELLS_GROUP_ID } from '../hooks/useAllCellsSummary'
 import ChartModal from './ChartModal'
 
@@ -21,12 +23,100 @@ interface ExpressionStats {
   max: number
   bins: Uint32Array
   binEdges: Float32Array
+  clippedCount: number
 }
 
 interface ExpressionSummaryChartProps {
   name: string
   statsByGroup: Map<number, ExpressionStats>
   groups: SelectionGroup[]
+  /** The raw gene/column name used to look up expression data for recomputation */
+  dataKey?: string
+}
+
+const NUM_BINS = 30
+
+/**
+ * Recomputes expression stats on a worker with clipMin threshold when set.
+ * Falls back to the original stats when clipMin is undefined.
+ */
+function useClipMin(
+  originalStats: Map<number, ExpressionStats>,
+  groups: SelectionGroup[],
+  clipMin: number | undefined,
+  dataKey?: string,
+): Map<number, ExpressionStats> {
+  const [clippedStats, setClippedStats] = useState<Map<number, ExpressionStats> | null>(null)
+  const versionRef = useRef(0)
+
+  const summaryGeneData = useAppStore((s) => s.summaryGeneData)
+  const summaryObsContinuousData = useAppStore((s) => s.summaryObsContinuousData)
+  const embeddingData = useAppStore((s) => s.embeddingData)
+  const selectionGroups = useAppStore((s) => s.selectionGroups)
+
+  useEffect(() => {
+    if (clipMin === undefined || !dataKey) {
+      setClippedStats(null)
+      return
+    }
+
+    const expression = summaryGeneData.get(dataKey) ?? summaryObsContinuousData.get(dataKey)
+    if (!expression) {
+      setClippedStats(null)
+      return
+    }
+
+    versionRef.current++
+    const version = versionRef.current
+
+    const groupEntries: { id: number; indices: Uint32Array }[] = []
+    for (const g of groups) {
+      if (g.id === ALL_CELLS_GROUP_ID) {
+        const numPoints = embeddingData?.numPoints ?? 0
+        const allIndices = new Uint32Array(numPoints)
+        for (let i = 0; i < numPoints; i++) allIndices[i] = i
+        groupEntries.push({ id: g.id, indices: allIndices })
+      } else {
+        const sel = selectionGroups.find((sg) => sg.id === g.id)
+        if (sel && sel.indices.length > 0) {
+          groupEntries.push({ id: sel.id, indices: sel.indices })
+        }
+      }
+    }
+
+    const tasks = groupEntries.map(async (entry) => {
+      const response = await getPool().dispatch<ExpressionSummaryResponse>({
+        type: 'summarizeExpression',
+        expression,
+        indices: entry.indices,
+        numBins: NUM_BINS,
+        clipMin,
+        version,
+      })
+      return { id: entry.id, response }
+    })
+
+    Promise.all(tasks).then((results) => {
+      if (versionRef.current !== version) return
+      const map = new Map<number, ExpressionStats>()
+      for (const { id, response } of results) {
+        map.set(id, {
+          mean: response.mean,
+          median: response.median,
+          std: response.std,
+          min: response.min,
+          max: response.max,
+          bins: response.bins,
+          binEdges: response.binEdges,
+          clippedCount: response.clippedCount ?? 0,
+        })
+      }
+      setClippedStats(map)
+    })
+  }, [clipMin, dataKey, groups, summaryGeneData, summaryObsContinuousData, embeddingData, selectionGroups])
+
+  if (clipMin !== undefined && clippedStats) return clippedStats
+  return originalStats
 }
 
 function formatNum(n: number): string {
@@ -39,7 +129,7 @@ function ExpressionHistogram({ statsByGroup, activeGroups, width, height }: {
   width: number
   height: number
 }) {
-  const margin = { top: 8, right: 8, bottom: 24, left: 36 }
+  const margin = { top: 8, right: 8, bottom: 24, left: 44 }
   const innerWidth = width - margin.left - margin.right
   const innerHeight = height - margin.top - margin.bottom
 
@@ -138,10 +228,14 @@ function ExpressionStatsTable({ statsByGroup, activeGroups, fontSize = 10 }: {
   )
 }
 
-export default function ExpressionSummaryChart({ name, statsByGroup, groups }: ExpressionSummaryChartProps) {
+export default function ExpressionSummaryChart({ name, statsByGroup: rawStatsByGroup, groups, dataKey }: ExpressionSummaryChartProps) {
   const [showTable, setShowTable] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+  const [clipEnabled, setClipEnabled] = useState(true)
+  const [clipThreshold, setClipThreshold] = useState(0)
 
+  const clipMin = clipEnabled ? clipThreshold : undefined
+  const statsByGroup = useClipMin(rawStatsByGroup, groups, clipMin, dataKey)
   const activeGroups = groups.filter((g) => statsByGroup.has(g.id))
 
   if (activeGroups.length === 0) return null
@@ -159,6 +253,28 @@ export default function ExpressionSummaryChart({ name, statsByGroup, groups }: E
             onClick={() => setModalOpen(true)}
           />
         </span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+        <Checkbox
+          checked={clipEnabled}
+          onChange={(e) => setClipEnabled(e.target.checked)}
+          style={{ fontSize: 10 }}
+        >
+          <span style={{ fontSize: 10, color: '#999' }}>Clip below</span>
+        </Checkbox>
+        <InputNumber
+          size="small"
+          value={clipThreshold}
+          onChange={(v) => v !== null && setClipThreshold(v)}
+          disabled={!clipEnabled}
+          step={0.1}
+          style={{ width: 64, fontSize: 10 }}
+        />
+        {clipEnabled && statsByGroup !== rawStatsByGroup && (() => {
+          const total = Array.from(statsByGroup.values()).reduce((s, v) => s + (v.clippedCount ?? 0), 0)
+          return total > 0 ? <span style={{ fontSize: 10, color: '#999' }}>({total.toLocaleString()} clipped)</span> : null
+        })()}
       </div>
 
       {showTable ? (

@@ -33,6 +33,7 @@ export default function ByVariableView({ results, groups: groupsOverride }: ByVa
           <ExpressionSummaryChart
             key={r.name}
             name={r.name}
+            dataKey={r.dataKey}
             statsByGroup={r.statsByGroup}
             groups={groups}
           />

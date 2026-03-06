@@ -75,7 +75,7 @@ export default function SelectionToolbar() {
         </Space.Compact>
       )}
 
-      {hasSelection && !summaryPanelOpen && (
+      {!summaryPanelOpen && (
         <Tooltip title="Show summary panel" placement="right">
           <Button
             icon={<BarChartOutlined />}

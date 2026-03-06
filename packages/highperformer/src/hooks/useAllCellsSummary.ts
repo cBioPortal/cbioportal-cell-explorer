@@ -54,7 +54,7 @@ export function useAllCellsSummary(): SummaryResult[] {
       }
       const contData = summaryObsContinuousData.get(name)
       if (contData) {
-        tasks.push(computeAllCellsExpression(name, contData, allIndices, version, versionRef))
+        tasks.push(computeAllCellsExpression(name, name, contData, allIndices, version, versionRef))
       }
     }
 
@@ -62,7 +62,7 @@ export function useAllCellsSummary(): SummaryResult[] {
       const data = summaryGeneData.get(name)
       if (!data) continue
       const displayName = geneLabelMap?.get(name) ?? name
-      tasks.push(computeAllCellsExpression(displayName, data, allIndices, version, versionRef))
+      tasks.push(computeAllCellsExpression(displayName, name, data, allIndices, version, versionRef))
     }
 
     Promise.all(tasks).then((resolved) => {
@@ -100,6 +100,7 @@ async function computeAllCellsCategory(
 
 async function computeAllCellsExpression(
   name: string,
+  dataKey: string,
   expression: Float32Array,
   indices: Uint32Array,
   version: number,
@@ -107,7 +108,7 @@ async function computeAllCellsExpression(
 ): Promise<ExpressionSummaryResult> {
   const statsByGroup = new Map<number, {
     mean: number; median: number; std: number; min: number; max: number
-    bins: Uint32Array; binEdges: Float32Array
+    bins: Uint32Array; binEdges: Float32Array; clippedCount: number
   }>()
 
   const response = await getPool().dispatch<ExpressionSummaryResponse>({
@@ -126,10 +127,11 @@ async function computeAllCellsExpression(
       max: response.max,
       bins: response.bins,
       binEdges: response.binEdges,
+      clippedCount: response.clippedCount ?? 0,
     })
   }
 
-  return { type: 'expression', name, statsByGroup }
+  return { type: 'expression', name, dataKey, statsByGroup }
 }
 
 export { ALL_CELLS_GROUP_ID }

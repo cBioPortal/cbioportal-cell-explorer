@@ -253,7 +253,7 @@ const useAppStore = create<AppState>((set, get) => ({
   selectionFilterBuffer: null,
 
   // Summary panel
-  summaryPanelOpen: false,
+  summaryPanelOpen: true,
   summaryObsColumns: [],
   summaryGenes: [],
   summaryObsData: new Map(),
@@ -451,7 +451,7 @@ const useAppStore = create<AppState>((set, get) => ({
       categoryWarning: null, _categoryCodes: null, _expressionData: null,
       varColumns: [], geneLabelColumn: null, geneLabelMap: null,
       selectionGroups: [], selectionFilterBuffer: null, selectionTool: 'pan', selectionDisplayMode: 'dim',
-      summaryPanelOpen: false,
+      summaryPanelOpen: true,
       summaryObsColumns: [], summaryGenes: [],
       summaryObsData: new Map(), summaryObsContinuousData: new Map(),
       summaryGeneData: new Map(), summaryGeneRanges: new Map(),

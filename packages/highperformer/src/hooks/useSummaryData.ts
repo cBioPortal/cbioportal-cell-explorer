@@ -15,6 +15,8 @@ export interface CategorySummaryResult {
 export interface ExpressionSummaryResult {
   type: 'expression'
   name: string
+  /** Original key used to look up expression data in the store (gene name or obs column name) */
+  dataKey: string
   statsByGroup: Map<number, {
     mean: number
     median: number
@@ -23,6 +25,7 @@ export interface ExpressionSummaryResult {
     max: number
     bins: Uint32Array
     binEdges: Float32Array
+    clippedCount: number
   }>
 }
 
@@ -63,7 +66,7 @@ export function useSummaryData(): SummaryResult[] {
       }
       const contData = summaryObsContinuousData.get(name)
       if (contData) {
-        tasks.push(computeExpressionSummary(name, contData, groupsWithIndices, version, versionRef))
+        tasks.push(computeExpressionSummary(name, name, contData, groupsWithIndices, version, versionRef))
       }
     }
 
@@ -72,7 +75,7 @@ export function useSummaryData(): SummaryResult[] {
       const data = summaryGeneData.get(name)
       if (!data) continue
       const displayName = geneLabelMap?.get(name) ?? name
-      tasks.push(computeExpressionSummary(displayName, data, groupsWithIndices, version, versionRef))
+      tasks.push(computeExpressionSummary(displayName, name, data, groupsWithIndices, version, versionRef))
     }
 
     Promise.all(tasks).then((resolved) => {
@@ -112,14 +115,16 @@ async function computeCategorySummary(
 
 async function computeExpressionSummary(
   name: string,
+  dataKey: string,
   expression: Float32Array,
   groups: SelectionGroup[],
   version: number,
   versionRef: { current: number },
+  clipMin?: number,
 ): Promise<ExpressionSummaryResult> {
   const statsByGroup = new Map<number, {
     mean: number; median: number; std: number; min: number; max: number
-    bins: Uint32Array; binEdges: Float32Array
+    bins: Uint32Array; binEdges: Float32Array; clippedCount: number
   }>()
 
   await Promise.all(groups.map(async (group) => {
@@ -128,6 +133,7 @@ async function computeExpressionSummary(
       expression,
       indices: group.indices,
       numBins: NUM_BINS,
+      clipMin,
       version,
     })
     if (versionRef.current === version) {
@@ -139,9 +145,10 @@ async function computeExpressionSummary(
         max: response.max,
         bins: response.bins,
         binEdges: response.binEdges,
+        clippedCount: response.clippedCount ?? 0,
       })
     }
   }))
 
-  return { type: 'expression', name, statsByGroup }
+  return { type: 'expression', name, dataKey, statsByGroup }
 }

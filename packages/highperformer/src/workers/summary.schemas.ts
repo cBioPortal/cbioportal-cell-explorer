@@ -15,6 +15,7 @@ const SummarizeExpressionMsgSchema = z.object({
   expression: z.custom<Float32Array>((v) => v instanceof Float32Array),
   indices: z.custom<Uint32Array>((v) => v instanceof Uint32Array),
   numBins: z.number(),
+  clipMin: z.number().optional(),
   version: z.number(),
 })
 
@@ -40,6 +41,7 @@ export const ExpressionSummaryResponseSchema = z.object({
   max: z.number(),
   bins: z.custom<Uint32Array>((v) => v instanceof Uint32Array),
   binEdges: z.custom<Float32Array>((v) => v instanceof Float32Array),
+  clippedCount: z.number().optional(),
   version: z.number(),
 })
 
