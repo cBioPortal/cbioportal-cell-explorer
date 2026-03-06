@@ -31,7 +31,7 @@ export default function SelectionToolbar() {
       flexDirection: 'column',
       gap: 4,
     }}>
-      <Space.Compact direction="vertical" size="small">
+      <Space.Compact orientation="vertical" size="small">
         <Tooltip title="Pan (Esc)" placement="right">
           <Button
             icon={<DragOutlined />}
@@ -56,7 +56,7 @@ export default function SelectionToolbar() {
       </Space.Compact>
 
       {hasSelection && (
-        <Space.Compact direction="vertical" size="small">
+        <Space.Compact orientation="vertical" size="small">
           <Tooltip title={selectionDisplayMode === 'dim' ? 'Hide unselected' : 'Dim unselected'} placement="right">
             <Button
               icon={selectionDisplayMode === 'dim' ? <EyeOutlined /> : <EyeInvisibleOutlined />}
