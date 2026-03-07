@@ -1,6 +1,6 @@
 import { startTransition, useMemo, useState } from 'react'
-import { Collapse, Segmented, Typography } from 'antd'
-import { CloseOutlined } from '@ant-design/icons'
+import { Collapse, Segmented, Tooltip, Typography } from 'antd'
+import { BarChartOutlined, CloseOutlined, PieChartOutlined } from '@ant-design/icons'
 import useAppStore from '../store/useAppStore'
 import type { SelectionGroup } from '../store/useAppStore'
 import GroupOverview from './GroupOverview'
@@ -13,7 +13,21 @@ const ALL_CELLS_COLOR: [number, number, number] = [120, 120, 120]
 
 type SummaryContext = 'all' | 'selections'
 
-export default function SummaryPanel() {
+const collapsedIconStyle: React.CSSProperties = {
+  fontSize: 16,
+  color: '#999',
+  padding: '12px 0',
+  display: 'flex',
+  justifyContent: 'center',
+  cursor: 'pointer',
+}
+
+interface SummaryPanelProps {
+  collapsed?: boolean
+  onExpand?: () => void
+}
+
+export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps) {
   const summaryPanelOpen = useAppStore((s) => s.summaryPanelOpen)
   const setSummaryPanelOpen = useAppStore((s) => s.setSummaryPanelOpen)
   const selectionGroups = useAppStore((s) => s.selectionGroups)
@@ -45,6 +59,38 @@ export default function SummaryPanel() {
   }], [])
 
   if (!summaryPanelOpen) return null
+
+  // Collapsed view — icon strip
+  if (collapsed) {
+    const hasObs = summaryObsColumns.length > 0
+    const hasGenes = summaryGenes.length > 0
+
+    if (!hasObs && !hasGenes) return null
+
+    return (
+      <div
+        onClick={onExpand}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          paddingTop: 12,
+          height: '100%',
+        }}
+      >
+        {hasObs && (
+          <Tooltip title="Obs Summaries" placement="left">
+            <div style={collapsedIconStyle}><PieChartOutlined /></div>
+          </Tooltip>
+        )}
+        {hasGenes && (
+          <Tooltip title="Gene Summaries" placement="left">
+            <div style={collapsedIconStyle}><BarChartOutlined /></div>
+          </Tooltip>
+        )}
+      </div>
+    )
+  }
 
   const hasGroups = selectionGroups.some((g) => g.indices.length > 0)
   const hasVariables = summaryObsColumns.length > 0 || summaryGenes.length > 0

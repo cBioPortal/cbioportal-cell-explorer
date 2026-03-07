@@ -21,7 +21,7 @@ const LEFT_SIDEBAR_WIDTH = 300
 const RIGHT_SIDEBAR_WIDTH = 300
 const SIDEBAR_COLLAPSED_WIDTH = 60
 // Snap breakpoints for the right sidebar — drag releases snap to nearest
-const RIGHT_SNAP_POINTS = [SIDEBAR_COLLAPSED_WIDTH, 200, RIGHT_SIDEBAR_WIDTH, 400, 550]
+const RIGHT_SNAP_POINTS = [SIDEBAR_COLLAPSED_WIDTH, RIGHT_SIDEBAR_WIDTH, 400, 550]
 
 function snapToNearest(value: number): number {
   let closest = RIGHT_SNAP_POINTS[0]
@@ -568,7 +568,7 @@ function View() {
               zIndex: 10,
             }}
           />
-          <SummaryPanel />
+          <SummaryPanel collapsed={rightWidth <= SIDEBAR_COLLAPSED_WIDTH} onExpand={() => setRightWidth(RIGHT_SIDEBAR_WIDTH)} />
         </Sider>
       </Layout>
       <ProfileBarWrapper />
