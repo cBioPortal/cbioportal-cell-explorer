@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { startTransition, useMemo, useState } from 'react'
 import { Collapse, Segmented, Typography } from 'antd'
 import { CloseOutlined } from '@ant-design/icons'
 import useAppStore from '../store/useAppStore'
@@ -113,7 +113,7 @@ export default function SummaryPanel() {
           <Segmented
             size="small"
             value={context}
-            onChange={(v) => setContext(v as SummaryContext)}
+            onChange={(v) => startTransition(() => setContext(v as SummaryContext))}
             options={[
               { label: 'All Cells', value: 'all' },
               { label: `Selections${hasGroups ? '' : ' (none)'}`, value: 'selections', disabled: !hasGroups },
