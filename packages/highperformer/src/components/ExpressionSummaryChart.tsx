@@ -10,6 +10,7 @@ import type { SelectionGroup } from '../store/useAppStore'
 import type { ExpressionSummaryResponse } from '../workers/summary.schemas'
 import { ALL_CELLS_GROUP_ID } from '../hooks/useAllCellsSummary'
 import ChartModal from './ChartModal'
+import { useContainerWidth } from '../hooks/useContainerWidth'
 
 function groupLabel(id: number): string {
   return id === ALL_CELLS_GROUP_ID ? 'All Cells' : `Group ${id}`
@@ -348,6 +349,8 @@ export default function ExpressionSummaryChart({ name, statsByGroup: rawStatsByG
   const [modalOpen, setModalOpen] = useState(false)
   const [clipEnabled, setClipEnabled] = useState(true)
   const [clipThreshold, setClipThreshold] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const containerWidth = useContainerWidth(containerRef)
 
   const clipMin = clipEnabled ? clipThreshold : undefined
   const statsByGroup = useClipMin(rawStatsByGroup, groups, clipMin, dataKey)
@@ -356,7 +359,7 @@ export default function ExpressionSummaryChart({ name, statsByGroup: rawStatsByG
   if (activeGroups.length === 0) return null
 
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div ref={containerRef} style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <Typography.Link strong style={{ fontSize: 12 }} onClick={() => setModalOpen(true)}>{name}</Typography.Link>
         <Popover
@@ -406,7 +409,7 @@ export default function ExpressionSummaryChart({ name, statsByGroup: rawStatsByG
       {view === 'table' ? (
         <ExpressionStatsTable statsByGroup={statsByGroup} activeGroups={activeGroups} />
       ) : (
-        <ExpressionHistogram statsByGroup={statsByGroup} activeGroups={activeGroups} width={260} height={100} />
+        <ExpressionHistogram statsByGroup={statsByGroup} activeGroups={activeGroups} width={containerWidth} height={100} />
       )}
 
       <ChartModal

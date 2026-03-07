@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Group } from '@visx/group'
 import { Pie } from '@visx/shape'
 import { scaleBand, scaleLinear } from '@visx/scale'
@@ -9,6 +9,7 @@ import type { SelectionGroup } from '../store/useAppStore'
 import type { RGB } from '../utils/colors'
 import { ALL_CELLS_GROUP_ID } from '../hooks/useAllCellsSummary'
 import ChartModal from './ChartModal'
+import { useContainerWidth } from '../hooks/useContainerWidth'
 
 function groupLabel(id: number): string {
   return id === ALL_CELLS_GROUP_ID ? 'All Cells' : `Group ${id}`
@@ -721,6 +722,8 @@ export default function CategorySummaryChart({ name, categoryMap, countsByGroup,
   const [inlineView, setInlineView] = useState<InlineView>(isSingleGroup ? 'chart' : 'count')
   const [modalOpen, setModalOpen] = useState(false)
   const [modalTab, setModalTab] = useState<'chart' | 'table'>('chart')
+  const containerRef = useRef<HTMLDivElement>(null)
+  const containerWidth = useContainerWidth(containerRef)
 
   const activeGroups = groups.filter((g) => countsByGroup.has(g.id))
 
@@ -762,7 +765,7 @@ export default function CategorySummaryChart({ name, categoryMap, countsByGroup,
     const mode: StackMode = inlineView === 'percent' ? 'percent' : 'count'
     return (
       <>
-        <StackedBarChart data={inlineChartData} activeGroups={activeGroups} width={280} margin={MARGIN} mode={mode} />
+        <StackedBarChart data={inlineChartData} activeGroups={activeGroups} width={containerWidth} margin={MARGIN} mode={mode} />
         {truncatedChart && (
           <Typography.Link style={{ fontSize: 10 }} onClick={openModalTable}>
             ...and {chartData.length - MAX_CATS_INLINE} more
@@ -781,7 +784,7 @@ export default function CategorySummaryChart({ name, categoryMap, countsByGroup,
   }
 
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div ref={containerRef} style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <Typography.Link strong style={{ fontSize: 12 }} onClick={() => { setModalTab('chart'); setModalOpen(true) }}>{name}</Typography.Link>
         <Popover

@@ -20,27 +20,29 @@ export default function ByVariableView({ results, groups: groupsOverride }: ByVa
   if (results.length === 0) return null
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
       {results.map((r) => {
         if (r.type === 'category') {
           return (
-            <CategorySummaryChart
-              key={r.name}
-              name={r.name}
-              categoryMap={r.categoryMap}
-              countsByGroup={r.countsByGroup}
-              groups={groups}
-            />
+            <div key={r.name} style={{ flex: '1 1 240px', maxWidth: '100%', minWidth: 0 }}>
+              <CategorySummaryChart
+                name={r.name}
+                categoryMap={r.categoryMap}
+                countsByGroup={r.countsByGroup}
+                groups={groups}
+              />
+            </div>
           )
         }
         return (
-          <ExpressionSummaryChart
-            key={r.name}
-            name={r.name}
-            dataKey={r.dataKey}
-            statsByGroup={r.statsByGroup}
-            groups={groups}
-          />
+          <div key={r.name} style={{ flex: '1 1 240px', maxWidth: '100%', minWidth: 0 }}>
+            <ExpressionSummaryChart
+              name={r.name}
+              dataKey={r.dataKey}
+              statsByGroup={r.statsByGroup}
+              groups={groups}
+            />
+          </div>
         )
       })}
     </div>
