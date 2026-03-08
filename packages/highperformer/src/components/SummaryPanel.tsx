@@ -1,13 +1,12 @@
 import { startTransition, useMemo, useState } from 'react'
 import { Collapse, Segmented, Tooltip, Typography } from 'antd'
-import { BarChartOutlined, CloseOutlined, PieChartOutlined } from '@ant-design/icons'
+import { BarChartOutlined, CloseOutlined, PieChartOutlined, SearchOutlined } from '@ant-design/icons'
 import useAppStore from '../store/useAppStore'
 import type { SelectionGroup } from '../store/useAppStore'
 import GroupOverview from './GroupOverview'
 import VariablePicker from './VariablePicker'
-import { useSummaryData } from '../hooks/useSummaryData'
-import { useAllCellsSummary, ALL_CELLS_GROUP_ID } from '../hooks/useAllCellsSummary'
 import ByVariableView from './ByVariableView'
+import { ALL_CELLS_GROUP_ID } from '../constants'
 
 const ALL_CELLS_COLOR: [number, number, number] = [120, 120, 120]
 
@@ -47,16 +46,26 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
 
   const [context, setContext] = useState<SummaryContext>('all')
 
-  const groupResults = useSummaryData()
-  const allCellsResults = useAllCellsSummary()
+  // Build groups with real indices for the active context
+  const numPoints = embeddingData?.numPoints ?? 0
 
-  const allCellsGroup = useMemo<SelectionGroup[]>(() => [{
-    id: ALL_CELLS_GROUP_ID,
-    polygon: [],
-    type: 'rectangle',
-    indices: new Uint32Array(0),
-    color: ALL_CELLS_COLOR,
-  }], [])
+  const allCellsGroups = useMemo<SelectionGroup[]>(() => {
+    if (numPoints === 0) return []
+    const indices = new Uint32Array(numPoints)
+    for (let i = 0; i < numPoints; i++) indices[i] = i
+    return [{
+      id: ALL_CELLS_GROUP_ID,
+      polygon: [],
+      type: 'rectangle' as const,
+      indices,
+      color: ALL_CELLS_COLOR,
+    }]
+  }, [numPoints])
+
+  const activeSelectionGroups = useMemo(
+    () => selectionGroups.filter((g) => g.indices.length > 0),
+    [selectionGroups],
+  )
 
   if (!summaryPanelOpen) return null
 
@@ -64,8 +73,6 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
   if (collapsed) {
     const hasObs = summaryObsColumns.length > 0
     const hasGenes = summaryGenes.length > 0
-
-    if (!hasObs && !hasGenes) return null
 
     return (
       <div
@@ -78,6 +85,9 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
           height: '100%',
         }}
       >
+        <Tooltip title="Add variables" placement="left">
+          <div style={collapsedIconStyle}><SearchOutlined /></div>
+        </Tooltip>
         {hasObs && (
           <Tooltip title="Obs Summaries" placement="left">
             <div style={collapsedIconStyle}><PieChartOutlined /></div>
@@ -95,27 +105,37 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
   const hasGroups = selectionGroups.some((g) => g.indices.length > 0)
   const hasVariables = summaryObsColumns.length > 0 || summaryGenes.length > 0
 
-  // Pick results based on context
-  const activeResults = context === 'all' ? allCellsResults : groupResults
-  const activeGroups = context === 'all' ? allCellsGroup : undefined
-
-  const obsResults = activeResults.filter((r) => r.type === 'category' || summaryObsColumns.includes(r.name))
-  const geneResults = activeResults.filter((r) => r.type === 'expression' && !summaryObsColumns.includes(r.name))
-
-  const collapseItems = []
-  if (obsResults.length > 0) {
-    collapseItems.push({
-      key: 'obs',
-      label: <Typography.Text strong style={{ fontSize: 12 }}>Obs Summaries</Typography.Text>,
-      children: <ByVariableView results={obsResults} groups={activeGroups} />,
-    })
-  }
-  if (geneResults.length > 0) {
-    collapseItems.push({
-      key: 'genes',
-      label: <Typography.Text strong style={{ fontSize: 12 }}>Genes</Typography.Text>,
-      children: <ByVariableView results={geneResults} groups={activeGroups} />,
-    })
+  // Both contexts are always mounted — components are pure store readers,
+  // no hooks dispatching workers. CSS display toggle for instant switching.
+  const renderCharts = (groups: SelectionGroup[], visible: boolean) => {
+    const style = visible ? undefined : { display: 'none' } as React.CSSProperties
+    const collapseItems = []
+    if (summaryObsColumns.length > 0) {
+      collapseItems.push({
+        key: 'obs',
+        label: <Typography.Text strong style={{ fontSize: 12 }}>Obs Summaries</Typography.Text>,
+        children: <ByVariableView type="obs" groups={groups} onRemove={removeSummaryObsColumn} />,
+      })
+    }
+    if (summaryGenes.length > 0) {
+      collapseItems.push({
+        key: 'genes',
+        label: <Typography.Text strong style={{ fontSize: 12 }}>Genes</Typography.Text>,
+        children: <ByVariableView type="genes" groups={groups} onRemove={removeSummaryGene} />,
+      })
+    }
+    if (collapseItems.length === 0) return null
+    return (
+      <div style={style}>
+        <Collapse
+          defaultActiveKey={['obs', 'genes']}
+          ghost
+          size="small"
+          style={{ marginTop: 4 }}
+          items={collapseItems}
+        />
+      </div>
+    )
   }
 
   return (
@@ -168,27 +188,20 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
           />
         </div>
 
-        {context === 'all' && (
+        <div style={{ display: context === 'all' ? 'block' : 'none' }}>
           <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-            Showing summaries for all {(embeddingData?.numPoints ?? 0).toLocaleString()} cells
+            Showing summaries for all {numPoints.toLocaleString()} cells
           </Typography.Text>
-        )}
+        </div>
 
         {hasGroups && (
           <div style={{ display: context === 'selections' ? 'block' : 'none' }}>
-            <GroupOverview groups={selectionGroups} totalCells={embeddingData?.numPoints ?? 0} />
+            <GroupOverview groups={selectionGroups} totalCells={numPoints} />
           </div>
         )}
 
-        {collapseItems.length > 0 && (
-          <Collapse
-            defaultActiveKey={['obs', 'genes']}
-            ghost
-            size="small"
-            style={{ marginTop: 4 }}
-            items={collapseItems}
-          />
-        )}
+        {renderCharts(allCellsGroups, context === 'all')}
+        {hasGroups && renderCharts(activeSelectionGroups, context === 'selections')}
 
         {!hasVariables && (
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
