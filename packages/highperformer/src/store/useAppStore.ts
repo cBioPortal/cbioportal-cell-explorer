@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { AnnDataStore, GENE_SYMBOL_COLUMNS } from '@cbioportal-zarr-loader/zarrstore'
 import type { ArrayResult } from '@cbioportal-zarr-loader/zarrstore'
 import { WorkerPool } from '../pool/WorkerPool'
+import { flushSummaryQueue } from '../hooks/summaryScheduler'
 import UniversalWorker from '../workers/universal.worker.ts?worker'
 import type { ColorBufferResponse } from '../workers/colorBuffer.schemas'
 import type { RGB } from '../utils/colors'
@@ -114,12 +115,18 @@ export interface AppState {
   summaryGeneData: Map<string, Float32Array>
   summaryGeneRanges: Map<string, { min: number; max: number }>
 
+  // Summary cache — store-driven, replaces per-hook caching
+  summaryCache: Map<string, Map<number, unknown>>
+  _cacheSummaryResult: (variableKey: string, groupId: number, result: unknown) => void
+
   // Summary panel actions
   setSummaryPanelOpen: (open: boolean) => void
   addSummaryObsColumn: (name: string) => void
   removeSummaryObsColumn: (name: string) => void
   addSummaryGene: (name: string) => void
   removeSummaryGene: (name: string) => void
+  reorderSummaryObsColumns: (reordered: string[]) => void
+  reorderSummaryGenes: (reordered: string[]) => void
 
   // Actions
   openDataset: (url: string) => Promise<void>
@@ -260,6 +267,15 @@ const useAppStore = create<AppState>((set, get) => ({
   summaryObsContinuousData: new Map(),
   summaryGeneData: new Map(),
   summaryGeneRanges: new Map(),
+  summaryCache: new Map(),
+
+  _cacheSummaryResult: (variableKey, groupId, result) => {
+    const cache = new Map(get().summaryCache)
+    const inner = new Map(cache.get(variableKey) ?? new Map())
+    inner.set(groupId, result)
+    cache.set(variableKey, inner)
+    set({ summaryCache: cache })
+  },
 
   setSelectionTool: (tool) => set({ selectionTool: tool }),
   setSelectionDisplayMode: (mode) => set({ selectionDisplayMode: mode }),
@@ -335,17 +351,38 @@ const useAppStore = create<AppState>((set, get) => ({
   },
 
   clearGroup: (id) => {
-    const { selectionGroups } = get()
-    const updated = selectionGroups.filter((g) => g.id !== id)
-    set({ selectionGroups: updated })
-    if (updated.length === 0) {
-      set({ selectionFilterBuffer: null })
-    } else {
-      get()._mergeFilterBuffer()
+    flushSummaryQueue()
+    getPool().clearQueue()
+    const { selectionGroups, embeddingData } = get()
+    const remaining = selectionGroups.filter((g) => g.id !== id)
+
+    // Pre-compute the filter buffer for remaining groups so the
+    // Visualization never sees a gap (no color dim flash on removal).
+    let filterBuffer: Float32Array | null = null
+    if (remaining.length > 0 && embeddingData) {
+      filterBuffer = new Float32Array(embeddingData.numPoints)
+      for (const group of remaining) {
+        for (let i = 0; i < group.indices.length; i++) {
+          filterBuffer[group.indices[i]] = 1
+        }
+      }
+    }
+
+    // Clear all groups — unmounts selection charts instantly, avoiding
+    // expensive synchronous re-render of charts with modified group data.
+    // The pre-computed filter buffer keeps the scatterplot dimming stable.
+    set({ selectionGroups: [], selectionFilterBuffer: filterBuffer })
+
+    if (remaining.length > 0) {
+      requestAnimationFrame(() => {
+        set({ selectionGroups: remaining })
+      })
     }
   },
 
   clearAllSelections: () => {
+    flushSummaryQueue()
+    getPool().clearQueue()
     set({
       selectionGroups: [],
       selectionFilterBuffer: null,
@@ -440,6 +477,9 @@ const useAppStore = create<AppState>((set, get) => ({
     })
   },
 
+  reorderSummaryObsColumns: (reordered) => set({ summaryObsColumns: reordered }),
+  reorderSummaryGenes: (reordered) => set({ summaryGenes: reordered }),
+
   // Actions
   openDataset: async (url) => {
     if (url === get().datasetUrl && get().adata) return
@@ -455,6 +495,7 @@ const useAppStore = create<AppState>((set, get) => ({
       summaryObsColumns: [], summaryGenes: [],
       summaryObsData: new Map(), summaryObsContinuousData: new Map(),
       summaryGeneData: new Map(), summaryGeneRanges: new Map(),
+      summaryCache: new Map(),
     })
     try {
       const adata = await AnnDataStore.open(url)
@@ -739,5 +780,9 @@ const useAppStore = create<AppState>((set, get) => ({
     }
   },
 }))
+
+// Attach the summary reconciliation subscriber — runs after store creation
+import { attachSummarySubscriber } from './summarySubscriber'
+attachSummarySubscriber(useAppStore)
 
 export default useAppStore

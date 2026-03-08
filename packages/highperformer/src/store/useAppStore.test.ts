@@ -2,10 +2,12 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 
 // Mock the WorkerPool before importing the store
 const mockDispatch = vi.fn()
+const mockClearQueue = vi.fn()
 vi.mock('../pool/WorkerPool', () => {
   return {
     WorkerPool: class MockPool {
       dispatch = mockDispatch
+      clearQueue = mockClearQueue
       dispose() {}
     },
   }
@@ -612,6 +614,36 @@ describe('useAppStore', () => {
     })
   })
 
+  describe('summaryCache', () => {
+    it('_cacheSummaryResult writes to the cache', () => {
+      const counts = new Uint32Array([5, 10, 3])
+      useAppStore.getState()._cacheSummaryResult('cat:dataset', 1, counts)
+
+      const cache = useAppStore.getState().summaryCache
+      expect(cache.get('cat:dataset')?.get(1)).toBe(counts)
+    })
+
+    it('_cacheSummaryResult preserves existing entries', () => {
+      const counts1 = new Uint32Array([5, 10])
+      const counts2 = new Uint32Array([3, 7])
+      useAppStore.getState()._cacheSummaryResult('cat:dataset', -1, counts1)
+      useAppStore.getState()._cacheSummaryResult('cat:dataset', 1, counts2)
+
+      const cache = useAppStore.getState().summaryCache
+      expect(cache.get('cat:dataset')?.get(-1)).toBe(counts1)
+      expect(cache.get('cat:dataset')?.get(1)).toBe(counts2)
+    })
+
+    it('summaryCache is reset on openDataset', () => {
+      useAppStore.getState()._cacheSummaryResult('cat:dataset', -1, new Uint32Array([1]))
+      expect(useAppStore.getState().summaryCache.size).toBe(1)
+
+      // Reset state to simulate openDataset reset
+      useAppStore.setState({ summaryCache: new Map() })
+      expect(useAppStore.getState().summaryCache.size).toBe(0)
+    })
+  })
+
   describe('selection', () => {
     const GROUP_COLORS: [number, number, number][] = [
       [255, 59, 48],
@@ -663,7 +695,7 @@ describe('useAppStore', () => {
       expect(groups[0].color).toEqual(GROUP_COLORS[0])
     })
 
-    it('clearGroup removes a specific group and remerges filter buffer', () => {
+    it('clearGroup with no remaining groups clears filter buffer', async () => {
       useAppStore.setState({
         embeddingData: {
           positions: new Float32Array([0, 0, 5, 5]),
@@ -681,8 +713,40 @@ describe('useAppStore', () => {
       })
 
       useAppStore.getState().clearGroup(1)
+      // Groups cleared synchronously
       expect(useAppStore.getState().selectionGroups).toHaveLength(0)
       expect(useAppStore.getState().selectionFilterBuffer).toBeNull()
+    })
+
+    it('clearGroup with remaining groups preserves filter buffer and re-adds via rAF', async () => {
+      useAppStore.setState({
+        embeddingData: {
+          positions: new Float32Array([0, 0, 5, 5, 10, 10]),
+          numPoints: 3,
+          bounds: { minX: 0, maxX: 10, minY: 0, maxY: 10 },
+        },
+        selectionGroups: [
+          { id: 1, polygon: [], type: 'rectangle' as const, indices: new Uint32Array([0, 1]), color: GROUP_COLORS[0] },
+          { id: 2, polygon: [], type: 'lasso' as const, indices: new Uint32Array([1, 2]), color: GROUP_COLORS[1] },
+        ],
+        selectionFilterBuffer: new Float32Array([1, 1, 1]),
+      })
+
+      useAppStore.getState().clearGroup(1)
+      // Synchronously: groups cleared, filter buffer preserved for remaining
+      expect(useAppStore.getState().selectionGroups).toHaveLength(0)
+      const buf = useAppStore.getState().selectionFilterBuffer!
+      expect(buf).toBeInstanceOf(Float32Array)
+      expect(buf[0]).toBe(0) // was only in group 1
+      expect(buf[1]).toBe(1) // in group 2
+      expect(buf[2]).toBe(1) // in group 2
+
+      // After rAF: remaining group restored
+      vi.advanceTimersByTime(20)
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().selectionGroups).toHaveLength(1)
+      })
+      expect(useAppStore.getState().selectionGroups[0].id).toBe(2)
     })
 
     it('clearAllSelections resets everything', () => {
