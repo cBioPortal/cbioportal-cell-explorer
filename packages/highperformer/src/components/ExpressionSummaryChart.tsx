@@ -4,33 +4,17 @@ import { scaleLinear } from '@visx/scale'
 import { Bar } from '@visx/shape'
 import { AxisBottom, AxisLeft } from '@visx/axis'
 import { Checkbox, InputNumber, Popover, Segmented, Typography } from 'antd'
-import { SettingOutlined } from '@ant-design/icons'
+import { CloseOutlined, SettingOutlined } from '@ant-design/icons'
 import useAppStore, { getPool } from '../store/useAppStore'
 import type { SelectionGroup } from '../store/useAppStore'
 import type { ExpressionSummaryResponse } from '../workers/summary.schemas'
-import { ALL_CELLS_GROUP_ID } from '../hooks/useAllCellsSummary'
+import { ALL_CELLS_GROUP_ID } from '../constants'
+import type { ExpressionStats } from '../types/summaryTypes'
 import ChartModal from './ChartModal'
 import { useContainerWidth } from '../hooks/useContainerWidth'
 
 function groupLabel(id: number): string {
   return id === ALL_CELLS_GROUP_ID ? 'All Cells' : `Group ${id}`
-}
-
-interface ExpressionStats {
-  mean: number
-  median: number
-  std: number
-  min: number
-  max: number
-  q1: number
-  q3: number
-  whiskerLow: number
-  whiskerHigh: number
-  bins: Uint32Array
-  binEdges: Float32Array
-  kdeX: Float32Array
-  kdeDensity: Float32Array
-  clippedCount: number
 }
 
 interface ExpressionSummaryChartProps {
@@ -39,6 +23,7 @@ interface ExpressionSummaryChartProps {
   groups: SelectionGroup[]
   /** The raw gene/column name used to look up expression data for recomputation */
   dataKey?: string
+  onRemove?: () => void
 }
 
 const NUM_BINS = 30
@@ -84,12 +69,11 @@ function useClipMin(
   const summaryGeneData = useAppStore((s) => s.summaryGeneData)
   const summaryObsContinuousData = useAppStore((s) => s.summaryObsContinuousData)
   const embeddingData = useAppStore((s) => s.embeddingData)
-  const selectionGroups = useAppStore((s) => s.selectionGroups)
 
-  // Invalidate cache when underlying data changes (new selections, new expression data)
+  // Invalidate cache when underlying expression data changes
   useEffect(() => {
     cacheRef.current.clear()
-  }, [selectionGroups, summaryGeneData, summaryObsContinuousData])
+  }, [summaryGeneData, summaryObsContinuousData])
 
   useEffect(() => {
     if (clipMin === undefined || !dataKey) {
@@ -133,11 +117,8 @@ function useClipMin(
         const allIndices = new Uint32Array(numPoints)
         for (let i = 0; i < numPoints; i++) allIndices[i] = i
         groupEntries.push({ id: g.id, indices: allIndices })
-      } else {
-        const sel = selectionGroups.find((sg) => sg.id === g.id)
-        if (sel && sel.indices.length > 0) {
-          groupEntries.push({ id: sel.id, indices: sel.indices })
-        }
+      } else if (g.indices.length > 0) {
+        groupEntries.push({ id: g.id, indices: g.indices })
       }
     }
 
@@ -162,7 +143,7 @@ function useClipMin(
       cacheRef.current.set(key, map)
       setClippedStats(map)
     })
-  }, [clipMin, dataKey, groups, originalStats, summaryGeneData, summaryObsContinuousData, embeddingData, selectionGroups])
+  }, [clipMin, dataKey, groups, originalStats, summaryGeneData, summaryObsContinuousData, embeddingData])
 
   if (clipMin !== undefined && clippedStats) return clippedStats
   return originalStats
@@ -344,7 +325,7 @@ function ExpressionStatsTable({ statsByGroup, activeGroups, fontSize = 10 }: {
   )
 }
 
-export default function ExpressionSummaryChart({ name, statsByGroup: rawStatsByGroup, groups, dataKey }: ExpressionSummaryChartProps) {
+export default function ExpressionSummaryChart({ name, statsByGroup: rawStatsByGroup, groups, dataKey, onRemove }: ExpressionSummaryChartProps) {
   const [view, setView] = useState<'chart' | 'table'>('chart')
   const [modalOpen, setModalOpen] = useState(false)
   const [clipEnabled, setClipEnabled] = useState(true)
@@ -362,6 +343,7 @@ export default function ExpressionSummaryChart({ name, statsByGroup: rawStatsByG
     <div ref={containerRef} style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <Typography.Link strong style={{ fontSize: 12 }} onClick={() => setModalOpen(true)}>{name}</Typography.Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <Popover
             trigger="click"
             placement="bottomRight"
@@ -404,6 +386,13 @@ export default function ExpressionSummaryChart({ name, statsByGroup: rawStatsByG
               style={{ fontSize: 11, cursor: 'pointer', color: '#1677ff' }}
             />
           </Popover>
+          {onRemove && (
+            <CloseOutlined
+              style={{ fontSize: 10, cursor: 'pointer', color: '#999' }}
+              onClick={onRemove}
+            />
+          )}
+        </div>
       </div>
 
       {view === 'table' ? (

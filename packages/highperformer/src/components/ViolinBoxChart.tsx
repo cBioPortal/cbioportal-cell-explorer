@@ -4,7 +4,7 @@ import { scaleLinear } from '@visx/scale'
 import { AxisBottom, AxisLeft } from '@visx/axis'
 import { area, curveBasis } from 'd3-shape'
 import type { SelectionGroup } from '../store/useAppStore'
-import { ALL_CELLS_GROUP_ID } from '../hooks/useAllCellsSummary'
+import { ALL_CELLS_GROUP_ID } from '../constants'
 
 function groupLabel(id: number): string {
   return id === ALL_CELLS_GROUP_ID ? 'All Cells' : `Group ${id}`

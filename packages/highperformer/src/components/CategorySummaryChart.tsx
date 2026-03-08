@@ -4,10 +4,10 @@ import { Pie } from '@visx/shape'
 import { scaleBand, scaleLinear } from '@visx/scale'
 import { AxisBottom, AxisLeft } from '@visx/axis'
 import { Popover, Segmented, Typography } from 'antd'
-import { SettingOutlined } from '@ant-design/icons'
+import { CloseOutlined, SettingOutlined } from '@ant-design/icons'
 import type { SelectionGroup } from '../store/useAppStore'
 import type { RGB } from '../utils/colors'
-import { ALL_CELLS_GROUP_ID } from '../hooks/useAllCellsSummary'
+import { ALL_CELLS_GROUP_ID } from '../constants'
 import ChartModal from './ChartModal'
 import { useContainerWidth } from '../hooks/useContainerWidth'
 
@@ -20,6 +20,7 @@ interface CategorySummaryChartProps {
   categoryMap: { label: string; color: RGB }[]
   countsByGroup: Map<number, Uint32Array>
   groups: SelectionGroup[]
+  onRemove?: () => void
 }
 
 interface CategoryRow {
@@ -580,7 +581,7 @@ function PieChart({ data, categoryMap, groupId, countsByGroup, radius = PIE_RADI
   const hasMore = pieData.length > MAX_LEGEND_ITEMS
 
   return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
       <svg width={size} height={size} style={{ flexShrink: 0 }} onMouseLeave={() => setHoverLabel(null)}>
         <Group top={radius} left={radius}>
           <Pie
@@ -717,7 +718,7 @@ function CategoryTable({ data, activeGroups }: { data: CategoryRow[]; activeGrou
 
 type InlineView = 'chart' | 'count' | 'percent' | 'table'
 
-export default function CategorySummaryChart({ name, categoryMap, countsByGroup, groups }: CategorySummaryChartProps) {
+export default function CategorySummaryChart({ name, categoryMap, countsByGroup, groups, onRemove }: CategorySummaryChartProps) {
   const isSingleGroup = groups.filter((g) => countsByGroup.has(g.id)).length === 1
   const [inlineView, setInlineView] = useState<InlineView>(isSingleGroup ? 'chart' : 'count')
   const [modalOpen, setModalOpen] = useState(false)
@@ -787,25 +788,33 @@ export default function CategorySummaryChart({ name, categoryMap, countsByGroup,
     <div ref={containerRef} style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <Typography.Link strong style={{ fontSize: 12 }} onClick={() => { setModalTab('chart'); setModalOpen(true) }}>{name}</Typography.Link>
-        <Popover
-          trigger="click"
-          placement="bottomRight"
-          content={
-            <div style={{ minWidth: 160 }}>
-              <Segmented
-                block
-                size="small"
-                value={inlineView}
-                onChange={(v) => setInlineView(v as InlineView)}
-                options={toggleOptions}
-              />
-            </div>
-          }
-        >
-          <SettingOutlined
-            style={{ fontSize: 11, cursor: 'pointer', color: '#1677ff' }}
-          />
-        </Popover>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Popover
+            trigger="click"
+            placement="bottomRight"
+            content={
+              <div style={{ minWidth: 160 }}>
+                <Segmented
+                  block
+                  size="small"
+                  value={inlineView}
+                  onChange={(v) => setInlineView(v as InlineView)}
+                  options={toggleOptions}
+                />
+              </div>
+            }
+          >
+            <SettingOutlined
+              style={{ fontSize: 11, cursor: 'pointer', color: '#1677ff' }}
+            />
+          </Popover>
+          {onRemove && (
+            <CloseOutlined
+              style={{ fontSize: 10, cursor: 'pointer', color: '#999' }}
+              onClick={onRemove}
+            />
+          )}
+        </div>
       </div>
 
       {inlineView === 'table' ? (
