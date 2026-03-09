@@ -1,10 +1,12 @@
 import { WorkerMessageSchema } from './colorBuffer.schemas'
 import { SelectionMessageSchema } from './selection.schemas'
+import { SummaryMessageSchema } from './summary.schemas'
 import { handleColorBufferMessage } from './colorBuffer.handler'
 import { handleSelectionMessage } from './selection.handler'
+import { handleSummaryMessage } from './summary.handler'
 import { z } from 'zod'
 
-const UnifiedMessageSchema = z.union([WorkerMessageSchema, SelectionMessageSchema])
+const UnifiedMessageSchema = z.union([WorkerMessageSchema, SelectionMessageSchema, SummaryMessageSchema])
 
 const workerSelf = self as unknown as {
   onmessage: ((e: MessageEvent) => void) | null
@@ -27,6 +29,35 @@ workerSelf.onmessage = (e: MessageEvent) => {
     workerSelf.postMessage(
       { ...response, _poolTaskId },
       [response.indices.buffer] as Transferable[],
+    )
+    return
+  }
+
+  if (msg.type === 'summarizeCategory') {
+    const response = handleSummaryMessage(msg)
+    workerSelf.postMessage(
+      { ...response, _poolTaskId },
+      response.type === 'categorySummary' ? [response.counts.buffer] as Transferable[] : [],
+    )
+    return
+  }
+
+  if (msg.type === 'summarizeExpression') {
+    const response = handleSummaryMessage(msg)
+    workerSelf.postMessage(
+      { ...response, _poolTaskId },
+      response.type === 'expressionSummary' ? [response.bins.buffer, response.binEdges.buffer] as Transferable[] : [],
+    )
+    return
+  }
+
+  if (msg.type === 'summarizeExpressionByCategory') {
+    const response = handleSummaryMessage(msg)
+    workerSelf.postMessage(
+      { ...response, _poolTaskId },
+      response.type === 'expressionByCategorySummary'
+        ? [response.meanExpression.buffer, response.fractionExpressing.buffer] as Transferable[]
+        : [],
     )
     return
   }

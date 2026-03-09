@@ -5,6 +5,7 @@ import {
   EditOutlined,
   EyeOutlined,
   EyeInvisibleOutlined,
+  BarChartOutlined,
   ClearOutlined,
   CloseOutlined,
 } from '@ant-design/icons'
@@ -18,6 +19,8 @@ export default function SelectionToolbar() {
   const selectionGroups = useAppStore((s) => s.selectionGroups)
   const clearGroup = useAppStore((s) => s.clearGroup)
   const clearAllSelections = useAppStore((s) => s.clearAllSelections)
+  const summaryPanelOpen = useAppStore((s) => s.summaryPanelOpen)
+  const setSummaryPanelOpen = useAppStore((s) => s.setSummaryPanelOpen)
 
   const hasSelection = selectionGroups.length > 0
 
@@ -70,6 +73,16 @@ export default function SelectionToolbar() {
             />
           </Tooltip>
         </Space.Compact>
+      )}
+
+      {!summaryPanelOpen && (
+        <Tooltip title="Show summary panel" placement="right">
+          <Button
+            icon={<BarChartOutlined />}
+            size="small"
+            onClick={() => setSummaryPanelOpen(true)}
+          />
+        </Tooltip>
       )}
 
       {/* Per-group chips */}

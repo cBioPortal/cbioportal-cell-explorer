@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { AnnDataStore, GENE_SYMBOL_COLUMNS } from '@cbioportal-zarr-loader/zarrstore'
 import type { ArrayResult } from '@cbioportal-zarr-loader/zarrstore'
 import { WorkerPool } from '../pool/WorkerPool'
+import { flushSummaryQueue } from '../hooks/summaryScheduler'
 import UniversalWorker from '../workers/universal.worker.ts?worker'
 import type { ColorBufferResponse } from '../workers/colorBuffer.schemas'
 import type { RGB } from '../utils/colors'
@@ -105,6 +106,28 @@ export interface AppState {
   clearGroup: (id: number) => void
   clearAllSelections: () => void
 
+  // Summary panel
+  summaryPanelOpen: boolean
+  summaryObsColumns: string[]
+  summaryGenes: string[]
+  summaryObsData: Map<string, { codes: Uint8Array; categoryMap: { label: string; color: RGB }[] }>
+  summaryObsContinuousData: Map<string, Float32Array>
+  summaryGeneData: Map<string, Float32Array>
+  summaryGeneRanges: Map<string, { min: number; max: number }>
+
+  // Summary cache — store-driven, replaces per-hook caching
+  summaryCache: Map<string, Map<number, unknown>>
+  _cacheSummaryResult: (variableKey: string, groupId: number, result: unknown) => void
+
+  // Summary panel actions
+  setSummaryPanelOpen: (open: boolean) => void
+  addSummaryObsColumn: (name: string) => void
+  removeSummaryObsColumn: (name: string) => void
+  addSummaryGene: (name: string) => void
+  removeSummaryGene: (name: string) => void
+  reorderSummaryObsColumns: (reordered: string[]) => void
+  reorderSummaryGenes: (reordered: string[]) => void
+
   // Actions
   openDataset: (url: string) => Promise<void>
   setSelectedEmbedding: (key: string) => void
@@ -161,7 +184,7 @@ export function resetSelectionVersion(): void { selectionVersion = 0 }
 
 // Singleton pool — created lazily
 let pool: WorkerPool | null = null
-function getPool(): WorkerPool {
+export function getPool(): WorkerPool {
   if (!pool) pool = new WorkerPool(() => new UniversalWorker())
   return pool
 }
@@ -236,6 +259,24 @@ const useAppStore = create<AppState>((set, get) => ({
   selectionGroups: [],
   selectionFilterBuffer: null,
 
+  // Summary panel
+  summaryPanelOpen: true,
+  summaryObsColumns: [],
+  summaryGenes: [],
+  summaryObsData: new Map(),
+  summaryObsContinuousData: new Map(),
+  summaryGeneData: new Map(),
+  summaryGeneRanges: new Map(),
+  summaryCache: new Map(),
+
+  _cacheSummaryResult: (variableKey, groupId, result) => {
+    const cache = new Map(get().summaryCache)
+    const inner = new Map(cache.get(variableKey) ?? new Map())
+    inner.set(groupId, result)
+    cache.set(variableKey, inner)
+    set({ summaryCache: cache })
+  },
+
   setSelectionTool: (tool) => set({ selectionTool: tool }),
   setSelectionDisplayMode: (mode) => set({ selectionDisplayMode: mode }),
 
@@ -258,6 +299,8 @@ const useAppStore = create<AppState>((set, get) => ({
     }
 
     set({ selectionGroups: [...selectionGroups, group] })
+
+    if (!get().summaryPanelOpen) set({ summaryPanelOpen: true })
 
     // Dispatch hit-testing to worker
     selectionVersion++
@@ -308,17 +351,38 @@ const useAppStore = create<AppState>((set, get) => ({
   },
 
   clearGroup: (id) => {
-    const { selectionGroups } = get()
-    const updated = selectionGroups.filter((g) => g.id !== id)
-    set({ selectionGroups: updated })
-    if (updated.length === 0) {
-      set({ selectionFilterBuffer: null })
-    } else {
-      get()._mergeFilterBuffer()
+    flushSummaryQueue()
+    getPool().clearQueue()
+    const { selectionGroups, embeddingData } = get()
+    const remaining = selectionGroups.filter((g) => g.id !== id)
+
+    // Pre-compute the filter buffer for remaining groups so the
+    // Visualization never sees a gap (no color dim flash on removal).
+    let filterBuffer: Float32Array | null = null
+    if (remaining.length > 0 && embeddingData) {
+      filterBuffer = new Float32Array(embeddingData.numPoints)
+      for (const group of remaining) {
+        for (let i = 0; i < group.indices.length; i++) {
+          filterBuffer[group.indices[i]] = 1
+        }
+      }
+    }
+
+    // Clear all groups — unmounts selection charts instantly, avoiding
+    // expensive synchronous re-render of charts with modified group data.
+    // The pre-computed filter buffer keeps the scatterplot dimming stable.
+    set({ selectionGroups: [], selectionFilterBuffer: filterBuffer })
+
+    if (remaining.length > 0) {
+      requestAnimationFrame(() => {
+        set({ selectionGroups: remaining })
+      })
     }
   },
 
   clearAllSelections: () => {
+    flushSummaryQueue()
+    getPool().clearQueue()
     set({
       selectionGroups: [],
       selectionFilterBuffer: null,
@@ -326,6 +390,95 @@ const useAppStore = create<AppState>((set, get) => ({
       selectionDisplayMode: 'dim',
     })
   },
+
+  setSummaryPanelOpen: (open) => set({ summaryPanelOpen: open }),
+
+  addSummaryObsColumn: (name) => {
+    const { adata, summaryObsColumns, summaryObsData, summaryObsContinuousData } = get()
+    if (!adata || summaryObsColumns.includes(name) || summaryObsData.has(name) || summaryObsContinuousData.has(name)) return
+    set({ summaryObsColumns: [...summaryObsColumns, name] })
+    adata.obsColumn(name).then((values) => {
+      // Detect continuous: TypedArray from zarr (numeric column)
+      const isTypedArray = ArrayBuffer.isView(values) && !(values instanceof DataView)
+      if (isTypedArray) {
+        const floats = values instanceof Float32Array ? values : new Float32Array(values as ArrayLike<number>)
+        const next = new Map(get().summaryObsContinuousData)
+        next.set(name, floats)
+        set({ summaryObsContinuousData: next })
+        return
+      }
+
+      // String/mixed array — try categorical encoding
+      const valuesArray = Array.isArray(values) ? values : Array.from(values as Iterable<number>)
+      const { codes, categoryMap, uniqueCount } = encodeCategories(valuesArray as (string | number | null)[])
+
+      // Too many unique values — treat as continuous
+      if (uniqueCount > MAX_CATEGORIES) {
+        const floats = new Float32Array(valuesArray.length)
+        for (let i = 0; i < valuesArray.length; i++) {
+          floats[i] = Number(valuesArray[i]) || 0
+        }
+        const next = new Map(get().summaryObsContinuousData)
+        next.set(name, floats)
+        set({ summaryObsContinuousData: next })
+        return
+      }
+
+      const next = new Map(get().summaryObsData)
+      next.set(name, { codes, categoryMap })
+      set({ summaryObsData: next })
+    })
+  },
+
+  removeSummaryObsColumn: (name) => {
+    const { summaryObsColumns, summaryObsData, summaryObsContinuousData } = get()
+    const nextCat = new Map(summaryObsData)
+    nextCat.delete(name)
+    const nextCont = new Map(summaryObsContinuousData)
+    nextCont.delete(name)
+    set({
+      summaryObsColumns: summaryObsColumns.filter((c) => c !== name),
+      summaryObsData: nextCat,
+      summaryObsContinuousData: nextCont,
+    })
+  },
+
+  addSummaryGene: (name) => {
+    const { adata, summaryGenes, summaryGeneData } = get()
+    if (!adata || summaryGenes.includes(name) || summaryGeneData.has(name)) return
+    set({ summaryGenes: [...summaryGenes, name] })
+    adata.geneExpression(name).then((expression) => {
+      const data = expression instanceof Float32Array
+        ? expression
+        : new Float32Array(expression as ArrayLike<number>)
+      let min = Infinity, max = -Infinity
+      for (let i = 0; i < data.length; i++) {
+        if (data[i] < min) min = data[i]
+        if (data[i] > max) max = data[i]
+      }
+      const nextData = new Map(get().summaryGeneData)
+      nextData.set(name, data)
+      const nextRanges = new Map(get().summaryGeneRanges)
+      nextRanges.set(name, { min, max })
+      set({ summaryGeneData: nextData, summaryGeneRanges: nextRanges })
+    })
+  },
+
+  removeSummaryGene: (name) => {
+    const { summaryGenes, summaryGeneData, summaryGeneRanges } = get()
+    const nextData = new Map(summaryGeneData)
+    nextData.delete(name)
+    const nextRanges = new Map(summaryGeneRanges)
+    nextRanges.delete(name)
+    set({
+      summaryGenes: summaryGenes.filter((g) => g !== name),
+      summaryGeneData: nextData,
+      summaryGeneRanges: nextRanges,
+    })
+  },
+
+  reorderSummaryObsColumns: (reordered) => set({ summaryObsColumns: reordered }),
+  reorderSummaryGenes: (reordered) => set({ summaryGenes: reordered }),
 
   // Actions
   openDataset: async (url) => {
@@ -338,6 +491,11 @@ const useAppStore = create<AppState>((set, get) => ({
       categoryWarning: null, _categoryCodes: null, _expressionData: null,
       varColumns: [], geneLabelColumn: null, geneLabelMap: null,
       selectionGroups: [], selectionFilterBuffer: null, selectionTool: 'pan', selectionDisplayMode: 'dim',
+      summaryPanelOpen: true,
+      summaryObsColumns: [], summaryGenes: [],
+      summaryObsData: new Map(), summaryObsContinuousData: new Map(),
+      summaryGeneData: new Map(), summaryGeneRanges: new Map(),
+      summaryCache: new Map(),
     })
     try {
       const adata = await AnnDataStore.open(url)
@@ -509,6 +667,15 @@ const useAppStore = create<AppState>((set, get) => ({
         _colorAbort: null,
       })
       get().rebuildColorBuffer()
+
+      // Auto-pin to summary panel
+      const { summaryObsColumns, summaryObsData } = get()
+      if (!summaryObsColumns.includes(name)) {
+        const nextPinned = [...summaryObsColumns, name]
+        const nextData = new Map(summaryObsData)
+        nextData.set(name, { codes, categoryMap })
+        set({ summaryObsColumns: nextPinned, summaryObsData: nextData })
+      }
     })
   },
 
@@ -548,6 +715,15 @@ const useAppStore = create<AppState>((set, get) => ({
         _colorAbort: null,
       })
       get().rebuildColorBuffer()
+
+      // Auto-pin to summary panel
+      const { summaryGenes, summaryGeneData } = get()
+      if (!summaryGenes.includes(name)) {
+        const nextPinned = [...summaryGenes, name]
+        const nextData = new Map(summaryGeneData)
+        nextData.set(name, data)
+        set({ summaryGenes: nextPinned, summaryGeneData: nextData })
+      }
     })
   },
 
@@ -604,5 +780,9 @@ const useAppStore = create<AppState>((set, get) => ({
     }
   },
 }))
+
+// Attach the summary reconciliation subscriber — runs after store creation
+import { attachSummarySubscriber } from './summarySubscriber'
+attachSummarySubscriber(useAppStore)
 
 export default useAppStore

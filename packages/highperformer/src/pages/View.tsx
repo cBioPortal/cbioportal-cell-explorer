@@ -12,6 +12,7 @@ import useAppStore from '../store/useAppStore'
 import ColorBySection from '../components/ColorBySection'
 import SelectionOverlay from '../components/SelectionOverlay'
 import SelectionToolbar from '../components/SelectionToolbar'
+import SummaryPanel from '../components/SummaryPanel'
 import { loadDatasets, saveDatasets } from '../utils/datasets'
 
 const { Sider, Content } = Layout
@@ -20,7 +21,7 @@ const LEFT_SIDEBAR_WIDTH = 300
 const RIGHT_SIDEBAR_WIDTH = 300
 const SIDEBAR_COLLAPSED_WIDTH = 60
 // Snap breakpoints for the right sidebar — drag releases snap to nearest
-const RIGHT_SNAP_POINTS = [SIDEBAR_COLLAPSED_WIDTH, 200, RIGHT_SIDEBAR_WIDTH, 400, 550]
+const RIGHT_SNAP_POINTS = [SIDEBAR_COLLAPSED_WIDTH, RIGHT_SIDEBAR_WIDTH, 400, 550]
 
 function snapToNearest(value: number): number {
   let closest = RIGHT_SNAP_POINTS[0]
@@ -110,7 +111,7 @@ function useRightSidebarDrag(onDragEnd: (snapped: number) => void) {
   return { onMouseDown, setSnappedRef }
 }
 
-const WIDGETS = [new StatsWidget({ type: 'deck', framesPerUpdate: 5, placement: 'top-left' })]
+const WIDGETS = [new StatsWidget({ type: 'deck', framesPerUpdate: 5, placement: 'bottom-left' })]
 
 // Fallback color when no color buffer is ready yet
 const FALLBACK_COLOR: [number, number, number, number] = [100, 150, 255, 77]
@@ -567,7 +568,7 @@ function View() {
               zIndex: 10,
             }}
           />
-          {/* Right sidebar — placeholder for future content */}
+          <SummaryPanel collapsed={rightWidth <= SIDEBAR_COLLAPSED_WIDTH} onExpand={() => setRightWidth(RIGHT_SIDEBAR_WIDTH)} />
         </Sider>
       </Layout>
       <ProfileBarWrapper />
