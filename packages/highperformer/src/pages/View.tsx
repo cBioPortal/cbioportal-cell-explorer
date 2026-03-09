@@ -111,8 +111,8 @@ function useRightSidebarDrag(onDragEnd: (snapped: number) => void) {
   return { onMouseDown, setSnappedRef }
 }
 
-const ENABLE_STATS_WIDGET = import.meta.env.VITE_ENABLE_STATS_WIDGET !== 'false'
-const ENABLE_PROFILER = import.meta.env.VITE_ENABLE_PROFILER !== 'false'
+const ENABLE_STATS_WIDGET = import.meta.env.VITE_ENABLE_STATS_WIDGET === 'true'
+const ENABLE_PROFILER = import.meta.env.VITE_ENABLE_PROFILER === 'true'
 
 const WIDGETS = ENABLE_STATS_WIDGET
   ? [new StatsWidget({ type: 'deck', framesPerUpdate: 5, placement: 'bottom-left' })]

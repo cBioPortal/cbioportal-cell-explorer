@@ -6,7 +6,7 @@ import View from './pages/View'
 
 const { Content } = Layout
 
-const ENABLE_PROFILER = import.meta.env.VITE_ENABLE_PROFILER !== 'false'
+const ENABLE_PROFILER = import.meta.env.VITE_ENABLE_PROFILER === 'true'
 
 function App() {
   return (
