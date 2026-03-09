@@ -1,6 +1,6 @@
 import { startTransition, useMemo, useState } from 'react'
 import { Collapse, Segmented, Tooltip, Typography } from 'antd'
-import { BarChartOutlined, CloseOutlined, InfoCircleOutlined, PieChartOutlined, SearchOutlined } from '@ant-design/icons'
+import { BarChartOutlined, CloseOutlined, DotChartOutlined, InfoCircleOutlined, PieChartOutlined, SearchOutlined } from '@ant-design/icons'
 import useAppStore from '../store/useAppStore'
 import type { SelectionGroup } from '../store/useAppStore'
 import GroupOverview from './GroupOverview'
@@ -98,6 +98,11 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
         {hasGenes && (
           <Tooltip title="Expression Distributions" placement="left">
             <div style={collapsedIconStyle}><BarChartOutlined /></div>
+          </Tooltip>
+        )}
+        {hasObs && hasGenes && (
+          <Tooltip title="Gene Expression by Category" placement="left">
+            <div style={collapsedIconStyle}><DotChartOutlined /></div>
           </Tooltip>
         )}
       </div>
