@@ -51,6 +51,17 @@ workerSelf.onmessage = (e: MessageEvent) => {
     return
   }
 
+  if (msg.type === 'summarizeExpressionByCategory') {
+    const response = handleSummaryMessage(msg)
+    workerSelf.postMessage(
+      { ...response, _poolTaskId },
+      response.type === 'expressionByCategorySummary'
+        ? [response.meanExpression.buffer, response.fractionExpressing.buffer] as Transferable[]
+        : [],
+    )
+    return
+  }
+
   // Color buffer messages
   const response = handleColorBufferMessage(msg)
   workerSelf.postMessage(

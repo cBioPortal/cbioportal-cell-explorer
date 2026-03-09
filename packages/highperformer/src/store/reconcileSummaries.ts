@@ -3,7 +3,7 @@ import type { RGB } from '../utils/colors'
 export interface SummaryPair {
   key: string           // e.g. "cat:dataset", "expr:ENSG00000163331"
   groupId: number       // -1, 1, 2, 3
-  type: 'category' | 'expression'
+  type: 'category' | 'expression' | 'expressionByCategory'
   indices: Uint32Array
   // Category-specific
   codes?: Uint8Array
@@ -67,6 +67,23 @@ export function buildRequiredPairs(
         indices: g.indices,
         expression,
       })
+    }
+  }
+
+  // Expression-by-category pairs (gene × categorical obs × group)
+  for (const [obsName, obs] of obsData) {
+    for (const [geneName, expr] of geneData) {
+      for (const g of activeGroups) {
+        pairs.push({
+          key: `exprcat:${geneName}:${obsName}`,
+          groupId: g.id,
+          type: 'expressionByCategory',
+          indices: g.indices,
+          codes: obs.codes,
+          numCategories: obs.categoryMap.length,
+          expression: expr,
+        })
+      }
     }
   }
 

@@ -3,7 +3,7 @@ import { getPool } from './useAppStore'
 import { ALL_CELLS_GROUP_ID } from '../constants'
 import { buildRequiredPairs, reconcileSummaries } from './reconcileSummaries'
 import type { SummaryPair } from './reconcileSummaries'
-import type { CategorySummaryResponse, ExpressionSummaryResponse } from '../workers/summary.schemas'
+import type { CategorySummaryResponse, ExpressionSummaryResponse, ExpressionByCategorySummaryResponse } from '../workers/summary.schemas'
 import { scheduleSummary, flushSummaryQueue } from '../hooks/summaryScheduler'
 
 const NUM_BINS = 30
@@ -36,7 +36,7 @@ function dispatchPair(
         if (response.type === 'categorySummary') {
           cacheResult(pair.key, pair.groupId, response.counts)
         }
-      } else {
+      } else if (pair.type === 'expression') {
         const response = await getPool().dispatch<ExpressionSummaryResponse>({
           type: 'summarizeExpression',
           expression: pair.expression!,
@@ -45,6 +45,18 @@ function dispatchPair(
           version: 0,
         })
         if (response.type === 'expressionSummary') {
+          cacheResult(pair.key, pair.groupId, response)
+        }
+      } else if (pair.type === 'expressionByCategory') {
+        const response = await getPool().dispatch<ExpressionByCategorySummaryResponse>({
+          type: 'summarizeExpressionByCategory',
+          expression: pair.expression!,
+          codes: pair.codes!,
+          numCategories: pair.numCategories!,
+          indices: pair.indices,
+          version: 0,
+        })
+        if (response.type === 'expressionByCategorySummary') {
           cacheResult(pair.key, pair.groupId, response)
         }
       }

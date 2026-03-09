@@ -1,4 +1,4 @@
-import type { SummaryMessage, SummaryResponse } from './summary.schemas'
+import type { SummaryMessage, SummaryResponse, SummarizeExpressionMsg } from './summary.schemas'
 
 const KDE_POINTS = 128
 
@@ -75,8 +75,44 @@ export function handleSummaryMessage(msg: SummaryMessage): SummaryResponse {
     return { type: 'categorySummary', counts, version }
   }
 
-  // summarizeExpression
-  const { expression, indices, numBins, clipMin } = msg
+  if (msg.type === 'summarizeExpressionByCategory') {
+    const { expression, codes, numCategories, indices, version } = msg
+
+    // Find baseline minimum across all indexed cells
+    let baseline = Infinity
+    for (let i = 0; i < indices.length; i++) {
+      const v = expression[indices[i]]
+      if (v < baseline) baseline = v
+    }
+    if (!isFinite(baseline)) baseline = 0
+
+    // Accumulate per-category sums and counts
+    const sums = new Float64Array(numCategories)
+    const counts = new Uint32Array(numCategories)
+    const expressing = new Uint32Array(numCategories)
+
+    for (let i = 0; i < indices.length; i++) {
+      const idx = indices[i]
+      const cat = codes[idx]
+      if (cat >= numCategories) continue
+      const val = expression[idx]
+      sums[cat] += val
+      counts[cat]++
+      if (val > baseline) expressing[cat]++
+    }
+
+    const meanExpression = new Float32Array(numCategories)
+    const fractionExpressing = new Float32Array(numCategories)
+    for (let c = 0; c < numCategories; c++) {
+      meanExpression[c] = counts[c] > 0 ? sums[c] / counts[c] : 0
+      fractionExpressing[c] = counts[c] > 0 ? expressing[c] / counts[c] : 0
+    }
+
+    return { type: 'expressionByCategorySummary' as const, meanExpression, fractionExpressing, version }
+  }
+
+  // summarizeExpression (only remaining type after the above checks)
+  const { expression, indices, numBins, clipMin } = msg as SummarizeExpressionMsg
 
   if (indices.length === 0) {
     return emptyResponse(numBins, 0, version)
