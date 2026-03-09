@@ -3,23 +3,11 @@ import { Link } from 'react-router-dom'
 import { Input, Button, List, Tag, Tooltip, Typography } from 'antd'
 import { CheckCircleOutlined, CopyOutlined, DeleteOutlined, ExclamationCircleOutlined, LinkOutlined, LoadingOutlined } from '@ant-design/icons'
 import { loadDatasets, saveDatasets } from '../utils/datasets'
+import { probeStore, isLocalUrl } from '../utils/datasetProbe'
 
 interface ProbeResult {
   status: 'pending' | 'ok' | 'error'
   version?: number
-}
-
-async function probeStore(url: string, signal: AbortSignal): Promise<{ ok: boolean; version?: number }> {
-  const base = url.endsWith('/') ? url : url + '/'
-
-  // Try zarr.json (v3), then .zmetadata (v2) — simple GET, no preflight
-  const v3 = await fetch(base + 'zarr.json', { method: 'GET', signal })
-  if (v3.ok) return { ok: true, version: 3 }
-
-  const v2 = await fetch(base + '.zmetadata', { method: 'GET', signal })
-  if (v2.ok) return { ok: true, version: 2 }
-
-  return { ok: false }
 }
 
 const StatusIcon = ({ status }: { status: ProbeResult['status'] }) => {
@@ -32,15 +20,6 @@ function probeTooltip(result: ProbeResult): string {
   if (result.status === 'pending') return 'Checking...'
   if (result.status === 'error') return 'Unreachable — check CORS, URL, or permissions'
   return `Accessible (Zarr v${result.version})`
-}
-
-function isLocalUrl(url: string): boolean {
-  try {
-    const host = new URL(url).hostname
-    return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0'
-  } catch {
-    return false
-  }
 }
 
 interface DatasetListProps {
