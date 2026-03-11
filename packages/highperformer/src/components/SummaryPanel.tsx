@@ -1,6 +1,6 @@
 import { startTransition, useMemo, useState } from 'react'
 import { Collapse, Segmented, Tooltip, Typography } from 'antd'
-import { BarChartOutlined, CloseOutlined, DotChartOutlined, InfoCircleOutlined, PieChartOutlined, SearchOutlined } from '@ant-design/icons'
+import { BarChartOutlined, DotChartOutlined, InfoCircleOutlined, PieChartOutlined, SearchOutlined } from '@ant-design/icons'
 import useAppStore from '../store/useAppStore'
 import type { SelectionGroup } from '../store/useAppStore'
 import GroupOverview from './GroupOverview'
@@ -30,7 +30,6 @@ interface SummaryPanelProps {
 
 export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps) {
   const summaryPanelOpen = useAppStore((s) => s.summaryPanelOpen)
-  const setSummaryPanelOpen = useAppStore((s) => s.setSummaryPanelOpen)
   const selectionGroups = useAppStore((s) => s.selectionGroups)
   const summaryObsColumns = useAppStore((s) => s.summaryObsColumns)
   const summaryGenes = useAppStore((s) => s.summaryGenes)
@@ -179,10 +178,6 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
         alignItems: 'center',
       }}>
         <Typography.Text strong style={{ fontSize: 14 }}>Summary</Typography.Text>
-        <CloseOutlined
-          style={{ fontSize: 12, cursor: 'pointer', color: '#999' }}
-          onClick={() => setSummaryPanelOpen(false)}
-        />
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: '12px 16px' }}>
