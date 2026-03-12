@@ -249,10 +249,14 @@ function ShardSparkline({ shardBytesMap, nShards, selectedShard, onShardSelect, 
   const chartWidth = SPARK_VIEW_WIDTH - SPARK_MARGIN.left - SPARK_MARGIN.right
   const svgH = SPARK_MARGIN.top + SPARK_HEIGHT + SPARK_MARGIN.bottom
 
+  // Minimum scaleX: all bars fit exactly within the chart width
+  const minScaleX = Math.min(1, chartWidth / contentWidth)
+
   // Constrain zoom: x-only, no vertical zoom/pan
   const constrainZoom = (transform: TransformMatrix, _prev: TransformMatrix): TransformMatrix => {
-    // Lock Y axis
+    // Lock Y axis and clamp horizontal scale
     const next = { ...transform, scaleY: 1, translateY: 0, skewX: 0, skewY: 0 }
+    next.scaleX = Math.max(minScaleX, next.scaleX)
     // Clamp horizontal pan so content doesn't drift off-screen
     const scaledWidth = contentWidth * next.scaleX
     const minTx = Math.min(0, chartWidth - scaledWidth)
@@ -269,7 +273,7 @@ function ShardSparkline({ shardBytesMap, nShards, selectedShard, onShardSelect, 
       <Zoom<SVGSVGElement>
         width={SPARK_VIEW_WIDTH}
         height={svgH}
-        scaleXMin={1}
+        scaleXMin={Math.min(1, chartWidth / contentWidth)}
         scaleXMax={Math.max(1, contentWidth / chartWidth * 4)}
         scaleYMin={1}
         scaleYMax={1}
