@@ -15,6 +15,7 @@ export interface ShardIndex {
 }
 
 const FILL_VALUE = BigInt('18446744073709551615') // 2^64 - 1
+let headWarningLogged = false
 
 /**
  * Fetch and parse the shard index from a specific shard of a zarr v3 array.
@@ -45,10 +46,22 @@ export async function fetchShardIndex(
   const coordPath = coords.join('/')
   const shardUrl = `${storeUrl.replace(/\/$/, '')}/${arrayPath}/c/${coordPath}`
 
-  // HEAD to get file size, then fetch only the index tail via absolute Range
+  // HEAD to get file size, then fetch only the index tail via absolute Range.
+  // Note: Chrome logs "Fetch failed loading: HEAD ..." in the console for HEAD
+  // requests even when they succeed (200 OK). This is a known Chrome quirk —
+  // it logs "failed loading" because there's no response body. The fetch
+  // promise resolves correctly and head.ok is true. These messages are harmless
+  // and cannot be suppressed from JavaScript.
   const head = await fetch(shardUrl, { method: 'HEAD' })
   if (!head.ok) {
     throw new Error(`Failed to HEAD shard: ${head.status}`)
+  }
+  // Log once to explain the Chrome "Fetch failed loading: HEAD" noise
+  if (!headWarningLogged) {
+    headWarningLogged = true
+    console.info(
+      '[zarr-inspector] Chrome logs "Fetch failed loading: HEAD" for HEAD requests even when they succeed (200 OK). This is a Chrome quirk, not an error. The HEAD requests are working correctly.',
+    )
   }
   const shardSize = Number(head.headers.get('Content-Length') ?? 0)
   if (shardSize === 0) {
