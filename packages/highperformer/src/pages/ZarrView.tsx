@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
-import { Layout, Tree, Typography, Spin, Alert, Tag } from 'antd'
+import { useSearchParams } from 'react-router-dom'
+import { Layout, Tree, Typography, Spin, Alert, Tag, Card } from 'antd'
 import { FolderOutlined, FileOutlined, InfoCircleOutlined, CopyOutlined } from '@ant-design/icons'
 import { ZarrStore } from '@cbioportal-cell-explorer/zarrstore'
 import ChunkShapeViz from '../components/ChunkShapeViz'
@@ -379,20 +379,30 @@ function ZarrView() {
   return (
     <Layout style={{ minHeight: '100vh', background: '#fff' }}>
       <Content style={{ padding: '32px 24px', overflow: 'auto' }}>
-        <div style={{ marginBottom: 24 }}>
-          <Link to="/" style={{ fontSize: 14 }}>&larr; Home</Link>
-          <Typography.Title level={4} style={{ margin: '12px 0 4px' }}>
-            Zarr Inspector
-          </Typography.Title>
-          <Typography.Text type="secondary" copyable style={{ fontSize: 13, wordBreak: 'break-all' }}>
+        <Card size="small" style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Typography.Text strong style={{ fontSize: 14 }}>Zarr Inspector</Typography.Text>
+            {store && <Tag style={{ margin: 0 }}>Zarr v{store.zarrVersion}</Tag>}
+            {store && (
+              <Tag color={store.consolidatedMetadata ? 'green' : 'orange'} style={{ margin: 0 }}>
+                {store.consolidatedMetadata ? 'consolidated' : 'no consolidated metadata'}
+              </Tag>
+            )}
+            {store?.attrs?.['encoding-type'] && (
+              <Tag color="blue" style={{ margin: 0 }}>
+                {String(store.attrs['encoding-type'])}
+                {store.attrs['encoding-version'] ? ` v${String(store.attrs['encoding-version'])}` : ''}
+              </Tag>
+            )}
+          </div>
+          <Typography.Text
+            type="secondary"
+            copyable
+            style={{ fontSize: 13, display: 'block', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}
+          >
             {url}
           </Typography.Text>
-          {store && (
-            <div style={{ marginTop: 4 }}>
-              <Tag>Zarr v{store.zarrVersion}</Tag>
-            </div>
-          )}
-        </div>
+        </Card>
 
         {loading && (
           <div style={{ textAlign: 'center', padding: '48px 0' }}>
