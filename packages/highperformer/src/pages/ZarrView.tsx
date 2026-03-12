@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Layout, Tree, Typography, Spin, Alert, Tag, Card } from 'antd'
 import { FolderOutlined, FileOutlined, InfoCircleOutlined, CopyOutlined } from '@ant-design/icons'
@@ -223,15 +223,32 @@ function ZarrView() {
   const [shardIndex, setShardIndex] = useState<ShardIndex | null>(null)
   const [shardIndexLoading, setShardIndexLoading] = useState(false)
 
-  // Heatmap: all shard indexes (opt-in via button)
-  const [allShardIndexes, setAllShardIndexes] = useState<Map<number, ShardIndex>>(new Map())
-  const allShardIndexesRef = useRef(allShardIndexes)
-  allShardIndexesRef.current = allShardIndexes
-  const [heatmapLoading, setHeatmapLoading] = useState(false)
-  const [heatmapFailed, setHeatmapFailed] = useState(0)
-  const [heatmapAbort, setHeatmapAbort] = useState<AbortController | null>(null)
+  // Shard scan results keyed by array path — persists across node switches
+  interface ShardScanEntry {
+    indexes: Map<number, ShardIndex>
+    failed: number
+    loading: boolean
+    abort: AbortController | null
+  }
+  const [shardScans, setShardScans] = useState<Map<string, ShardScanEntry>>(new Map())
 
-  // Reset when array selection changes
+  // Derive current node's scan state
+  const currentScan = selectedKey ? shardScans.get(selectedKey) : undefined
+  const allShardIndexes = currentScan?.indexes ?? new Map<number, ShardIndex>()
+  const heatmapFailed = currentScan?.failed ?? 0
+  const heatmapLoading = currentScan?.loading ?? false
+
+  // Helper to update a single scan entry
+  const updateScan = (key: string, update: Partial<ShardScanEntry>) => {
+    setShardScans((prev) => {
+      const existing = prev.get(key) ?? { indexes: new Map(), failed: 0, loading: false, abort: null }
+      const next = new Map(prev)
+      next.set(key, { ...existing, ...update })
+      return next
+    })
+  }
+
+  // Reset shard selection when array changes (scan data is preserved in map)
   useEffect(() => {
     if (selectedNodeMeta?.innerChunks) {
       setSelectedShard(0)
@@ -239,11 +256,6 @@ function ZarrView() {
       setSelectedShard(null)
     }
     setShardIndex(null)
-    setAllShardIndexes(new Map())
-    setHeatmapFailed(0)
-    heatmapAbort?.abort()
-    setHeatmapAbort(null)
-    setHeatmapLoading(false)
   }, [selectedKey, selectedNodeMeta])
 
   // Fetch shard index for the selected shard only
@@ -251,8 +263,8 @@ function ZarrView() {
     setShardIndex(null)
     if (!url || !selectedNodeMeta?.innerChunks || !selectedNodeMeta.chunks || !selectedKey || selectedShard == null) return
 
-    // If we already have it from the heatmap scan, reuse it
-    const cached = allShardIndexesRef.current.get(selectedShard)
+    // If we already have it from a previous scan, reuse it
+    const cached = allShardIndexes.get(selectedShard)
     if (cached) {
       setShardIndex(cached)
       return
@@ -274,8 +286,10 @@ function ZarrView() {
         if (!cancelled) {
           setShardIndex(idx)
           setShardIndexLoading(false)
-          // Add to heatmap map so it colors progressively
-          setAllShardIndexes((prev) => new Map(prev).set(selectedShard!, idx))
+          // Add to scan map so it colors progressively
+          updateScan(selectedKey!, {
+            indexes: new Map(allShardIndexes).set(selectedShard!, idx),
+          })
         }
       })
       .catch(() => {
@@ -283,12 +297,13 @@ function ZarrView() {
       })
 
     return () => { cancelled = true }
-  }, [url, selectedKey, selectedNodeMeta, selectedShard])
+  }, [url, selectedKey, selectedNodeMeta, selectedShard, allShardIndexes])
 
   // Scan all shard indexes (triggered by button)
   const scanAllShards = () => {
     if (!url || !selectedNodeMeta?.innerChunks || !selectedNodeMeta.chunks || !selectedNodeMeta.shape || !selectedKey) return
 
+    const scanKey = selectedKey
     const chunks = selectedNodeMeta.chunks
     const innerChunks = selectedNodeMeta.innerChunks
     const shape = selectedNodeMeta.shape
@@ -298,16 +313,12 @@ function ZarrView() {
     const totalShards = shardsAlongRows * shardsAlongCols
 
     const controller = new AbortController()
-    setHeatmapAbort(controller)
-    setHeatmapLoading(true)
+    updateScan(scanKey, { loading: true, abort: controller, failed: 0 })
 
     const CONCURRENCY = 4
-    // Small arrays: no batching. Large arrays: ~20 UI updates total, clamped 50–200.
     const BATCH_SIZE = totalShards <= 50 ? totalShards : Math.min(200, Math.max(50, Math.ceil(totalShards / 20)))
     const results = new Map<number, ShardIndex>()
     let failedCount = 0
-
-    setHeatmapFailed(0)
 
     async function run() {
       for (let batchStart = 0; batchStart < totalShards; batchStart += BATCH_SIZE) {
@@ -324,7 +335,7 @@ function ZarrView() {
             const col = idx % shardsAlongCols
             const coords = ndim > 1 ? [row, col] : [row]
             try {
-              const si = await fetchShardIndex(url!, selectedKey!, chunks, innerChunks, coords)
+              const si = await fetchShardIndex(url!, scanKey, chunks, innerChunks, coords)
               if (!controller.signal.aborted) {
                 results.set(idx, si)
               }
@@ -337,18 +348,14 @@ function ZarrView() {
         const batchWorkers = Math.min(CONCURRENCY, batchEnd - batchStart)
         await Promise.all(Array.from({ length: batchWorkers }, () => worker()))
 
-        // Update UI and yield between batches
         if (!controller.signal.aborted) {
-          setAllShardIndexes(new Map(results))
-          setHeatmapFailed(failedCount)
+          updateScan(scanKey, { indexes: new Map(results), failed: failedCount })
           await new Promise((r) => requestAnimationFrame(r))
         }
       }
 
       if (!controller.signal.aborted) {
-        setAllShardIndexes(new Map(results))
-        setHeatmapFailed(failedCount)
-        setHeatmapLoading(false)
+        updateScan(scanKey, { indexes: new Map(results), failed: failedCount, loading: false })
       }
     }
 
@@ -388,7 +395,7 @@ function ZarrView() {
                 {store.consolidatedMetadata ? 'consolidated' : 'no consolidated metadata'}
               </Tag>
             )}
-            {store?.attrs?.['encoding-type'] && (
+            {typeof store?.attrs?.['encoding-type'] === 'string' && (
               <Tag color="blue" style={{ margin: 0 }}>
                 {String(store.attrs['encoding-type'])}
                 {store.attrs['encoding-version'] ? ` v${String(store.attrs['encoding-version'])}` : ''}
@@ -532,8 +539,10 @@ function ZarrView() {
                         heatmapFetched={allShardIndexes.size}
                         heatmapFailed={heatmapFailed}
                         onCancelScan={() => {
-                          heatmapAbort?.abort()
-                          setHeatmapLoading(false)
+                          if (selectedKey) {
+                            currentScan?.abort?.abort()
+                            updateScan(selectedKey, { loading: false, abort: null })
+                          }
                         }}
                       />
                       {shardIndexLoading && !heatmapLoading && (
