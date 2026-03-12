@@ -459,6 +459,7 @@ function ZarrView() {
                   defaultExpandAll={false}
                   treeData={treeData}
                   selectedKeys={selectedKey ? [selectedKey] : []}
+                  style={{ whiteSpace: 'nowrap' }}
                   onSelect={(keys) => {
                     setSelectedKey(keys.length > 0 ? String(keys[0]) : null)
                   }}
