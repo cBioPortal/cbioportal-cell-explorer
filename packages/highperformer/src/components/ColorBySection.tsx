@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Segmented, Select, AutoComplete, Alert, Button, Popover, Space } from 'antd'
+import { Segmented, Select, Tag, Alert, Button, Popover, Space } from 'antd'
 import { SettingOutlined } from '@ant-design/icons'
 import useAppStore from '../store/useAppStore'
 import type { ColorMode } from '../store/useAppStore'
@@ -71,26 +71,29 @@ export default function ColorBySection() {
   const categoryWarning = useAppStore((s) => s.categoryWarning)
   const geneLabelMap = useAppStore((s) => s.geneLabelMap)
 
-  const [searchText, setSearchText] = useState('')
+  const [geneSearchText, setGeneSearchText] = useState('')
 
   const columnOptions = obsColumnNames.map((name) => ({ value: name, label: name }))
 
-  const geneOptions = varNames
-    .map((varIndex) => {
-      const symbol = geneLabelMap?.get(varIndex)
-      return {
-        value: varIndex,
-        label: symbol ?? varIndex,
-      }
-    })
-    .filter((opt) =>
-      !searchText || opt.label.toLowerCase().includes(searchText.toLowerCase()),
-    )
+  const geneAvailable = geneSearchText
+    ? varNames.filter((varIndex) => {
+        if (varIndex === selectedGene) return false
+        const display = geneLabelMap?.get(varIndex) ?? varIndex
+        const lower = geneSearchText.toLowerCase()
+        return display.toLowerCase().includes(lower) || varIndex.toLowerCase().includes(lower)
+      }).slice(0, 50)
+    : []
 
-  // Show the display label for the selected gene
-  const selectedGeneDisplay = selectedGene
-    ? (geneLabelMap?.get(selectedGene) ?? selectedGene)
-    : undefined
+  const pillTagRender = ({ value, closable, onClose }: { label?: React.ReactNode; value: string | number; closable: boolean; onClose: () => void }) => (
+    <Tag
+      color="blue"
+      closable={closable}
+      onClose={onClose}
+      style={{ marginRight: 4, fontSize: 11 }}
+    >
+      {value as string}
+    </Tag>
+  )
 
   return (
     <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
@@ -107,11 +110,25 @@ export default function ColorBySection() {
       {colorMode === 'category' && (
         <div style={{ marginBottom: 8 }}>
           <Select
-            showSearch={{ optionFilterProp: 'label' }}
+            mode="multiple"
+            maxCount={1}
+            showSearch
             allowClear
             placeholder="Select column..."
-            value={selectedObsColumn}
-            onChange={(v) => v ? selectObsColumn(v) : clearObsColumn()}
+            value={selectedObsColumn ? [selectedObsColumn] : []}
+            onChange={(values: string[]) => {
+              if (values.length === 0) {
+                clearObsColumn()
+              } else {
+                const added = values.find((v) => v !== selectedObsColumn)
+                if (added) selectObsColumn(added)
+              }
+            }}
+            tagRender={pillTagRender}
+            filterOption={(input, option) => {
+              const label = (option?.label as string ?? '').toLowerCase()
+              return label.includes(input.toLowerCase())
+            }}
             options={columnOptions}
             style={{ width: '100%' }}
             size="small"
@@ -130,14 +147,45 @@ export default function ColorBySection() {
       {colorMode === 'gene' && (
         <div style={{ marginBottom: 8 }}>
           <Space.Compact style={{ width: '100%' }}>
-            <AutoComplete
-              options={geneOptions}
+            <Select
+              mode="multiple"
+              maxCount={1}
+              showSearch
               allowClear
+              suffixIcon={null}
               placeholder="Search gene..."
-              value={searchText || selectedGeneDisplay}
-              showSearch={{ onSearch: setSearchText }}
-              onSelect={(value: string) => { selectGene(value); setSearchText('') }}
-              onClear={() => { clearGene(); setSearchText('') }}
+              value={selectedGene ? [selectedGene] : []}
+              searchValue={geneSearchText}
+              onSearch={setGeneSearchText}
+              open={geneSearchText.length > 0 && geneAvailable.length > 0}
+              onChange={(values: string[]) => {
+                if (values.length === 0) {
+                  clearGene()
+                } else {
+                  const added = values.find((v) => v !== selectedGene)
+                  if (added) selectGene(added)
+                }
+                setGeneSearchText('')
+              }}
+              tagRender={({ value, closable, onClose }) => {
+                const raw = value as string
+                const display = geneLabelMap?.get(raw) ?? raw
+                return (
+                  <Tag
+                    color="blue"
+                    closable={closable}
+                    onClose={onClose}
+                    style={{ marginRight: 4, fontSize: 11 }}
+                  >
+                    {display}
+                  </Tag>
+                )
+              }}
+              filterOption={false}
+              options={geneAvailable.map((varIndex) => ({
+                label: geneLabelMap?.get(varIndex) ?? varIndex,
+                value: varIndex,
+              }))}
               style={{ flex: 1 }}
               size="small"
             />
