@@ -113,6 +113,12 @@ export interface AppState {
   selectionGroups: SelectionGroup[]
   selectionFilterBuffer: Float32Array | null
 
+  // Custom group (ID-based selection)
+  customGroupColumn: string | null
+  customGroupIds: string[]
+  customGroupUnmatched: string[]
+  customGroupLoading: boolean
+
   // Selection actions
   setSelectionTool: (tool: SelectionTool) => void
   setSelectionDisplayMode: (mode: SelectionDisplayMode) => void
@@ -121,6 +127,8 @@ export interface AppState {
   _mergeFilterBuffer: () => void
   clearGroup: (id: number) => void
   clearAllSelections: () => void
+  selectByIds: (column: string, ids: string[]) => void
+  clearCustomGroup: () => void
 
   // Summary panel
   summaryPanelOpen: boolean
@@ -301,6 +309,12 @@ const useAppStore = create<AppState>((set, get) => ({
   selectionGroups: [],
   selectionFilterBuffer: null,
 
+  // Custom group
+  customGroupColumn: null,
+  customGroupIds: [],
+  customGroupUnmatched: [],
+  customGroupLoading: false,
+
   // Summary panel
   summaryPanelOpen: true,
   summaryObsColumns: [],
@@ -430,7 +444,71 @@ const useAppStore = create<AppState>((set, get) => ({
       selectionFilterBuffer: null,
       selectionTool: 'pan',
       selectionDisplayMode: 'dim',
+      customGroupColumn: null,
+      customGroupIds: [],
+      customGroupUnmatched: [],
+      customGroupLoading: false,
     })
+  },
+
+  selectByIds: (column, ids) => {
+    const { adata, embeddingData } = get()
+    if (!adata || !embeddingData || ids.length === 0) return
+
+    set({ customGroupColumn: column, customGroupIds: ids, customGroupLoading: true })
+
+    adata.obsColumn(column).then((values) => {
+      const valuesArray = Array.isArray(values) ? values : Array.from(values as Iterable<string | number | null>)
+
+      selectionVersion++
+      const version = selectionVersion
+
+      getPool()
+        .dispatch<{ type: string; indices: Uint32Array; matchedIds: string[]; unmatchedIds: string[]; version: number }>({
+          type: 'matchByIds',
+          values: valuesArray,
+          targetIds: ids,
+          version,
+        })
+        .then((response) => {
+          if (version !== selectionVersion) return // stale
+
+          const { selectionGroups } = get()
+          const withoutCustom = selectionGroups.filter((g) => g.id !== CUSTOM_GROUP_ID)
+
+          const customGroup: CustomSelectionGroup = {
+            id: CUSTOM_GROUP_ID,
+            type: 'custom',
+            column,
+            ids,
+            unmatchedIds: response.unmatchedIds,
+            indices: response.indices,
+            color: GROUP_COLORS[3],
+          }
+
+          set({
+            selectionGroups: [...withoutCustom, customGroup],
+            customGroupUnmatched: response.unmatchedIds,
+            customGroupLoading: false,
+          })
+
+          if (!get().summaryPanelOpen) set({ summaryPanelOpen: true })
+          get()._mergeFilterBuffer()
+        })
+    })
+  },
+
+  clearCustomGroup: () => {
+    const { selectionGroups } = get()
+    const remaining = selectionGroups.filter((g) => g.id !== CUSTOM_GROUP_ID)
+    set({
+      selectionGroups: remaining,
+      customGroupColumn: null,
+      customGroupIds: [],
+      customGroupUnmatched: [],
+      customGroupLoading: false,
+    })
+    get()._mergeFilterBuffer()
   },
 
   setSummaryPanelOpen: (open) => set({ summaryPanelOpen: open }),
@@ -533,6 +611,7 @@ const useAppStore = create<AppState>((set, get) => ({
       categoryWarning: null, _categoryCodes: null, _expressionData: null,
       varColumns: [], geneLabelColumn: null, geneLabelMap: null,
       selectionGroups: [], selectionFilterBuffer: null, selectionTool: 'pan', selectionDisplayMode: 'dim',
+      customGroupColumn: null, customGroupIds: [], customGroupUnmatched: [], customGroupLoading: false,
       summaryPanelOpen: true,
       summaryObsColumns: [], summaryGenes: [],
       summaryObsData: new Map(), summaryObsContinuousData: new Map(),
