@@ -27,13 +27,25 @@ export type ColorMode = 'category' | 'gene'
 export type SelectionTool = 'pan' | 'rectangle' | 'lasso'
 export type SelectionDisplayMode = 'dim' | 'hide'
 
-export interface SelectionGroup {
+export interface SpatialSelectionGroup {
   id: number
-  polygon: [number, number][]
   type: 'rectangle' | 'lasso'
+  polygon: [number, number][]
   indices: Uint32Array
   color: [number, number, number]
 }
+
+export interface CustomSelectionGroup {
+  id: number
+  type: 'custom'
+  column: string
+  ids: string[]
+  unmatchedIds: string[]
+  indices: Uint32Array
+  color: [number, number, number]
+}
+
+export type SelectionGroup = SpatialSelectionGroup | CustomSelectionGroup
 
 export interface AppState {
   // Dataset
@@ -182,7 +194,10 @@ const GROUP_COLORS: [number, number, number][] = [
   [255, 59, 48],   // red
   [0, 122, 255],   // blue
   [52, 199, 89],   // green
+  [255, 149, 0],   // orange — custom group
 ]
+
+export const CUSTOM_GROUP_ID = 4
 
 let selectionVersion = 0
 export function getSelectionVersion(): number { return selectionVersion }
@@ -317,10 +332,10 @@ const useAppStore = create<AppState>((set, get) => ({
     while (usedIds.has(nextId) && nextId <= 3) nextId++
     if (nextId > 3) return
 
-    const group: SelectionGroup = {
+    const group: SpatialSelectionGroup = {
       id: nextId,
-      polygon,
       type,
+      polygon,
       indices: new Uint32Array(0), // filled by worker result
       color: GROUP_COLORS[nextId - 1],
     }
