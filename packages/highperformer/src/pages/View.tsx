@@ -9,6 +9,7 @@ import { CollisionFilterExtension, DataFilterExtension } from '@deck.gl/extensio
 import { _StatsWidget as StatsWidget } from '@deck.gl/widgets'
 import { ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from '@cbioportal-cell-explorer/profiler'
 import useAppStore from '../store/useAppStore'
+import type { SpatialSelectionGroup } from '../store/useAppStore'
 import ColorBySection from '../components/ColorBySection'
 import SelectionOverlay from '../components/SelectionOverlay'
 import SelectionToolbar from '../components/SelectionToolbar'
@@ -426,10 +427,11 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
       }),
     })
 
-    const polygonLayer = selectionGroups.length > 0
+    const spatialGroups = selectionGroups.filter((g): g is SpatialSelectionGroup => g.type !== 'custom')
+    const polygonLayer = spatialGroups.length > 0
       ? new PolygonLayer({
           id: 'selection-polygons',
-          data: selectionGroups,
+          data: spatialGroups,
           getPolygon: (d: { polygon: [number, number][] }) => d.polygon,
           getFillColor: (d: { color: [number, number, number] }) => [...d.color, 30],
           getLineColor: (d: { color: [number, number, number] }) => [...d.color, 200],
