@@ -1,7 +1,9 @@
-import { useMemo } from 'react'
-import { Typography } from 'antd'
+import { useMemo, useState } from 'react'
+import { Typography, Button } from 'antd'
 import type { SelectionGroup } from '../store/useAppStore'
+import { CUSTOM_GROUP_ID } from '../store/useAppStore'
 import { ALL_CELLS_GROUP_ID } from '../constants'
+import CustomGroupPanel from './CustomGroupPanel'
 
 interface GroupOverviewProps {
   groups: SelectionGroup[]
@@ -240,7 +242,7 @@ function VennDiagram({ groups, stats, totalCells }: {
           return (
             <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: `rgb(${g.color.join(',')})`, fontWeight: 600 }}>
-                {g.id === ALL_CELLS_GROUP_ID ? 'All Cells' : `Group ${g.id}`}
+                {g.id === ALL_CELLS_GROUP_ID ? 'All Cells' : g.id === CUSTOM_GROUP_ID ? 'Custom' : `Group ${g.id}`}
               </span>
               <span>
                 <span style={{ fontWeight: 500, color: '#333' }}>{count.toLocaleString()}</span>
@@ -284,12 +286,23 @@ export default function GroupOverview({ groups, totalCells }: GroupOverviewProps
     [activeGroups, totalCells],
   )
 
-  if (activeGroups.length === 0) return null
+  const hasCustomGroup = groups.some((g) => g.id === CUSTOM_GROUP_ID)
+  const [showCustomPanel, setShowCustomPanel] = useState(false)
 
   return (
     <div style={{ marginBottom: 12 }}>
-      <Typography.Text strong style={{ fontSize: 12 }}>Groups</Typography.Text>
-      <VennDiagram groups={activeGroups} stats={stats} totalCells={totalCells} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography.Text strong style={{ fontSize: 12 }}>Groups</Typography.Text>
+        {!hasCustomGroup && !showCustomPanel && (
+          <Button type="text" size="small" onClick={() => setShowCustomPanel(true)}>
+            + Custom Group
+          </Button>
+        )}
+      </div>
+      {activeGroups.length > 0 && (
+        <VennDiagram groups={activeGroups} stats={stats} totalCells={totalCells} />
+      )}
+      {(showCustomPanel || hasCustomGroup) && <CustomGroupPanel />}
     </div>
   )
 }
