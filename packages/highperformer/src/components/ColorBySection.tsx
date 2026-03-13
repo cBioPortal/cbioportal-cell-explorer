@@ -115,7 +115,6 @@ export default function ColorBySection() {
           </div>
           <Select
             mode="multiple"
-            maxCount={1}
             showSearch
             allowClear
             placeholder="Select column..."
@@ -126,8 +125,9 @@ export default function ColorBySection() {
               if (values.length === 0) {
                 clearObsColumn()
               } else {
+                // Always take the most recently added value (replaces previous)
                 const added = values.find((v) => v !== selectedObsColumn)
-                if (added) selectObsColumn(added)
+                selectObsColumn(added ?? values[0])
               }
               setCategoryOpen(false)
             }}
@@ -159,7 +159,6 @@ export default function ColorBySection() {
           <Space.Compact style={{ width: '100%' }}>
             <Select
               mode="multiple"
-              maxCount={1}
               showSearch
               allowClear
               suffixIcon={null}
