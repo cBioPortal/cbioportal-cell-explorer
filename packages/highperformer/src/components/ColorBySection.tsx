@@ -71,6 +71,7 @@ export default function ColorBySection() {
   const categoryWarning = useAppStore((s) => s.categoryWarning)
   const geneLabelMap = useAppStore((s) => s.geneLabelMap)
 
+  const [categoryOpen, setCategoryOpen] = useState(false)
   const [geneSearchText, setGeneSearchText] = useState('')
 
   const columnOptions = obsColumnNames.map((name) => ({ value: name, label: name }))
@@ -118,6 +119,8 @@ export default function ColorBySection() {
             showSearch
             allowClear
             placeholder="Select column..."
+            open={categoryOpen}
+            onDropdownVisibleChange={setCategoryOpen}
             value={selectedObsColumn ? [selectedObsColumn] : []}
             onChange={(values: string[]) => {
               if (values.length === 0) {
@@ -126,6 +129,7 @@ export default function ColorBySection() {
                 const added = values.find((v) => v !== selectedObsColumn)
                 if (added) selectObsColumn(added)
               }
+              setCategoryOpen(false)
             }}
             tagRender={pillTagRender}
             filterOption={(input, option) => {
