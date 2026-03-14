@@ -25,6 +25,7 @@ export default function CustomGroupPanel() {
     if (!column) return
     const ids = parseIds(idsText)
     if (ids.length === 0) return
+    setIdsText(ids.join('\n'))
     selectByIds(column, ids)
   }
 
