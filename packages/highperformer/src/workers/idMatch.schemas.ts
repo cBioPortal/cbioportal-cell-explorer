@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 const MatchByIdsMsgSchema = z.object({
   type: z.literal('matchByIds'),
-  values: z.array(z.union([z.string(), z.number(), z.null()])),
+  values: z.array(z.unknown()),
   targetIds: z.array(z.string()),
   version: z.number(),
 })
