@@ -123,6 +123,7 @@ const WIDGETS = ENABLE_STATS_WIDGET
 const FALLBACK_COLOR: [number, number, number, number] = [200, 200, 200, 128]
 
 const DIM_ALPHA = 10 // ~4% opacity for unselected points in dim mode
+const SELECTED_ALPHA = 255 // full opacity for selected points
 
 function dimColorBuffer(colorBuffer: Uint8Array, filterBuffer: Float32Array): Uint8Array {
   const out = new Uint8Array(colorBuffer.length)
@@ -131,6 +132,8 @@ function dimColorBuffer(colorBuffer: Uint8Array, filterBuffer: Float32Array): Ui
   for (let i = 0; i < numPoints; i++) {
     if (filterBuffer[i] === 0) {
       out[i * 4 + 3] = DIM_ALPHA
+    } else {
+      out[i * 4 + 3] = SELECTED_ALPHA
     }
   }
   return out
