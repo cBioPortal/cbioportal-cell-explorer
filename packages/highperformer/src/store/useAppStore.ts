@@ -338,10 +338,12 @@ const useAppStore = create<AppState>((set, get) => ({
 
   commitSelection: (polygon, type) => {
     const { embeddingData, selectionGroups } = get()
-    if (!embeddingData || selectionGroups.length >= 3) return
+    if (!embeddingData) return
 
-    // Auto-assign next available ID (1, 2, or 3)
-    const usedIds = new Set(selectionGroups.map((g) => g.id))
+    // Auto-assign next available spatial ID (1, 2, or 3)
+    const spatialGroups = selectionGroups.filter((g) => g.type !== 'custom')
+    if (spatialGroups.length >= 3) return
+    const usedIds = new Set(spatialGroups.map((g) => g.id))
     let nextId = 1
     while (usedIds.has(nextId) && nextId <= 3) nextId++
     if (nextId > 3) return
