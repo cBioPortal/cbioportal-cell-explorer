@@ -124,6 +124,7 @@ const FALLBACK_COLOR: [number, number, number, number] = [200, 200, 200, 128]
 
 const DIM_ALPHA = 10 // ~4% opacity for unselected points in dim mode
 const SELECTED_ALPHA = 255 // full opacity for selected points
+const SELECTED_RADIUS_SCALE = 2 // selected points rendered at 2x radius
 
 function dimColorBuffer(colorBuffer: Uint8Array, filterBuffer: Float32Array): Uint8Array {
   const out = new Uint8Array(colorBuffer.length)
@@ -391,11 +392,20 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     if (effectiveColor) {
       attributes.getFillColor = { value: effectiveColor, size: 4, normalized: true }
     }
-    if (radiusBuffer) {
+
+    // Build radius buffer: selected points get scaled up
+    if (hasSelection && selectionDisplayMode === 'dim') {
+      const selRadius = new Float32Array(embeddingData.numPoints)
+      for (let i = 0; i < embeddingData.numPoints; i++) {
+        const base = radiusBuffer ? radiusBuffer[i] : pointRadius
+        selRadius[i] = selectionFilterBuffer[i] === 1 ? base * SELECTED_RADIUS_SCALE : base
+      }
+      attributes.getRadius = { value: selRadius, size: 1 }
+    } else if (radiusBuffer) {
       attributes.getRadius = { value: radiusBuffer, size: 1 }
     }
     return { length: embeddingData.numPoints, attributes }
-  }, [embeddingData, colorBuffer, radiusBuffer, selectionFilterBuffer, selectionDisplayMode])
+  }, [embeddingData, colorBuffer, radiusBuffer, pointRadius, selectionFilterBuffer, selectionDisplayMode])
 
   const layers = useMemo(() => {
     if (!layerData) return []
@@ -410,10 +420,10 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
       ...(!colorBuffer && { getFillColor: FALLBACK_COLOR }),
       updateTriggers: {
         getFillColor: [colorBuffer, selectionFilterBuffer, selectionDisplayMode],
-        getRadius: [radiusBuffer],
+        getRadius: [radiusBuffer, pointRadius, selectionFilterBuffer, selectionDisplayMode],
         getFilterValue: [selectionFilterBuffer],
       },
-      getRadius: radiusBuffer ? 1 : pointRadius,
+      getRadius: (radiusBuffer || (selectionFilterBuffer && selectionDisplayMode === 'dim')) ? 1 : pointRadius,
       radiusUnits: 'pixels' as const,
       antialiasing,
       extensions: [
