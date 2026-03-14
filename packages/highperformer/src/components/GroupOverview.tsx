@@ -154,9 +154,8 @@ function VennDiagram({ groups, stats, totalCells }: {
       { x: cx + dist / 2, y: cy, r: radii[1] },
     ]
   } else {
-    // 3 groups: triangulate
-    const pairs: [number, number][] = [[0, 1], [0, 2], [1, 2]]
-    const distances = pairs.map(([i, j]) => {
+    // 3+ groups: place iteratively using pairwise overlap distances
+    const pairDist = (i: number, j: number) => {
       const key1 = `${groups[i].id}-${groups[j].id}`
       const key2 = `${groups[j].id}-${groups[i].id}`
       const oc = stats.pairwiseOverlaps.get(key1) ?? stats.pairwiseOverlaps.get(key2) ?? 0
@@ -164,19 +163,24 @@ function VennDiagram({ groups, stats, totalCells }: {
       const aj = Math.PI * radii[j] * radii[j]
       const frac = counts[i] > 0 && counts[j] > 0 ? oc / Math.min(counts[i], counts[j]) : 0
       return findDistance(radii[i], radii[j], frac * Math.min(ai, aj))
-    })
+    }
 
-    const d01 = distances[0]
-    const d02 = distances[1]
-    const d12 = distances[2]
-    const cosA = d01 > 0 ? (d02 * d02 + d01 * d01 - d12 * d12) / (2 * d02 * d01) : 0
-    const clamped = Math.max(-1, Math.min(1, cosA))
-    const sinA = Math.sqrt(1 - clamped * clamped)
-    const raw: [number, number][] = [
-      [0, 0],
-      [d01, 0],
-      [d02 * clamped, -d02 * sinA],
-    ]
+    // Place first two on the x-axis
+    const d01 = pairDist(0, 1)
+    const raw: [number, number][] = [[0, 0], [d01, 0]]
+
+    // Place each subsequent circle via triangulation from first two
+    for (let k = 2; k < groups.length; k++) {
+      const d0k = pairDist(0, k)
+      const d1k = pairDist(1, k)
+      // Triangulate from circles 0 and 1
+      const cosA = d01 > 0 ? (d0k * d0k + d01 * d01 - d1k * d1k) / (2 * d0k * d01) : 0
+      const clampedA = Math.max(-1, Math.min(1, cosA))
+      const sinA = Math.sqrt(1 - clampedA * clampedA)
+      // Alternate above/below x-axis for even/odd
+      const sign = k % 2 === 0 ? -1 : 1
+      raw.push([d0k * clampedA, sign * d0k * sinA])
+    }
 
     // Scale and center
     const allX = raw.map((p, i) => [p[0] - radii[i], p[0] + radii[i]]).flat()
