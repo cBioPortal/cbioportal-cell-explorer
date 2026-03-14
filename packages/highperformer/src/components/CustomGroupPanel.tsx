@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { AutoComplete, Input, Button, Typography, Tag } from 'antd'
+import { AutoComplete, Input, Button, Checkbox, Typography, Tag } from 'antd'
 import useAppStore from '../store/useAppStore'
 
 export default function CustomGroupPanel() {
@@ -8,8 +8,12 @@ export default function CustomGroupPanel() {
   const customGroupIds = useAppStore((s) => s.customGroupIds)
   const customGroupUnmatched = useAppStore((s) => s.customGroupUnmatched)
   const customGroupLoading = useAppStore((s) => s.customGroupLoading)
+  const customGroupIndexMap = useAppStore((s) => s.customGroupIndexMap)
+  const customGroupEnabledIds = useAppStore((s) => s.customGroupEnabledIds)
   const selectByIds = useAppStore((s) => s.selectByIds)
   const clearCustomGroup = useAppStore((s) => s.clearCustomGroup)
+  const toggleCustomGroupId = useAppStore((s) => s.toggleCustomGroupId)
+  const setAllCustomGroupIds = useAppStore((s) => s.setAllCustomGroupIds)
 
   const [column, setColumn] = useState<string | null>(customGroupColumn)
   const [columnSearch, setColumnSearch] = useState('')
@@ -32,6 +36,7 @@ export default function CustomGroupPanel() {
   }
 
   const parsedCount = parseIds(idsText).length
+  const matchedIds = Object.keys(customGroupIndexMap)
 
   return (
     <div style={{ padding: '8px 0', borderTop: '1px solid #f0f0f0', marginTop: 8 }}>
@@ -100,6 +105,39 @@ export default function CustomGroupPanel() {
               <Tag key={id} color="warning" style={{ fontSize: 10, margin: 0 }}>
                 {id}
               </Tag>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {matchedIds.length > 0 && (
+        <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <Typography.Text strong style={{ fontSize: 11 }}>
+              Toggle IDs ({customGroupEnabledIds.size}/{matchedIds.length})
+            </Typography.Text>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <Button type="text" size="small" onClick={() => setAllCustomGroupIds(true)} disabled={customGroupEnabledIds.size === matchedIds.length}>
+                All
+              </Button>
+              <Button type="text" size="small" onClick={() => setAllCustomGroupIds(false)} disabled={customGroupEnabledIds.size === 0}>
+                None
+              </Button>
+            </div>
+          </div>
+          <div style={{ maxHeight: 200, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {matchedIds.map((id) => (
+              <Checkbox
+                key={id}
+                checked={customGroupEnabledIds.has(id)}
+                onChange={() => toggleCustomGroupId(id)}
+                style={{ fontSize: 11 }}
+              >
+                <span style={{ fontSize: 11 }}>{id}</span>
+                <span style={{ fontSize: 10, color: '#999', marginLeft: 4 }}>
+                  ({customGroupIndexMap[id]?.length ?? 0})
+                </span>
+              </Checkbox>
             ))}
           </div>
         </div>
