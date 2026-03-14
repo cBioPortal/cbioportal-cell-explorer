@@ -118,6 +118,8 @@ export interface AppState {
   customGroupIds: string[]
   customGroupUnmatched: string[]
   customGroupLoading: boolean
+  customGroupIndexMap: Record<string, number[]>
+  customGroupEnabledIds: Set<string>
 
   // Selection actions
   setSelectionTool: (tool: SelectionTool) => void
@@ -129,6 +131,8 @@ export interface AppState {
   clearAllSelections: () => void
   selectByIds: (column: string, ids: string[]) => void
   clearCustomGroup: () => void
+  toggleCustomGroupId: (id: string) => void
+  setAllCustomGroupIds: (enabled: boolean) => void
 
   // Summary panel
   summaryPanelOpen: boolean
@@ -314,6 +318,8 @@ const useAppStore = create<AppState>((set, get) => ({
   customGroupIds: [],
   customGroupUnmatched: [],
   customGroupLoading: false,
+  customGroupIndexMap: {},
+  customGroupEnabledIds: new Set(),
 
   // Summary panel
   summaryPanelOpen: true,
@@ -450,6 +456,8 @@ const useAppStore = create<AppState>((set, get) => ({
       customGroupIds: [],
       customGroupUnmatched: [],
       customGroupLoading: false,
+      customGroupIndexMap: {},
+      customGroupEnabledIds: new Set(),
     })
   },
 
@@ -466,7 +474,7 @@ const useAppStore = create<AppState>((set, get) => ({
       const version = selectionVersion
 
       getPool()
-        .dispatch<{ type: string; indices: Uint32Array; matchedIds: string[]; unmatchedIds: string[]; version: number }>({
+        .dispatch<{ type: string; indices: Uint32Array; matchedIds: string[]; unmatchedIds: string[]; indexMap: Record<string, number[]>; version: number }>({
           type: 'matchByIds',
           values: valuesArray,
           targetIds: ids,
@@ -500,6 +508,8 @@ const useAppStore = create<AppState>((set, get) => ({
             selectionGroups: [...withoutCustom, customGroup],
             customGroupUnmatched: response.unmatchedIds,
             customGroupLoading: false,
+            customGroupIndexMap: response.indexMap,
+            customGroupEnabledIds: new Set(response.matchedIds),
             selectionDisplayMode: 'hide',
           })
 
@@ -518,8 +528,73 @@ const useAppStore = create<AppState>((set, get) => ({
       customGroupIds: [],
       customGroupUnmatched: [],
       customGroupLoading: false,
+      customGroupIndexMap: {},
+      customGroupEnabledIds: new Set(),
       selectionDisplayMode: 'dim',
     })
+    get()._mergeFilterBuffer()
+  },
+
+  toggleCustomGroupId: (id) => {
+    const { customGroupEnabledIds, customGroupIndexMap, selectionGroups } = get()
+    const next = new Set(customGroupEnabledIds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+
+    // Rebuild indices from enabled IDs
+    const allIndices: number[] = []
+    for (const enabledId of next) {
+      const indices = customGroupIndexMap[enabledId]
+      if (indices) allIndices.push(...indices)
+    }
+
+    const withoutCustom = selectionGroups.filter((g) => g.id !== CUSTOM_GROUP_ID)
+    if (allIndices.length === 0) {
+      set({ customGroupEnabledIds: next, selectionGroups: withoutCustom })
+    } else {
+      const existing = selectionGroups.find((g) => g.id === CUSTOM_GROUP_ID) as CustomSelectionGroup | undefined
+      const customGroup: CustomSelectionGroup = {
+        id: CUSTOM_GROUP_ID,
+        type: 'custom',
+        column: existing?.column ?? '',
+        ids: Array.from(next),
+        unmatchedIds: get().customGroupUnmatched,
+        indices: new Uint32Array(allIndices),
+        color: GROUP_COLORS[3],
+      }
+      set({ customGroupEnabledIds: next, selectionGroups: [...withoutCustom, customGroup] })
+    }
+    get()._mergeFilterBuffer()
+  },
+
+  setAllCustomGroupIds: (enabled) => {
+    const { customGroupIndexMap, selectionGroups } = get()
+    const matchedIds = Object.keys(customGroupIndexMap)
+    const next = enabled ? new Set(matchedIds) : new Set<string>()
+
+    const allIndices: number[] = []
+    if (enabled) {
+      for (const id of matchedIds) {
+        allIndices.push(...customGroupIndexMap[id])
+      }
+    }
+
+    const withoutCustom = selectionGroups.filter((g) => g.id !== CUSTOM_GROUP_ID)
+    if (allIndices.length === 0) {
+      set({ customGroupEnabledIds: next, selectionGroups: withoutCustom })
+    } else {
+      const existing = selectionGroups.find((g) => g.id === CUSTOM_GROUP_ID) as CustomSelectionGroup | undefined
+      const customGroup: CustomSelectionGroup = {
+        id: CUSTOM_GROUP_ID,
+        type: 'custom',
+        column: existing?.column ?? '',
+        ids: Array.from(next),
+        unmatchedIds: get().customGroupUnmatched,
+        indices: new Uint32Array(allIndices),
+        color: GROUP_COLORS[3],
+      }
+      set({ customGroupEnabledIds: next, selectionGroups: [...withoutCustom, customGroup] })
+    }
     get()._mergeFilterBuffer()
   },
 
@@ -623,7 +698,7 @@ const useAppStore = create<AppState>((set, get) => ({
       categoryWarning: null, _categoryCodes: null, _expressionData: null,
       varColumns: [], geneLabelColumn: null, geneLabelMap: null,
       selectionGroups: [], selectionFilterBuffer: null, selectionTool: 'pan', selectionDisplayMode: 'dim',
-      customGroupColumn: null, customGroupIds: [], customGroupUnmatched: [], customGroupLoading: false,
+      customGroupColumn: null, customGroupIds: [], customGroupUnmatched: [], customGroupLoading: false, customGroupIndexMap: {}, customGroupEnabledIds: new Set(),
       summaryPanelOpen: true,
       summaryObsColumns: [], summaryGenes: [],
       summaryObsData: new Map(), summaryObsContinuousData: new Map(),

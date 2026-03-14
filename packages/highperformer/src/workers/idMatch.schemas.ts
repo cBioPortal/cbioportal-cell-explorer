@@ -14,6 +14,7 @@ export const IdMatchResultSchema = z.object({
   indices: z.custom<Uint32Array>((v) => v instanceof Uint32Array),
   matchedIds: z.array(z.string()),
   unmatchedIds: z.array(z.string()),
+  indexMap: z.record(z.string(), z.array(z.number())),
   version: z.number(),
 })
 
