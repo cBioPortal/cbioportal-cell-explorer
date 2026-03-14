@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Select, Input, Button, Typography, Tag } from 'antd'
+import { useRef, useState } from 'react'
+import { AutoComplete, Input, Button, Typography, Tag } from 'antd'
 import useAppStore from '../store/useAppStore'
 
 export default function CustomGroupPanel() {
@@ -12,7 +12,9 @@ export default function CustomGroupPanel() {
   const clearCustomGroup = useAppStore((s) => s.clearCustomGroup)
 
   const [column, setColumn] = useState<string | null>(customGroupColumn)
+  const [columnSearch, setColumnSearch] = useState('')
   const [idsText, setIdsText] = useState(customGroupIds.join('\n'))
+  const autoCompleteRef = useRef<{ blur: () => void } | null>(null)
 
   const parseIds = (text: string): string[] => {
     return text
@@ -42,12 +44,28 @@ export default function CustomGroupPanel() {
         )}
       </div>
 
-      <Select
+      <AutoComplete
+        ref={autoCompleteRef as never}
         size="small"
-        placeholder="Select obs column"
-        value={column}
-        onChange={setColumn}
-        options={obsColumnNames.map((n) => ({ label: n, value: n }))}
+        placeholder="Search obs column"
+        value={column ?? columnSearch}
+        options={obsColumnNames
+          .filter((n) => n.toLowerCase().includes(columnSearch.toLowerCase()))
+          .map((n) => ({ label: n, value: n }))}
+        onSearch={(text) => {
+          setColumnSearch(text)
+          if (column) setColumn(null)
+        }}
+        onSelect={(value: string) => {
+          setColumn(value)
+          setColumnSearch('')
+          autoCompleteRef.current?.blur()
+        }}
+        onClear={() => {
+          setColumn(null)
+          setColumnSearch('')
+        }}
+        allowClear
         style={{ width: '100%', marginBottom: 6 }}
       />
 
