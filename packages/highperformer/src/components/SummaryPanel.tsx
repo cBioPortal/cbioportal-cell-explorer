@@ -56,8 +56,8 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
     for (let i = 0; i < numPoints; i++) indices[i] = i
     return [{
       id: ALL_CELLS_GROUP_ID,
-      polygon: [],
       type: 'rectangle' as const,
+      polygon: [],
       indices,
       color: ALL_CELLS_COLOR,
     }]
@@ -208,7 +208,7 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
             onChange={(v) => startTransition(() => setContext(v as SummaryContext))}
             options={[
               { label: 'All Cells', value: 'all' },
-              { label: `Selections${hasGroups ? '' : ' (none)'}`, value: 'selections', disabled: !hasGroups },
+              { label: 'Selections', value: 'selections' },
               { label: 'Compare', value: 'compare', disabled: !hasMultipleGroups },
             ]}
             style={{ fontSize: 11 }}
@@ -221,11 +221,9 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
           </Typography.Text>
         </div>
 
-        {hasGroups && (
-          <div style={{ display: context === 'selections' ? 'block' : 'none' }}>
-            <GroupOverview groups={selectionGroups} totalCells={numPoints} />
-          </div>
-        )}
+        <div style={{ display: context === 'selections' ? 'block' : 'none' }}>
+          <GroupOverview groups={selectionGroups} totalCells={numPoints} />
+        </div>
 
         {renderCharts(allCellsGroups, context === 'all')}
         {hasGroups && renderCharts(activeSelectionGroups, context === 'selections')}
