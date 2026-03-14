@@ -500,6 +500,7 @@ const useAppStore = create<AppState>((set, get) => ({
             selectionGroups: [...withoutCustom, customGroup],
             customGroupUnmatched: response.unmatchedIds,
             customGroupLoading: false,
+            selectionDisplayMode: 'hide',
           })
 
           if (!get().summaryPanelOpen) set({ summaryPanelOpen: true })
@@ -517,6 +518,7 @@ const useAppStore = create<AppState>((set, get) => ({
       customGroupIds: [],
       customGroupUnmatched: [],
       customGroupLoading: false,
+      selectionDisplayMode: 'dim',
     })
     get()._mergeFilterBuffer()
   },
