@@ -473,6 +473,14 @@ const useAppStore = create<AppState>((set, get) => ({
         .then((response) => {
           if (version !== selectionVersion) return // stale
 
+          if (response.indices.length === 0) {
+            set({
+              customGroupUnmatched: response.unmatchedIds,
+              customGroupLoading: false,
+            })
+            return
+          }
+
           const { selectionGroups } = get()
           const withoutCustom = selectionGroups.filter((g) => g.id !== CUSTOM_GROUP_ID)
 
