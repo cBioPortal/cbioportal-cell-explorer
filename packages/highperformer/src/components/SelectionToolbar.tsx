@@ -35,7 +35,7 @@ export default function SelectionToolbar() {
       gap: 4,
     }}>
       <Space.Compact orientation="vertical" size="small">
-        <Tooltip title="Pan (Esc)" placement="right">
+        <Tooltip title="Pan & Zoom (Esc)" placement="right">
           <Button
             icon={<DragOutlined />}
             type={selectionTool === 'pan' ? 'primary' : 'default'}
