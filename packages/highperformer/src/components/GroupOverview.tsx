@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Typography, Button } from 'antd'
+import { useMemo } from 'react'
+import { Typography } from 'antd'
 import type { SelectionGroup } from '../store/useAppStore'
 import { CUSTOM_GROUP_ID } from '../store/useAppStore'
 import { ALL_CELLS_GROUP_ID } from '../constants'
@@ -290,23 +290,13 @@ export default function GroupOverview({ groups, totalCells }: GroupOverviewProps
     [activeGroups, totalCells],
   )
 
-  const hasCustomGroup = groups.some((g) => g.id === CUSTOM_GROUP_ID)
-  const [showCustomPanel, setShowCustomPanel] = useState(false)
-
   return (
     <div style={{ marginBottom: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography.Text strong style={{ fontSize: 12 }}>Groups</Typography.Text>
-        {!hasCustomGroup && !showCustomPanel && (
-          <Button type="text" size="small" onClick={() => setShowCustomPanel(true)}>
-            + Custom Group
-          </Button>
-        )}
-      </div>
+      <Typography.Text strong style={{ fontSize: 12 }}>Groups</Typography.Text>
       {activeGroups.length > 0 && (
         <VennDiagram groups={activeGroups} stats={stats} totalCells={totalCells} />
       )}
-      {(showCustomPanel || hasCustomGroup) && <CustomGroupPanel />}
+      <CustomGroupPanel />
     </div>
   )
 }

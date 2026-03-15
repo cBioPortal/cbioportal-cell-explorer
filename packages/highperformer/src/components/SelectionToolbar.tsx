@@ -9,7 +9,7 @@ import {
   ClearOutlined,
   CloseOutlined,
 } from '@ant-design/icons'
-import useAppStore from '../store/useAppStore'
+import useAppStore, { CUSTOM_GROUP_ID } from '../store/useAppStore'
 
 export default function SelectionToolbar() {
   const selectionTool = useAppStore((s) => s.selectionTool)
@@ -109,7 +109,7 @@ export default function SelectionToolbar() {
                 borderRadius: '50%',
                 backgroundColor: `rgb(${group.color[0]}, ${group.color[1]}, ${group.color[2]})`,
               }} />
-              <span>Group {group.id}</span>
+              <span>{group.id === CUSTOM_GROUP_ID ? 'Custom' : `Group ${group.id}`}</span>
               <span style={{ fontSize: 10, color: '#999' }}>
                 {group.indices.length > 0 ? `(${group.indices.length.toLocaleString()})` : '...'}
               </span>
