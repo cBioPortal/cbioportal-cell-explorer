@@ -122,7 +122,7 @@ const WIDGETS = ENABLE_STATS_WIDGET
 // Fallback color when no color buffer is ready yet
 const FALLBACK_COLOR: [number, number, number, number] = [200, 200, 200, 128]
 
-const DIM_ALPHA = 10 // ~4% opacity for unselected points in dim mode
+const DIM_ALPHA = 77 // ~30% opacity for unselected points in dim mode
 const SELECTED_ALPHA = 255 // full opacity for selected points
 
 function dimColorBuffer(colorBuffer: Uint8Array, filterBuffer: Float32Array): Uint8Array {
@@ -329,6 +329,38 @@ function CanvasLoadingOverlay() {
     <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, textAlign: 'center' }}>
       <Spin />
       <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>{message}</div>
+    </div>
+  )
+}
+
+function FilterBanner() {
+  const selectionDisplayMode = useAppStore((s) => s.selectionDisplayMode)
+  const selectionGroups = useAppStore((s) => s.selectionGroups)
+  const embeddingData = useAppStore((s) => s.embeddingData)
+
+  if (selectionDisplayMode !== 'hide') return null
+  const activeGroups = selectionGroups.filter((g) => g.indices.length > 0)
+  if (activeGroups.length === 0) return null
+
+  const totalVisible = new Set(activeGroups.flatMap((g) => Array.from(g.indices))).size
+  const totalCells = embeddingData?.numPoints ?? 0
+
+  return (
+    <div style={{
+      position: 'absolute',
+      top: 8,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: 2,
+      background: 'rgba(0, 0, 0, 0.7)',
+      color: '#fff',
+      padding: '4px 12px',
+      borderRadius: 4,
+      fontSize: 11,
+      pointerEvents: 'none',
+    }}>
+      Showing {totalVisible.toLocaleString()} of {totalCells.toLocaleString()} cells
+      ({activeGroups.length} group{activeGroups.length > 1 ? 's' : ''})
     </div>
   )
 }
@@ -572,6 +604,7 @@ function View() {
           <MemoizedVisualization deckRef={deckRef} />
           <SelectionOverlay deckRef={deckRef} />
           <SelectionToolbar />
+          <FilterBanner />
           <CanvasLoadingOverlay />
           <EdgeTab
             side="right"
