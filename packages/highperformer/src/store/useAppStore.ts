@@ -405,7 +405,7 @@ const useAppStore = create<AppState>((set, get) => ({
       return
     }
 
-    const buf = new Float32Array(embeddingData.numPoints) // initialized to 0
+    const buf = new Float32Array(embeddingData.numPoints)
     for (const group of selectionGroups) {
       for (let i = 0; i < group.indices.length; i++) {
         buf[group.indices[i]] = 1
@@ -419,6 +419,17 @@ const useAppStore = create<AppState>((set, get) => ({
     getPool().clearQueue()
     const { selectionGroups, embeddingData } = get()
     const remaining = selectionGroups.filter((g) => g.id !== id)
+
+    // If clearing the custom group, also reset custom group state
+    const customGroupUpdate = id === CUSTOM_GROUP_ID ? {
+      customGroupColumn: null,
+      customGroupIds: [] as string[],
+      customGroupUnmatched: [] as string[],
+      customGroupLoading: false,
+      customGroupIndexMap: {} as Record<string, number[]>,
+      customGroupEnabledIds: new Set<string>(),
+      selectionDisplayMode: 'dim' as const,
+    } : {}
 
     // Pre-compute the filter buffer for remaining groups so the
     // Visualization never sees a gap (no color dim flash on removal).
@@ -435,7 +446,7 @@ const useAppStore = create<AppState>((set, get) => ({
     // Clear all groups — unmounts selection charts instantly, avoiding
     // expensive synchronous re-render of charts with modified group data.
     // The pre-computed filter buffer keeps the scatterplot dimming stable.
-    set({ selectionGroups: [], selectionFilterBuffer: filterBuffer })
+    set({ selectionGroups: [], selectionFilterBuffer: filterBuffer, ...customGroupUpdate })
 
     if (remaining.length > 0) {
       requestAnimationFrame(() => {
