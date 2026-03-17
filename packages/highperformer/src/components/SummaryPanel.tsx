@@ -45,6 +45,7 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
   const removeSummaryObsColumn = useAppStore((s) => s.removeSummaryObsColumn)
   const addSummaryGene = useAppStore((s) => s.addSummaryGene)
   const removeSummaryGene = useAppStore((s) => s.removeSummaryGene)
+  const setSelectionDisplayMode = useAppStore((s) => s.setSelectionDisplayMode)
 
   const [context, setContext] = useState<SummaryContext>('all')
 
@@ -213,7 +214,11 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
           <Segmented
             size="small"
             value={context}
-            onChange={(v) => startTransition(() => setContext(v as SummaryContext))}
+            onChange={(v) => {
+              const next = v as SummaryContext
+              if (next === 'all') setSelectionDisplayMode('dim')
+              startTransition(() => setContext(next))
+            }}
             options={[
               { label: 'All Cells', value: 'all' },
               { label: 'Selections', value: 'selections' },
