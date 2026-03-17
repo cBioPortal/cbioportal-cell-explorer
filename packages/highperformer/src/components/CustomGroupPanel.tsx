@@ -10,6 +10,7 @@ function CustomGroupModal({ open, onClose }: { open: boolean; onClose: () => voi
   const customGroupIds = useAppStore((s) => s.customGroupIds)
   const customGroupLoading = useAppStore((s) => s.customGroupLoading)
   const customGroupWarning = useAppStore((s) => s.customGroupWarning)
+  const customGroupUnmatched = useAppStore((s) => s.customGroupUnmatched)
   const customGroupIndexMap = useAppStore((s) => s.customGroupIndexMap)
   const customGroupEnabledIds = useAppStore((s) => s.customGroupEnabledIds)
   const customGroupRecomputing = useAppStore((s) => s.customGroupRecomputing)
@@ -132,6 +133,16 @@ function CustomGroupModal({ open, onClose }: { open: boolean; onClose: () => voi
           onClear={() => {
             setColumn(null)
             setColumnSearch('')
+            useAppStore.setState({
+              customGroupColumn: null,
+              customGroupIndexMap: {},
+              customGroupEnabledIds: new Set(),
+              customGroupCommittedCount: 0,
+              customGroupUnmatched: [],
+              customGroupWarning: null,
+              customGroupRecomputing: false,
+              customGroupPreviousEnabledIds: null,
+            })
           }}
           allowClear
           style={{ width: '100%' }}
@@ -144,30 +155,9 @@ function CustomGroupModal({ open, onClose }: { open: boolean; onClose: () => voi
         </Typography.Text>
       )}
 
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12 }}>
-        <div style={{ flex: 1 }}>
-          <Typography.Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Paste IDs</Typography.Text>
-          <Input.TextArea
-            placeholder="Paste IDs (one per line or comma-separated)"
-            value={idsText}
-            onChange={(e) => setIdsText(e.target.value)}
-            rows={2}
-            style={{ fontSize: 12 }}
-          />
-        </div>
-        <Button
-          type="primary"
-          onClick={handleApply}
-          loading={customGroupLoading}
-          disabled={!column || parsedCount === 0}
-        >
-          Apply ({parsedCount})
-        </Button>
-      </div>
-
       {!column && (
         <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: 12, border: '1px solid #f0f0f0', borderRadius: 4 }}>
-          Select an obs column to browse values
+          Select an obs column to get started
         </div>
       )}
 
@@ -175,6 +165,46 @@ function CustomGroupModal({ open, onClose }: { open: boolean; onClose: () => voi
         <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: 12, border: '1px solid #f0f0f0', borderRadius: 4 }}>
           Loading column values...
         </div>
+      )}
+
+      {column && !customGroupLoading && (
+        <>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12 }}>
+            <div style={{ flex: 1 }}>
+              <Typography.Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Paste IDs</Typography.Text>
+              <Input.TextArea
+                placeholder="Paste IDs (one per line or comma-separated)"
+                value={idsText}
+                onChange={(e) => setIdsText(e.target.value)}
+                rows={2}
+                style={{ fontSize: 12 }}
+              />
+            </div>
+            <Button
+              type="primary"
+              onClick={handleApply}
+              loading={customGroupLoading}
+              disabled={parsedCount === 0}
+            >
+              Apply ({parsedCount})
+            </Button>
+          </div>
+
+          {customGroupUnmatched.length > 0 && (
+            <div style={{ fontSize: 11, marginBottom: 12 }}>
+              <Typography.Text type="warning" style={{ fontSize: 11 }}>
+                {customGroupUnmatched.length} ID{customGroupUnmatched.length > 1 ? 's' : ''} not found:
+              </Typography.Text>
+              <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {customGroupUnmatched.map((id) => (
+                  <Tag key={id} color="warning" style={{ fontSize: 10, margin: 0 }}>
+                    {id}
+                  </Tag>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {hasBrowseData && (
@@ -228,7 +258,6 @@ function CustomGroupModal({ open, onClose }: { open: boolean; onClose: () => voi
 
 export default function CustomGroupPanel() {
   const customGroupColumn = useAppStore((s) => s.customGroupColumn)
-  const customGroupUnmatched = useAppStore((s) => s.customGroupUnmatched)
   const customGroupWarning = useAppStore((s) => s.customGroupWarning)
   const customGroupIndexMap = useAppStore((s) => s.customGroupIndexMap)
   const customGroupEnabledIds = useAppStore((s) => s.customGroupEnabledIds)
@@ -318,21 +347,6 @@ export default function CustomGroupPanel() {
                 <Typography.Text type="warning" style={{ fontSize: 11, display: 'block', marginBottom: 8 }}>
                   {customGroupWarning}
                 </Typography.Text>
-              )}
-
-              {customGroupUnmatched.length > 0 && (
-                <div style={{ fontSize: 11, marginBottom: 8 }}>
-                  <Typography.Text type="warning" style={{ fontSize: 11 }}>
-                    {customGroupUnmatched.length} ID{customGroupUnmatched.length > 1 ? 's' : ''} not found:
-                  </Typography.Text>
-                  <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {customGroupUnmatched.map((id) => (
-                      <Tag key={id} color="warning" style={{ fontSize: 10, margin: 0 }}>
-                        {id}
-                      </Tag>
-                    ))}
-                  </div>
-                </div>
               )}
 
               {!hasCustomGroup && matchedIds.length === 0 && (
