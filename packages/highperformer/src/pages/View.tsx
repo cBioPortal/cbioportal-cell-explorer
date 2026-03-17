@@ -338,15 +338,14 @@ function FilterBanner() {
   const selectionGroups = useAppStore((s) => s.selectionGroups)
   const embeddingData = useAppStore((s) => s.embeddingData)
   const customGroupColumn = useAppStore((s) => s.customGroupColumn)
-  const customGroupEnabledIds = useAppStore((s) => s.customGroupEnabledIds)
+  const customGroupCommittedCount = useAppStore((s) => s.customGroupCommittedCount)
   const customGroupIndexMap = useAppStore((s) => s.customGroupIndexMap)
 
   const totalCells = embeddingData?.numPoints ?? 0
   const hasCustomGroup = customGroupColumn !== null
-  const noIdsEnabled = hasCustomGroup && customGroupEnabledIds.size === 0
 
-  // Show banner when custom group exists with no IDs selected
-  if (noIdsEnabled) {
+  // Show banner when custom group exists with no committed IDs
+  if (hasCustomGroup && customGroupCommittedCount === 0) {
     return (
       <div style={{
         position: 'absolute',
@@ -361,24 +360,19 @@ function FilterBanner() {
         fontSize: 11,
         pointerEvents: 'none',
       }}>
-        0 of {Object.keys(customGroupIndexMap).length} IDs selected — showing all {totalCells.toLocaleString()} cells
+        No IDs committed — showing all {totalCells.toLocaleString()} cells
       </div>
     )
   }
 
   if (selectionDisplayMode !== 'hide') return null
 
-  // Count visible cells from spatial groups + custom group index map
+  // Count visible cells from spatial groups + committed custom group count
   let totalVisible = 0
   let groupCount = 0
   for (const g of selectionGroups) {
     if (g.type === 'custom') {
-      let count = 0
-      for (const id of customGroupEnabledIds) {
-        const arr = customGroupIndexMap[id]
-        if (arr) count += arr.length
-      }
-      if (count > 0) { totalVisible += count; groupCount++ }
+      if (customGroupCommittedCount > 0) { totalVisible += customGroupCommittedCount; groupCount++ }
     } else if (g.indices.length > 0) {
       totalVisible += g.indices.length
       groupCount++
@@ -386,6 +380,7 @@ function FilterBanner() {
   }
 
   if (groupCount === 0) return null
+  const totalIds = Object.keys(customGroupIndexMap).length
 
   return (
     <div style={{
@@ -401,7 +396,11 @@ function FilterBanner() {
       fontSize: 11,
       pointerEvents: 'none',
     }}>
-      {hasCustomGroup && `${customGroupEnabledIds.size} of ${Object.keys(customGroupIndexMap).length} IDs selected — `}Showing {totalVisible.toLocaleString()} of {totalCells.toLocaleString()} cells
+      {hasCustomGroup && totalIds > 0 && (() => {
+        const cg = selectionGroups.find((g) => g.type === 'custom')
+        const enabledCount = cg && 'ids' in cg ? cg.ids.length : 0
+        return `${enabledCount}/${totalIds} IDs · `
+      })()}{totalVisible.toLocaleString()} of {totalCells.toLocaleString()} cells
     </div>
   )
 }
