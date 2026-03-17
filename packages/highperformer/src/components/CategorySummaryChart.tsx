@@ -6,7 +6,7 @@ import { AxisBottom, AxisLeft } from '@visx/axis'
 import { Popover, Segmented, Typography } from 'antd'
 import { CloseOutlined, SettingOutlined } from '@ant-design/icons'
 import type { SelectionGroup } from '../store/useAppStore'
-import { CUSTOM_GROUP_ID } from '../store/useAppStore'
+import useAppStore, { CUSTOM_GROUP_ID } from '../store/useAppStore'
 import type { RGB } from '../utils/colors'
 import { ALL_CELLS_GROUP_ID } from '../constants'
 import ChartModal from './ChartModal'
@@ -14,7 +14,10 @@ import { useContainerWidth } from '../hooks/useContainerWidth'
 
 function groupLabel(id: number): string {
   if (id === ALL_CELLS_GROUP_ID) return 'All Cells'
-  if (id === CUSTOM_GROUP_ID) return 'Custom'
+  if (id === CUSTOM_GROUP_ID) {
+    const { customGroupEnabledIds, customGroupIndexMap } = useAppStore.getState()
+    return `Custom: ${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`
+  }
   return `Group ${id}`
 }
 
