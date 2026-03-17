@@ -117,10 +117,12 @@ export interface AppState {
   customGroupColumn: string | null
   customGroupIds: string[]
   customGroupUnmatched: string[]
+  customGroupWarning: string | null
   customGroupLoading: boolean
   customGroupRecomputing: boolean
   customGroupIndexMap: Record<string, number[]>
   customGroupEnabledIds: Set<string>
+  customGroupPreviousEnabledIds: Set<string> | null
 
   // Selection actions
   setSelectionTool: (tool: SelectionTool) => void
@@ -135,6 +137,7 @@ export interface AppState {
   toggleCustomGroupId: (id: string) => void
   setAllCustomGroupIds: (enabled: boolean) => void
   commitCustomGroupToggle: () => void
+  cancelCustomGroupToggle: () => void
 
   // Summary panel
   summaryPanelOpen: boolean
@@ -320,10 +323,12 @@ const useAppStore = create<AppState>((set, get) => ({
   customGroupColumn: null,
   customGroupIds: [],
   customGroupUnmatched: [],
+  customGroupWarning: null,
   customGroupLoading: false,
   customGroupRecomputing: false,
   customGroupIndexMap: {},
   customGroupEnabledIds: new Set(),
+  customGroupPreviousEnabledIds: null,
 
   // Summary panel
   summaryPanelOpen: true,
@@ -444,6 +449,7 @@ const useAppStore = create<AppState>((set, get) => ({
       customGroupColumn: null,
       customGroupIds: [] as string[],
       customGroupUnmatched: [] as string[],
+      customGroupWarning: null as string | null,
       customGroupLoading: false,
       customGroupRecomputing: false,
       customGroupIndexMap: {} as Record<string, number[]>,
@@ -455,10 +461,19 @@ const useAppStore = create<AppState>((set, get) => ({
     // Visualization never sees a gap (no color dim flash on removal).
     let filterBuffer: Float32Array | null = null
     if (remaining.length > 0 && embeddingData) {
+      const { customGroupEnabledIds: enabledIds, customGroupIndexMap: idxMap } = get()
       filterBuffer = new Float32Array(embeddingData.numPoints)
       for (const group of remaining) {
-        for (let i = 0; i < group.indices.length; i++) {
-          filterBuffer[group.indices[i]] = 1
+        if (group.type === 'custom') {
+          // Read from index map (custom group has empty indices)
+          for (const eid of enabledIds) {
+            const arr = idxMap[eid]
+            if (arr) for (let i = 0; i < arr.length; i++) filterBuffer[arr[i]] = 1
+          }
+        } else {
+          for (let i = 0; i < group.indices.length; i++) {
+            filterBuffer[group.indices[i]] = 1
+          }
         }
       }
     }
@@ -486,6 +501,7 @@ const useAppStore = create<AppState>((set, get) => ({
       customGroupColumn: null,
       customGroupIds: [],
       customGroupUnmatched: [],
+      customGroupWarning: null,
       customGroupLoading: false,
       customGroupRecomputing: false,
       customGroupIndexMap: {},
@@ -497,7 +513,7 @@ const useAppStore = create<AppState>((set, get) => ({
     const { adata, embeddingData } = get()
     if (!adata || !embeddingData || ids.length === 0) return
 
-    set({ customGroupColumn: column, customGroupIds: ids, customGroupLoading: true })
+    set({ customGroupColumn: column, customGroupIds: ids, customGroupLoading: true, customGroupWarning: null })
 
     adata.obsColumn(column).then((values) => {
       const valuesArray = Array.isArray(values) ? values : Array.from(values as Iterable<string | number | null>)
@@ -506,7 +522,7 @@ const useAppStore = create<AppState>((set, get) => ({
       const version = selectionVersion
 
       getPool()
-        .dispatch<{ type: string; indices: Uint32Array; matchedIds: string[]; unmatchedIds: string[]; indexMap: Record<string, number[]>; version: number }>({
+        .dispatch<{ type: string; indices: Uint32Array; matchedIds: string[]; unmatchedIds: string[]; indexMap: Record<string, number[]>; isContinuous: boolean; version: number }>({
           type: 'matchByIds',
           values: valuesArray,
           targetIds: ids,
@@ -515,10 +531,11 @@ const useAppStore = create<AppState>((set, get) => ({
         .then((response) => {
           if (version !== selectionVersion) return // stale
 
-          if (response.matchedIds.length === 0) {
+          if (response.isContinuous) {
             set({
-              customGroupUnmatched: response.unmatchedIds,
+              customGroupWarning: `This column appears to be continuous (${Object.keys(response.indexMap).length} unique numeric values). Please choose a categorical column.`,
               customGroupLoading: false,
+              customGroupColumn: null,
             })
             return
           }
@@ -532,16 +549,22 @@ const useAppStore = create<AppState>((set, get) => ({
             column,
             ids,
             unmatchedIds: response.unmatchedIds,
-            indices: new Uint32Array(0), // indices read from customGroupIndexMap instead
+            indices: new Uint32Array(0),
             color: GROUP_COLORS[3],
           }
+
+          // Enable matched pasted IDs; full index map contains all unique column values
+          const enabledIds = response.matchedIds.length > 0
+            ? new Set(response.matchedIds)
+            : new Set(Object.keys(response.indexMap)) // no pasted IDs matched → enable all
 
           set({
             selectionGroups: [...withoutCustom, customGroup],
             customGroupUnmatched: response.unmatchedIds,
+            customGroupWarning: null,
             customGroupLoading: false,
             customGroupIndexMap: response.indexMap,
-            customGroupEnabledIds: new Set(response.matchedIds),
+            customGroupEnabledIds: enabledIds,
             selectionDisplayMode: 'hide',
           })
 
@@ -559,6 +582,7 @@ const useAppStore = create<AppState>((set, get) => ({
       customGroupColumn: null,
       customGroupIds: [],
       customGroupUnmatched: [],
+      customGroupWarning: null,
       customGroupLoading: false,
       customGroupRecomputing: false,
       customGroupIndexMap: {},
@@ -569,14 +593,14 @@ const useAppStore = create<AppState>((set, get) => ({
   },
 
   toggleCustomGroupId: (id) => {
-    const { customGroupEnabledIds } = get()
+    const { customGroupEnabledIds, customGroupPreviousEnabledIds } = get()
     const next = new Set(customGroupEnabledIds)
     if (next.has(id)) next.delete(id)
     else next.add(id)
 
-    // Only update the checkbox state — no filter buffer or selectionGroups changes.
-    // User clicks "Update" to commit all toggle changes at once.
-    set({ customGroupEnabledIds: next, customGroupRecomputing: true })
+    // Save previous state on first toggle (for cancel support)
+    const prev = customGroupPreviousEnabledIds ?? new Set(customGroupEnabledIds)
+    set({ customGroupEnabledIds: next, customGroupRecomputing: true, customGroupPreviousEnabledIds: prev })
   },
 
   commitCustomGroupToggle: () => {
@@ -608,17 +632,28 @@ const useAppStore = create<AppState>((set, get) => ({
         indices: new Uint32Array(0), // indices read from customGroupIndexMap instead
         color: GROUP_COLORS[3],
       }
-      set({ selectionGroups: [...withoutCustom, customGroup], customGroupRecomputing: false })
+      set({ selectionGroups: [...withoutCustom, customGroup], customGroupRecomputing: false, customGroupPreviousEnabledIds: null })
       get()._mergeFilterBuffer()
     }, 0)
   },
 
+  cancelCustomGroupToggle: () => {
+    const { customGroupPreviousEnabledIds } = get()
+    if (!customGroupPreviousEnabledIds) return
+    set({
+      customGroupEnabledIds: customGroupPreviousEnabledIds,
+      customGroupRecomputing: false,
+      customGroupPreviousEnabledIds: null,
+    })
+  },
+
   setAllCustomGroupIds: (enabled) => {
-    const { customGroupIndexMap } = get()
+    const { customGroupIndexMap, customGroupEnabledIds, customGroupPreviousEnabledIds } = get()
     const matchedIds = Object.keys(customGroupIndexMap)
     const next = enabled ? new Set(matchedIds) : new Set<string>()
 
-    set({ customGroupEnabledIds: next, customGroupRecomputing: true })
+    const prev = customGroupPreviousEnabledIds ?? new Set(customGroupEnabledIds)
+    set({ customGroupEnabledIds: next, customGroupRecomputing: true, customGroupPreviousEnabledIds: prev })
   },
 
   setSummaryPanelOpen: (open) => set({ summaryPanelOpen: open }),
@@ -721,7 +756,7 @@ const useAppStore = create<AppState>((set, get) => ({
       categoryWarning: null, _categoryCodes: null, _expressionData: null,
       varColumns: [], geneLabelColumn: null, geneLabelMap: null,
       selectionGroups: [], selectionFilterBuffer: null, selectionTool: 'pan', selectionDisplayMode: 'dim',
-      customGroupColumn: null, customGroupIds: [], customGroupUnmatched: [], customGroupLoading: false, customGroupRecomputing: false, customGroupIndexMap: {}, customGroupEnabledIds: new Set(),
+      customGroupColumn: null, customGroupIds: [], customGroupUnmatched: [], customGroupWarning: null, customGroupLoading: false, customGroupRecomputing: false, customGroupIndexMap: {}, customGroupEnabledIds: new Set(),
       summaryPanelOpen: true,
       summaryObsColumns: [], summaryGenes: [],
       summaryObsData: new Map(), summaryObsContinuousData: new Map(),
