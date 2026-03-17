@@ -303,18 +303,7 @@ function VennDiagram({ groups, stats, totalCells, customGroupCount }: {
 }
 
 export default function GroupOverview({ groups, totalCells }: GroupOverviewProps) {
-  const customGroupEnabledIds = useAppStore((s) => s.customGroupEnabledIds)
-  const customGroupIndexMap = useAppStore((s) => s.customGroupIndexMap)
-
-  // Compute custom group count from index map (indices field is empty for perf)
-  const customGroupCount = useMemo(() => {
-    let count = 0
-    for (const id of customGroupEnabledIds) {
-      const arr = customGroupIndexMap[id]
-      if (arr) count += arr.length
-    }
-    return count
-  }, [customGroupEnabledIds, customGroupIndexMap])
+  const customGroupCount = useAppStore((s) => s.customGroupCommittedCount)
 
   const activeGroups = useMemo(
     () => groups.filter((g) =>

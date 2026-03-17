@@ -12,14 +12,7 @@ import {
 import useAppStore, { CUSTOM_GROUP_ID } from '../store/useAppStore'
 
 function useCustomGroupCount() {
-  const enabledIds = useAppStore((s) => s.customGroupEnabledIds)
-  const indexMap = useAppStore((s) => s.customGroupIndexMap)
-  let count = 0
-  for (const id of enabledIds) {
-    const arr = indexMap[id]
-    if (arr) count += arr.length
-  }
-  return count
+  return useAppStore((s) => s.customGroupCommittedCount)
 }
 
 export default function SelectionToolbar() {
