@@ -340,6 +340,38 @@ function computeOverlap(groups: SelectionGroup[], totalCells: number): OverlapSt
   return { overlapCount, unionCount, uniqueCounts, pairwiseOverlaps }
 }
 
+function computeCrossOverlap(
+  spatialGroups: SelectionGroup[],
+  customGroupIndexMap: Record<string, number[]>,
+  customGroupEnabledIds: Set<string>,
+  totalCells: number,
+): Map<number, number> {
+  const result = new Map<number, number>()
+  if (spatialGroups.length === 0 || customGroupEnabledIds.size === 0 || totalCells === 0) return result
+
+  // Build custom group membership mask
+  const mask = new Uint8Array(totalCells)
+  for (const id of customGroupEnabledIds) {
+    const indices = customGroupIndexMap[id]
+    if (indices) {
+      for (let i = 0; i < indices.length; i++) {
+        mask[indices[i]] = 1
+      }
+    }
+  }
+
+  // Count spatial cells that fall in the custom mask
+  for (const group of spatialGroups) {
+    let count = 0
+    for (let i = 0; i < group.indices.length; i++) {
+      if (mask[group.indices[i]] === 1) count++
+    }
+    result.set(group.id, count)
+  }
+
+  return result
+}
+
 function circleOverlapArea(r1: number, r2: number, d: number): number {
   if (d >= r1 + r2) return 0
   if (d + r2 <= r1) return Math.PI * r2 * r2
@@ -372,12 +404,13 @@ const SVG_HEIGHT = 140
 const MAX_RADIUS = 50
 const MIN_RADIUS = 18
 
-function VennDiagram({ groups, stats, totalCells, customGroupCount, customGroupIdLabel }: {
+function VennDiagram({ groups, stats, totalCells, customGroupCount, customGroupIdLabel, crossOverlap }: {
   groups: SelectionGroup[]
   stats: OverlapStats
   totalCells: number
   customGroupCount: number
   customGroupIdLabel: string
+  crossOverlap: Map<number, number>
 }) {
   const cy = SVG_HEIGHT / 2
 
@@ -472,13 +505,14 @@ function VennDiagram({ groups, stats, totalCells, customGroupCount, customGroupI
 
   const statsContent = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11, color: '#666', minWidth: 180 }}>
-      {allGroups.map((g) => {
-        const count = g.id === CUSTOM_GROUP_ID ? customGroupCount : g.indices.length
+      {/* Spatial groups block */}
+      {spatialGroups.map((g) => {
+        const count = g.indices.length
         const pct = totalCells > 0 ? ((count / totalCells) * 100).toFixed(1) : '0.0'
         return (
           <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
             <span style={{ color: `rgb(${g.color.join(',')})`, fontWeight: 600 }}>
-              {g.id === ALL_CELLS_GROUP_ID ? 'All Cells' : g.id === CUSTOM_GROUP_ID ? `Custom: ${customGroupIdLabel}` : `Group ${g.id}`}
+              {g.id === ALL_CELLS_GROUP_ID ? 'All Cells' : `Group ${g.id}`}
             </span>
             <span>
               <span style={{ fontWeight: 500, color: '#333' }}>{count.toLocaleString()}</span>
@@ -487,7 +521,7 @@ function VennDiagram({ groups, stats, totalCells, customGroupCount, customGroupI
           </div>
         )
       })}
-      {groups.length > 1 && (
+      {spatialGroups.length > 1 && (
         <>
           <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 2, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
             <span>Overlap</span>
@@ -501,6 +535,37 @@ function VennDiagram({ groups, stats, totalCells, customGroupCount, customGroupI
               </span>
             </div>
           )}
+        </>
+      )}
+      {/* Custom group block */}
+      {hasCustom && (
+        <>
+          <div style={{ borderTop: hasSpatial ? '1px solid #f0f0f0' : 'none', paddingTop: hasSpatial ? 2 : 0, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ color: `rgb(${customGroup.color.join(',')})`, fontWeight: 600 }}>
+                Custom: {customGroupIdLabel}
+              </span>
+              {hasSpatial && (
+                <Tooltip title="Cells shared between each spatial selection and the custom group">
+                  <InfoCircleOutlined style={{ fontSize: 10, color: '#bbb', cursor: 'help' }} />
+                </Tooltip>
+              )}
+            </span>
+            <span>
+              <span style={{ fontWeight: 500, color: '#333' }}>{customGroupCount.toLocaleString()}</span>
+              {' '}({totalCells > 0 ? ((customGroupCount / totalCells) * 100).toFixed(1) : '0.0'}%)
+            </span>
+          </div>
+          {spatialGroups.map((g) => {
+            const crossCount = crossOverlap.get(g.id) ?? 0
+            if (crossCount === 0) return null
+            return (
+              <div key={`cross-${g.id}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <span>G{g.id} ∩ Custom</span>
+                <span style={{ fontWeight: 500, color: '#333' }}>{crossCount.toLocaleString()}</span>
+              </div>
+            )
+          })}
         </>
       )}
     </div>
@@ -589,23 +654,24 @@ export default function GroupOverview({ groups, totalCells }: GroupOverviewProps
     [spatialActiveGroups, totalCells],
   )
 
+  // Cross-overlap: spatial groups ∩ custom group (uses committed state via customGroupCount)
+  const crossOverlap = useMemo(
+    () => {
+      if (spatialActiveGroups.length === 0 || customGroupCount === 0) return new Map<number, number>()
+      const { customGroupEnabledIds, customGroupIndexMap } = useAppStore.getState()
+      return computeCrossOverlap(spatialActiveGroups, customGroupIndexMap, customGroupEnabledIds, totalCells)
+    },
+    [spatialActiveGroups, customGroupCount, totalCells],
+  )
+
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <Typography.Text strong style={{ fontSize: 12 }}>Groups</Typography.Text>
-          <Popover
-            content={
-              <div style={{ maxWidth: 250, fontSize: 12 }}>
-                Non-matching cells are hidden by default but can be toggled
-                back using the eye icon.
-              </div>
-            }
-            trigger="click"
-            placement="bottomLeft"
-          >
-            <InfoCircleOutlined style={{ fontSize: 11, color: '#999', cursor: 'pointer' }} />
-          </Popover>
+          <Tooltip title="Non-matching cells are hidden by default but can be toggled back using the eye icon">
+            <InfoCircleOutlined style={{ fontSize: 11, color: '#999', cursor: 'help' }} />
+          </Tooltip>
         </span>
         <div style={{ display: 'flex', gap: 4 }}>
           <Tooltip title={selectionDisplayMode === 'hide' ? 'Dim unselected' : 'Hide unselected'} placement="top">
@@ -643,12 +709,13 @@ export default function GroupOverview({ groups, totalCells }: GroupOverviewProps
             stats={stats}
             totalCells={totalCells}
             customGroupCount={customGroupCount}
-            customGroupIdLabel={`${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`}
+            customGroupIdLabel={`${customGroupColumn ? `(${customGroupColumn}) ` : ''}${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`}
+            crossOverlap={crossOverlap}
           />
           <div style={{ fontSize: 10, color: '#999', textAlign: 'center', marginTop: 2 }}>
             {activeGroups.map((g) => {
               const count = g.id === CUSTOM_GROUP_ID ? customGroupCount : g.indices.length
-              const label = g.id === ALL_CELLS_GROUP_ID ? 'All' : g.id === CUSTOM_GROUP_ID ? 'Custom' : `G${g.id}`
+              const label = g.id === ALL_CELLS_GROUP_ID ? 'All' : g.id === CUSTOM_GROUP_ID ? `Custom${customGroupColumn ? ` (${customGroupColumn})` : ''}` : `G${g.id}`
               return <span key={g.id} style={{ color: `rgb(${g.color.join(',')})` }}>{label}: {count.toLocaleString()}</span>
             }).reduce<React.ReactNode[]>((acc, el, i) => i === 0 ? [el] : [...acc, <span key={`sep-${i}`}> · </span>, el], [])}
             {spatialActiveGroups.length > 1 && stats.overlapCount > 0 && (
