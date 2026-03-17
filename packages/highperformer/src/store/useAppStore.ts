@@ -122,6 +122,7 @@ export interface AppState {
   customGroupRecomputing: boolean
   customGroupIndexMap: Record<string, number[]>
   customGroupEnabledIds: Set<string>
+  customGroupCommittedCount: number
   customGroupPreviousEnabledIds: Set<string> | null
 
   // Selection actions
@@ -132,6 +133,7 @@ export interface AppState {
   _mergeFilterBuffer: () => void
   clearGroup: (id: number) => void
   clearAllSelections: () => void
+  loadCustomGroupColumn: (column: string) => void
   selectByIds: (column: string, ids: string[]) => void
   clearCustomGroup: () => void
   toggleCustomGroupId: (id: string) => void
@@ -328,6 +330,7 @@ const useAppStore = create<AppState>((set, get) => ({
   customGroupRecomputing: false,
   customGroupIndexMap: {},
   customGroupEnabledIds: new Set(),
+  customGroupCommittedCount: 0,
   customGroupPreviousEnabledIds: null,
 
   // Summary panel
@@ -454,6 +457,7 @@ const useAppStore = create<AppState>((set, get) => ({
       customGroupRecomputing: false,
       customGroupIndexMap: {} as Record<string, number[]>,
       customGroupEnabledIds: new Set<string>(),
+      customGroupCommittedCount: 0,
       selectionDisplayMode: 'dim' as const,
     } : {}
 
@@ -506,6 +510,47 @@ const useAppStore = create<AppState>((set, get) => ({
       customGroupRecomputing: false,
       customGroupIndexMap: {},
       customGroupEnabledIds: new Set(),
+      customGroupCommittedCount: 0,
+    })
+  },
+
+  loadCustomGroupColumn: (column) => {
+    const { adata, embeddingData } = get()
+    if (!adata || !embeddingData) return
+
+    set({ customGroupColumn: column, customGroupLoading: true, customGroupWarning: null, customGroupIndexMap: {}, customGroupEnabledIds: new Set(), customGroupCommittedCount: 0, customGroupPreviousEnabledIds: null, customGroupRecomputing: false })
+
+    adata.obsColumn(column).then((values) => {
+      const valuesArray = Array.isArray(values) ? values : Array.from(values as Iterable<string | number | null>)
+
+      selectionVersion++
+      const version = selectionVersion
+
+      getPool()
+        .dispatch<{ type: string; indices: Uint32Array; matchedIds: string[]; unmatchedIds: string[]; indexMap: Record<string, number[]>; isContinuous: boolean; version: number }>({
+          type: 'matchByIds',
+          values: valuesArray,
+          targetIds: [],
+          version,
+        })
+        .then((response) => {
+          if (version !== selectionVersion) return
+
+          if (response.isContinuous) {
+            set({
+              customGroupWarning: `This column appears to be continuous (${Object.keys(response.indexMap).length} unique numeric values). Please choose a categorical column.`,
+              customGroupLoading: false,
+              customGroupColumn: null,
+            })
+            return
+          }
+
+          set({
+            customGroupIndexMap: response.indexMap,
+            customGroupEnabledIds: new Set<string>(),
+            customGroupLoading: false,
+          })
+        })
     })
   },
 
@@ -558,6 +603,12 @@ const useAppStore = create<AppState>((set, get) => ({
             ? new Set(response.matchedIds)
             : new Set(Object.keys(response.indexMap)) // no pasted IDs matched → enable all
 
+          let committedCount = 0
+          for (const eid of enabledIds) {
+            const arr = response.indexMap[eid]
+            if (arr) committedCount += arr.length
+          }
+
           set({
             selectionGroups: [...withoutCustom, customGroup],
             customGroupUnmatched: response.unmatchedIds,
@@ -565,6 +616,7 @@ const useAppStore = create<AppState>((set, get) => ({
             customGroupLoading: false,
             customGroupIndexMap: response.indexMap,
             customGroupEnabledIds: enabledIds,
+            customGroupCommittedCount: committedCount,
             selectionDisplayMode: 'hide',
           })
 
@@ -587,6 +639,7 @@ const useAppStore = create<AppState>((set, get) => ({
       customGroupRecomputing: false,
       customGroupIndexMap: {},
       customGroupEnabledIds: new Set(),
+      customGroupCommittedCount: 0,
       selectionDisplayMode: 'dim',
     })
     get()._mergeFilterBuffer()
@@ -632,7 +685,7 @@ const useAppStore = create<AppState>((set, get) => ({
         indices: new Uint32Array(0), // indices read from customGroupIndexMap instead
         color: GROUP_COLORS[3],
       }
-      set({ selectionGroups: [...withoutCustom, customGroup], customGroupRecomputing: false, customGroupPreviousEnabledIds: null })
+      set({ selectionGroups: [...withoutCustom, customGroup], customGroupRecomputing: false, customGroupPreviousEnabledIds: null, customGroupCommittedCount: totalLen, selectionDisplayMode: 'hide' })
       get()._mergeFilterBuffer()
     }, 0)
   },
@@ -756,7 +809,7 @@ const useAppStore = create<AppState>((set, get) => ({
       categoryWarning: null, _categoryCodes: null, _expressionData: null,
       varColumns: [], geneLabelColumn: null, geneLabelMap: null,
       selectionGroups: [], selectionFilterBuffer: null, selectionTool: 'pan', selectionDisplayMode: 'dim',
-      customGroupColumn: null, customGroupIds: [], customGroupUnmatched: [], customGroupWarning: null, customGroupLoading: false, customGroupRecomputing: false, customGroupIndexMap: {}, customGroupEnabledIds: new Set(),
+      customGroupColumn: null, customGroupIds: [], customGroupUnmatched: [], customGroupWarning: null, customGroupLoading: false, customGroupRecomputing: false, customGroupIndexMap: {}, customGroupEnabledIds: new Set(), customGroupCommittedCount: 0,
       summaryPanelOpen: true,
       summaryObsColumns: [], summaryGenes: [],
       summaryObsData: new Map(), summaryObsContinuousData: new Map(),
