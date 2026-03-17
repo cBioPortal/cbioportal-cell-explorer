@@ -470,8 +470,46 @@ function VennDiagram({ groups, stats, totalCells, customGroupCount, customGroupI
 
   const colors = allGroups.map((g) => `rgb(${g.color.join(',')})`)
 
+  const statsContent = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11, color: '#666', minWidth: 180 }}>
+      {allGroups.map((g) => {
+        const count = g.id === CUSTOM_GROUP_ID ? customGroupCount : g.indices.length
+        const pct = totalCells > 0 ? ((count / totalCells) * 100).toFixed(1) : '0.0'
+        return (
+          <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+            <span style={{ color: `rgb(${g.color.join(',')})`, fontWeight: 600 }}>
+              {g.id === ALL_CELLS_GROUP_ID ? 'All Cells' : g.id === CUSTOM_GROUP_ID ? `Custom: ${customGroupIdLabel}` : `Group ${g.id}`}
+            </span>
+            <span>
+              <span style={{ fontWeight: 500, color: '#333' }}>{count.toLocaleString()}</span>
+              {' '}({pct}%)
+            </span>
+          </div>
+        )
+      })}
+      {groups.length > 1 && (
+        <>
+          <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 2, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+            <span>Overlap</span>
+            <span style={{ fontWeight: 500, color: '#333' }}>{stats.overlapCount.toLocaleString()}</span>
+          </div>
+          {stats.unionCount > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+              <span>Jaccard</span>
+              <span style={{ fontWeight: 500, color: '#333' }}>
+                {(stats.overlapCount / stats.unionCount * 100).toFixed(1)}%
+              </span>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+
+  const [hovered, setHovered] = useState<number | null>(null)
+
   return (
-    <div>
+    <Popover content={statsContent} trigger="click" placement="bottom">
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <svg width={SVG_WIDTH} height={SVG_HEIGHT}>
           {/* Divider line between spatial and custom halves */}
@@ -482,23 +520,27 @@ function VennDiagram({ groups, stats, totalCells, customGroupCount, customGroupI
               stroke="#e8e8e8" strokeWidth={1} strokeDasharray="4 3"
             />
           )}
-          {circles.map((c, i) => (
-            <circle
-              key={allGroups[i].id}
-              cx={c.x} cy={c.y} r={c.r}
-              fill={colors[i]} fillOpacity={0.3}
-              stroke={colors[i]} strokeWidth={1.5}
-            />
-          ))}
-          {/* Count labels */}
           {circles.map((c, i) => {
             const count = allGroups[i].id === CUSTOM_GROUP_ID
               ? customGroupCount
               : (stats.uniqueCounts.get(allGroups[i].id) ?? 0)
+            const isHovered = hovered === i
             return (
-              <text key={`u-${allGroups[i].id}`} x={c.x} y={c.y} textAnchor="middle" dy="0.35em" fontSize={10} fill="#333">
-                {count.toLocaleString()}
-              </text>
+              <g
+                key={allGroups[i].id}
+                style={{ cursor: 'pointer' }}
+                onMouseEnter={() => setHovered(i)}
+                onMouseLeave={() => setHovered(null)}
+              >
+                <circle
+                  cx={c.x} cy={c.y} r={c.r}
+                  fill={colors[i]} fillOpacity={isHovered ? 0.5 : 0.3}
+                  stroke={colors[i]} strokeWidth={isHovered ? 2.5 : 1.5}
+                />
+                <text x={c.x} y={c.y} textAnchor="middle" dy="0.35em" fontSize={10} fill="#333">
+                  {count.toLocaleString()}
+                </text>
+              </g>
             )
           })}
           {/* Overlap count at spatial centroid */}
@@ -513,44 +555,7 @@ function VennDiagram({ groups, stats, totalCells, customGroupCount, customGroupI
           )}
         </svg>
       </div>
-      {/* Stats below diagram */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11, color: '#666', marginTop: 4 }}>
-        {allGroups.map((g) => {
-          const count = g.id === CUSTOM_GROUP_ID ? customGroupCount : g.indices.length
-          const pct = totalCells > 0 ? ((count / totalCells) * 100).toFixed(1) : '0.0'
-          return (
-            <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: `rgb(${g.color.join(',')})`, fontWeight: 600 }}>
-                {g.id === ALL_CELLS_GROUP_ID ? 'All Cells' : g.id === CUSTOM_GROUP_ID ? `Custom: ${customGroupIdLabel}` : `Group ${g.id}`}
-              </span>
-              <span>
-                <span style={{ fontWeight: 500, color: '#333' }}>{count.toLocaleString()}</span>
-                {' '}cells ({pct}%)
-              </span>
-            </div>
-          )
-        })}
-        {groups.length > 1 && (
-          <>
-            <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 2, display: 'flex', justifyContent: 'space-between' }}>
-              <span>Overlap</span>
-              <span>
-                <span style={{ fontWeight: 500, color: '#333' }}>{stats.overlapCount.toLocaleString()}</span>
-                {' '}cells
-              </span>
-            </div>
-            {stats.unionCount > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Jaccard</span>
-                <span style={{ fontWeight: 500, color: '#333' }}>
-                  {(stats.overlapCount / stats.unionCount * 100).toFixed(1)}%
-                </span>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
+    </Popover>
   )
 }
 
@@ -632,13 +637,25 @@ export default function GroupOverview({ groups, totalCells }: GroupOverviewProps
         </div>
       </div>
       {(spatialActiveGroups.length > 0 || customGroupCount > 0) && (
-        <VennDiagram
-          groups={activeGroups}
-          stats={stats}
-          totalCells={totalCells}
-          customGroupCount={customGroupCount}
-          customGroupIdLabel={`${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`}
-        />
+        <>
+          <VennDiagram
+            groups={activeGroups}
+            stats={stats}
+            totalCells={totalCells}
+            customGroupCount={customGroupCount}
+            customGroupIdLabel={`${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`}
+          />
+          <div style={{ fontSize: 10, color: '#999', textAlign: 'center', marginTop: 2 }}>
+            {activeGroups.map((g) => {
+              const count = g.id === CUSTOM_GROUP_ID ? customGroupCount : g.indices.length
+              const label = g.id === ALL_CELLS_GROUP_ID ? 'All' : g.id === CUSTOM_GROUP_ID ? 'Custom' : `G${g.id}`
+              return <span key={g.id} style={{ color: `rgb(${g.color.join(',')})` }}>{label}: {count.toLocaleString()}</span>
+            }).reduce<React.ReactNode[]>((acc, el, i) => i === 0 ? [el] : [...acc, <span key={`sep-${i}`}> · </span>, el], [])}
+            {spatialActiveGroups.length > 1 && stats.overlapCount > 0 && (
+              <span> · Overlap: {stats.overlapCount.toLocaleString()}</span>
+            )}
+          </div>
+        </>
       )}
       <CustomGroupModal open={modalOpen} onClose={() => setModalOpen(false)} />
     </div>
