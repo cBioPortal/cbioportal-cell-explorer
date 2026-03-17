@@ -15,6 +15,7 @@ export const IdMatchResultSchema = z.object({
   matchedIds: z.array(z.string()),
   unmatchedIds: z.array(z.string()),
   indexMap: z.record(z.string(), z.array(z.number())),
+  isContinuous: z.boolean(),
   version: z.number(),
 })
 
