@@ -92,7 +92,7 @@ export default function SelectionToolbar() {
 
       {/* Per-group chips */}
       {selectionGroups.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, marginTop: 4 }}>
           {selectionGroups.map((group) => (
             <div
               key={group.id}
