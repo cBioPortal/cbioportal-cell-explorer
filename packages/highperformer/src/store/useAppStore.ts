@@ -27,13 +27,25 @@ export type ColorMode = 'category' | 'gene'
 export type SelectionTool = 'pan' | 'rectangle' | 'lasso'
 export type SelectionDisplayMode = 'dim' | 'hide'
 
-export interface SelectionGroup {
+export interface SpatialSelectionGroup {
   id: number
-  polygon: [number, number][]
   type: 'rectangle' | 'lasso'
+  polygon: [number, number][]
   indices: Uint32Array
   color: [number, number, number]
 }
+
+export interface CustomSelectionGroup {
+  id: number
+  type: 'custom'
+  column: string
+  ids: string[]
+  unmatchedIds: string[]
+  indices: Uint32Array
+  color: [number, number, number]
+}
+
+export type SelectionGroup = SpatialSelectionGroup | CustomSelectionGroup
 
 export interface AppState {
   // Dataset
@@ -101,6 +113,18 @@ export interface AppState {
   selectionGroups: SelectionGroup[]
   selectionFilterBuffer: Float32Array | null
 
+  // Custom group (ID-based selection)
+  customGroupColumn: string | null
+  customGroupIds: string[]
+  customGroupUnmatched: string[]
+  customGroupWarning: string | null
+  customGroupLoading: boolean
+  customGroupRecomputing: boolean
+  customGroupIndexMap: Record<string, number[]>
+  customGroupEnabledIds: Set<string>
+  customGroupCommittedCount: number
+  customGroupPreviousEnabledIds: Set<string> | null
+
   // Selection actions
   setSelectionTool: (tool: SelectionTool) => void
   setSelectionDisplayMode: (mode: SelectionDisplayMode) => void
@@ -109,6 +133,13 @@ export interface AppState {
   _mergeFilterBuffer: () => void
   clearGroup: (id: number) => void
   clearAllSelections: () => void
+  loadCustomGroupColumn: (column: string) => void
+  selectByIds: (column: string, ids: string[]) => void
+  clearCustomGroup: () => void
+  toggleCustomGroupId: (id: string) => void
+  setAllCustomGroupIds: (enabled: boolean) => void
+  commitCustomGroupToggle: () => void
+  cancelCustomGroupToggle: () => void
 
   // Summary panel
   summaryPanelOpen: boolean
@@ -182,7 +213,10 @@ const GROUP_COLORS: [number, number, number][] = [
   [255, 59, 48],   // red
   [0, 122, 255],   // blue
   [52, 199, 89],   // green
+  [255, 149, 0],   // orange — custom group
 ]
+
+export const CUSTOM_GROUP_ID = 4
 
 let selectionVersion = 0
 export function getSelectionVersion(): number { return selectionVersion }
@@ -198,6 +232,7 @@ export function getPool(): WorkerPool {
 // Debounce timer for opacity-driven color buffer rebuilds
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const DEBOUNCE_MS = 150
+
 
 const useAppStore = create<AppState>((set, get) => ({
   // Dataset
@@ -286,6 +321,18 @@ const useAppStore = create<AppState>((set, get) => ({
   selectionGroups: [],
   selectionFilterBuffer: null,
 
+  // Custom group
+  customGroupColumn: null,
+  customGroupIds: [],
+  customGroupUnmatched: [],
+  customGroupWarning: null,
+  customGroupLoading: false,
+  customGroupRecomputing: false,
+  customGroupIndexMap: {},
+  customGroupEnabledIds: new Set(),
+  customGroupCommittedCount: 0,
+  customGroupPreviousEnabledIds: null,
+
   // Summary panel
   summaryPanelOpen: true,
   summaryObsColumns: [],
@@ -309,18 +356,20 @@ const useAppStore = create<AppState>((set, get) => ({
 
   commitSelection: (polygon, type) => {
     const { embeddingData, selectionGroups } = get()
-    if (!embeddingData || selectionGroups.length >= 3) return
+    if (!embeddingData) return
 
-    // Auto-assign next available ID (1, 2, or 3)
-    const usedIds = new Set(selectionGroups.map((g) => g.id))
+    // Auto-assign next available spatial ID (1, 2, or 3)
+    const spatialGroups = selectionGroups.filter((g) => g.type !== 'custom')
+    if (spatialGroups.length >= 3) return
+    const usedIds = new Set(spatialGroups.map((g) => g.id))
     let nextId = 1
     while (usedIds.has(nextId) && nextId <= 3) nextId++
     if (nextId > 3) return
 
-    const group: SelectionGroup = {
+    const group: SpatialSelectionGroup = {
       id: nextId,
-      polygon,
       type,
+      polygon,
       indices: new Uint32Array(0), // filled by worker result
       color: GROUP_COLORS[nextId - 1],
     }
@@ -358,22 +407,37 @@ const useAppStore = create<AppState>((set, get) => ({
   },
 
   _mergeFilterBuffer: () => {
-    const { embeddingData, selectionGroups } = get()
+    const { embeddingData, selectionGroups, customGroupEnabledIds, customGroupIndexMap } = get()
     if (!embeddingData) return
 
-    // If no groups have indices, clear the filter buffer
-    const hasAnyIndices = selectionGroups.some((g) => g.indices.length > 0)
-    if (!hasAnyIndices) {
+    // Check if any group has data — custom group uses index map instead of indices
+    const hasCustomData = customGroupEnabledIds.size > 0
+    const hasSpatialData = selectionGroups.some((g) => g.type !== 'custom' && g.indices.length > 0)
+    if (!hasCustomData && !hasSpatialData) {
       set({ selectionFilterBuffer: null })
       return
     }
 
-    const buf = new Float32Array(embeddingData.numPoints) // initialized to 0
+    const buf = new Float32Array(embeddingData.numPoints)
+
+    // Spatial groups: read from indices as before
     for (const group of selectionGroups) {
+      if (group.type === 'custom') continue
       for (let i = 0; i < group.indices.length; i++) {
         buf[group.indices[i]] = 1
       }
     }
+
+    // Custom group: read directly from index map (no Uint32Array copy)
+    for (const enabledId of customGroupEnabledIds) {
+      const arr = customGroupIndexMap[enabledId]
+      if (arr) {
+        for (let i = 0; i < arr.length; i++) {
+          buf[arr[i]] = 1
+        }
+      }
+    }
+
     set({ selectionFilterBuffer: buf })
   },
 
@@ -383,14 +447,37 @@ const useAppStore = create<AppState>((set, get) => ({
     const { selectionGroups, embeddingData } = get()
     const remaining = selectionGroups.filter((g) => g.id !== id)
 
+    // If clearing the custom group, also reset custom group state
+    const customGroupUpdate = id === CUSTOM_GROUP_ID ? {
+      customGroupColumn: null,
+      customGroupIds: [] as string[],
+      customGroupUnmatched: [] as string[],
+      customGroupWarning: null as string | null,
+      customGroupLoading: false,
+      customGroupRecomputing: false,
+      customGroupIndexMap: {} as Record<string, number[]>,
+      customGroupEnabledIds: new Set<string>(),
+      customGroupCommittedCount: 0,
+      selectionDisplayMode: 'dim' as const,
+    } : {}
+
     // Pre-compute the filter buffer for remaining groups so the
     // Visualization never sees a gap (no color dim flash on removal).
     let filterBuffer: Float32Array | null = null
     if (remaining.length > 0 && embeddingData) {
+      const { customGroupEnabledIds: enabledIds, customGroupIndexMap: idxMap } = get()
       filterBuffer = new Float32Array(embeddingData.numPoints)
       for (const group of remaining) {
-        for (let i = 0; i < group.indices.length; i++) {
-          filterBuffer[group.indices[i]] = 1
+        if (group.type === 'custom') {
+          // Read from index map (custom group has empty indices)
+          for (const eid of enabledIds) {
+            const arr = idxMap[eid]
+            if (arr) for (let i = 0; i < arr.length; i++) filterBuffer[arr[i]] = 1
+          }
+        } else {
+          for (let i = 0; i < group.indices.length; i++) {
+            filterBuffer[group.indices[i]] = 1
+          }
         }
       }
     }
@@ -398,7 +485,7 @@ const useAppStore = create<AppState>((set, get) => ({
     // Clear all groups — unmounts selection charts instantly, avoiding
     // expensive synchronous re-render of charts with modified group data.
     // The pre-computed filter buffer keeps the scatterplot dimming stable.
-    set({ selectionGroups: [], selectionFilterBuffer: filterBuffer })
+    set({ selectionGroups: [], selectionFilterBuffer: filterBuffer, ...customGroupUpdate })
 
     if (remaining.length > 0) {
       requestAnimationFrame(() => {
@@ -415,7 +502,211 @@ const useAppStore = create<AppState>((set, get) => ({
       selectionFilterBuffer: null,
       selectionTool: 'pan',
       selectionDisplayMode: 'dim',
+      customGroupColumn: null,
+      customGroupIds: [],
+      customGroupUnmatched: [],
+      customGroupWarning: null,
+      customGroupLoading: false,
+      customGroupRecomputing: false,
+      customGroupIndexMap: {},
+      customGroupEnabledIds: new Set(),
+      customGroupCommittedCount: 0,
     })
+  },
+
+  loadCustomGroupColumn: (column) => {
+    const { adata, embeddingData } = get()
+    if (!adata || !embeddingData) return
+
+    set({ customGroupColumn: column, customGroupLoading: true, customGroupWarning: null, customGroupIndexMap: {}, customGroupEnabledIds: new Set(), customGroupCommittedCount: 0, customGroupPreviousEnabledIds: null, customGroupRecomputing: false })
+
+    adata.obsColumn(column).then((values) => {
+      const valuesArray = Array.isArray(values) ? values : Array.from(values as Iterable<string | number | null>)
+
+      selectionVersion++
+      const version = selectionVersion
+
+      getPool()
+        .dispatch<{ type: string; indices: Uint32Array; matchedIds: string[]; unmatchedIds: string[]; indexMap: Record<string, number[]>; isContinuous: boolean; version: number }>({
+          type: 'matchByIds',
+          values: valuesArray,
+          targetIds: [],
+          version,
+        })
+        .then((response) => {
+          if (version !== selectionVersion) return
+
+          if (response.isContinuous) {
+            set({
+              customGroupWarning: `This column appears to be continuous (${Object.keys(response.indexMap).length} unique numeric values). Please choose a categorical column.`,
+              customGroupLoading: false,
+              customGroupColumn: null,
+            })
+            return
+          }
+
+          set({
+            customGroupIndexMap: response.indexMap,
+            customGroupEnabledIds: new Set<string>(),
+            customGroupLoading: false,
+          })
+        })
+    })
+  },
+
+  selectByIds: (column, ids) => {
+    const { adata, embeddingData } = get()
+    if (!adata || !embeddingData || ids.length === 0) return
+
+    set({ customGroupColumn: column, customGroupIds: ids, customGroupLoading: true, customGroupWarning: null })
+
+    adata.obsColumn(column).then((values) => {
+      const valuesArray = Array.isArray(values) ? values : Array.from(values as Iterable<string | number | null>)
+
+      selectionVersion++
+      const version = selectionVersion
+
+      getPool()
+        .dispatch<{ type: string; indices: Uint32Array; matchedIds: string[]; unmatchedIds: string[]; indexMap: Record<string, number[]>; isContinuous: boolean; version: number }>({
+          type: 'matchByIds',
+          values: valuesArray,
+          targetIds: ids,
+          version,
+        })
+        .then((response) => {
+          if (version !== selectionVersion) return // stale
+
+          if (response.isContinuous) {
+            set({
+              customGroupWarning: `This column appears to be continuous (${Object.keys(response.indexMap).length} unique numeric values). Please choose a categorical column.`,
+              customGroupLoading: false,
+              customGroupColumn: null,
+            })
+            return
+          }
+
+          const { selectionGroups } = get()
+          const withoutCustom = selectionGroups.filter((g) => g.id !== CUSTOM_GROUP_ID)
+
+          const customGroup: CustomSelectionGroup = {
+            id: CUSTOM_GROUP_ID,
+            type: 'custom',
+            column,
+            ids,
+            unmatchedIds: response.unmatchedIds,
+            indices: new Uint32Array(0),
+            color: GROUP_COLORS[3],
+          }
+
+          // Enable matched pasted IDs; full index map contains all unique column values
+          const enabledIds = response.matchedIds.length > 0
+            ? new Set(response.matchedIds)
+            : new Set(Object.keys(response.indexMap)) // no pasted IDs matched → enable all
+
+          let committedCount = 0
+          for (const eid of enabledIds) {
+            const arr = response.indexMap[eid]
+            if (arr) committedCount += arr.length
+          }
+
+          set({
+            selectionGroups: [...withoutCustom, customGroup],
+            customGroupUnmatched: response.unmatchedIds,
+            customGroupWarning: null,
+            customGroupLoading: false,
+            customGroupIndexMap: response.indexMap,
+            customGroupEnabledIds: enabledIds,
+            customGroupCommittedCount: committedCount,
+            selectionDisplayMode: 'hide',
+          })
+
+          if (!get().summaryPanelOpen) set({ summaryPanelOpen: true })
+          get()._mergeFilterBuffer()
+        })
+    })
+  },
+
+  clearCustomGroup: () => {
+    const { selectionGroups } = get()
+    const remaining = selectionGroups.filter((g) => g.id !== CUSTOM_GROUP_ID)
+    set({
+      selectionGroups: remaining,
+      customGroupColumn: null,
+      customGroupIds: [],
+      customGroupUnmatched: [],
+      customGroupWarning: null,
+      customGroupLoading: false,
+      customGroupRecomputing: false,
+      customGroupIndexMap: {},
+      customGroupEnabledIds: new Set(),
+      customGroupCommittedCount: 0,
+      selectionDisplayMode: 'dim',
+    })
+    get()._mergeFilterBuffer()
+  },
+
+  toggleCustomGroupId: (id) => {
+    const { customGroupEnabledIds, customGroupPreviousEnabledIds } = get()
+    const next = new Set(customGroupEnabledIds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+
+    // Save previous state on first toggle (for cancel support)
+    const prev = customGroupPreviousEnabledIds ?? new Set(customGroupEnabledIds)
+    set({ customGroupEnabledIds: next, customGroupRecomputing: true, customGroupPreviousEnabledIds: prev })
+  },
+
+  commitCustomGroupToggle: () => {
+    // Yield to browser so loading state renders before blocking work
+    setTimeout(() => {
+      const { customGroupEnabledIds, customGroupIndexMap, selectionGroups } = get()
+
+      // Compute count from index map (no Uint32Array allocation)
+      let totalLen = 0
+      for (const enabledId of customGroupEnabledIds) {
+        const arr = customGroupIndexMap[enabledId]
+        if (arr) totalLen += arr.length
+      }
+
+      const withoutCustom = selectionGroups.filter((g) => g.id !== CUSTOM_GROUP_ID)
+      if (totalLen === 0) {
+        set({ selectionGroups: withoutCustom, customGroupRecomputing: false })
+        get()._mergeFilterBuffer()
+        return
+      }
+
+      const existing = selectionGroups.find((g) => g.id === CUSTOM_GROUP_ID) as CustomSelectionGroup | undefined
+      const customGroup: CustomSelectionGroup = {
+        id: CUSTOM_GROUP_ID,
+        type: 'custom',
+        column: existing?.column ?? '',
+        ids: Array.from(customGroupEnabledIds),
+        unmatchedIds: get().customGroupUnmatched,
+        indices: new Uint32Array(0), // indices read from customGroupIndexMap instead
+        color: GROUP_COLORS[3],
+      }
+      set({ selectionGroups: [...withoutCustom, customGroup], customGroupRecomputing: false, customGroupPreviousEnabledIds: null, customGroupCommittedCount: totalLen, selectionDisplayMode: 'hide' })
+      get()._mergeFilterBuffer()
+    }, 0)
+  },
+
+  cancelCustomGroupToggle: () => {
+    const { customGroupPreviousEnabledIds } = get()
+    if (!customGroupPreviousEnabledIds) return
+    set({
+      customGroupEnabledIds: customGroupPreviousEnabledIds,
+      customGroupRecomputing: false,
+      customGroupPreviousEnabledIds: null,
+    })
+  },
+
+  setAllCustomGroupIds: (enabled) => {
+    const { customGroupIndexMap, customGroupEnabledIds, customGroupPreviousEnabledIds } = get()
+    const matchedIds = Object.keys(customGroupIndexMap)
+    const next = enabled ? new Set(matchedIds) : new Set<string>()
+
+    const prev = customGroupPreviousEnabledIds ?? new Set(customGroupEnabledIds)
+    set({ customGroupEnabledIds: next, customGroupRecomputing: true, customGroupPreviousEnabledIds: prev })
   },
 
   setSummaryPanelOpen: (open) => set({ summaryPanelOpen: open }),
@@ -518,6 +809,7 @@ const useAppStore = create<AppState>((set, get) => ({
       categoryWarning: null, _categoryCodes: null, _expressionData: null,
       varColumns: [], geneLabelColumn: null, geneLabelMap: null,
       selectionGroups: [], selectionFilterBuffer: null, selectionTool: 'pan', selectionDisplayMode: 'dim',
+      customGroupColumn: null, customGroupIds: [], customGroupUnmatched: [], customGroupWarning: null, customGroupLoading: false, customGroupRecomputing: false, customGroupIndexMap: {}, customGroupEnabledIds: new Set(), customGroupCommittedCount: 0,
       summaryPanelOpen: true,
       summaryObsColumns: [], summaryGenes: [],
       summaryObsData: new Map(), summaryObsContinuousData: new Map(),

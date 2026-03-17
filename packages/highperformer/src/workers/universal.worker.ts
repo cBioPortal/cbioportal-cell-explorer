@@ -1,12 +1,14 @@
 import { WorkerMessageSchema } from './colorBuffer.schemas'
 import { SelectionMessageSchema } from './selection.schemas'
 import { SummaryMessageSchema } from './summary.schemas'
+import { IdMatchMessageSchema } from './idMatch.schemas'
 import { handleColorBufferMessage } from './colorBuffer.handler'
 import { handleSelectionMessage } from './selection.handler'
 import { handleSummaryMessage } from './summary.handler'
+import { handleIdMatchMessage } from './idMatch.handler'
 import { z } from 'zod'
 
-const UnifiedMessageSchema = z.union([WorkerMessageSchema, SelectionMessageSchema, SummaryMessageSchema])
+const UnifiedMessageSchema = z.union([WorkerMessageSchema, SelectionMessageSchema, SummaryMessageSchema, IdMatchMessageSchema])
 
 const workerSelf = self as unknown as {
   onmessage: ((e: MessageEvent) => void) | null
@@ -26,6 +28,15 @@ workerSelf.onmessage = (e: MessageEvent) => {
 
   if (msg.type === 'pointsInPolygon') {
     const response = handleSelectionMessage(msg)
+    workerSelf.postMessage(
+      { ...response, _poolTaskId },
+      [response.indices.buffer] as Transferable[],
+    )
+    return
+  }
+
+  if (msg.type === 'matchByIds') {
+    const response = handleIdMatchMessage(msg)
     workerSelf.postMessage(
       { ...response, _poolTaskId },
       [response.indices.buffer] as Transferable[],
@@ -62,8 +73,8 @@ workerSelf.onmessage = (e: MessageEvent) => {
     return
   }
 
-  // Color buffer messages
-  const response = handleColorBufferMessage(msg)
+  // Color buffer messages — all non-color-buffer types return early above
+  const response = handleColorBufferMessage(msg as z.infer<typeof WorkerMessageSchema>)
   const transferables: Transferable[] = [response.buffer.buffer]
   if (response.radiusBuffer) {
     transferables.push(response.radiusBuffer.buffer)

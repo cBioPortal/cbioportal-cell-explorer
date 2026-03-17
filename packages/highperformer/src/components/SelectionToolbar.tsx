@@ -9,7 +9,11 @@ import {
   ClearOutlined,
   CloseOutlined,
 } from '@ant-design/icons'
-import useAppStore from '../store/useAppStore'
+import useAppStore, { CUSTOM_GROUP_ID } from '../store/useAppStore'
+
+function useCustomGroupCount() {
+  return useAppStore((s) => s.customGroupCommittedCount)
+}
 
 export default function SelectionToolbar() {
   const selectionTool = useAppStore((s) => s.selectionTool)
@@ -19,6 +23,7 @@ export default function SelectionToolbar() {
   const selectionGroups = useAppStore((s) => s.selectionGroups)
   const clearGroup = useAppStore((s) => s.clearGroup)
   const clearAllSelections = useAppStore((s) => s.clearAllSelections)
+  const customGroupCount = useCustomGroupCount()
   const summaryPanelOpen = useAppStore((s) => s.summaryPanelOpen)
   const setSummaryPanelOpen = useAppStore((s) => s.setSummaryPanelOpen)
 
@@ -35,7 +40,7 @@ export default function SelectionToolbar() {
       gap: 4,
     }}>
       <Space.Compact orientation="vertical" size="small">
-        <Tooltip title="Pan (Esc)" placement="right">
+        <Tooltip title="Pan & Zoom (Esc)" placement="right">
           <Button
             icon={<DragOutlined />}
             type={selectionTool === 'pan' ? 'primary' : 'default'}
@@ -87,7 +92,7 @@ export default function SelectionToolbar() {
 
       {/* Per-group chips */}
       {selectionGroups.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, marginTop: 4 }}>
           {selectionGroups.map((group) => (
             <div
               key={group.id}
@@ -109,9 +114,15 @@ export default function SelectionToolbar() {
                 borderRadius: '50%',
                 backgroundColor: `rgb(${group.color[0]}, ${group.color[1]}, ${group.color[2]})`,
               }} />
-              <span>Group {group.id}</span>
+              <span>{group.id === CUSTOM_GROUP_ID ? (() => {
+                const { customGroupEnabledIds, customGroupIndexMap, customGroupColumn } = useAppStore.getState()
+                return `Custom${customGroupColumn ? ` (${customGroupColumn})` : ''}: ${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`
+              })() : `Group ${group.id}`}</span>
               <span style={{ fontSize: 10, color: '#999' }}>
-                {group.indices.length > 0 ? `(${group.indices.length.toLocaleString()})` : '...'}
+                {(() => {
+                  const count = group.id === CUSTOM_GROUP_ID ? customGroupCount : group.indices.length
+                  return count > 0 ? `(${count.toLocaleString()})` : '...'
+                })()}
               </span>
               <CloseOutlined
                 style={{ fontSize: 9, cursor: 'pointer', color: '#999' }}

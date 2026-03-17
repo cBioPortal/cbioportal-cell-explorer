@@ -1,7 +1,7 @@
 import { startTransition, useMemo, useState } from 'react'
 import { Collapse, Segmented, Tooltip, Typography } from 'antd'
 import { BarChartOutlined, DotChartOutlined, InfoCircleOutlined, PieChartOutlined, SearchOutlined } from '@ant-design/icons'
-import useAppStore from '../store/useAppStore'
+import useAppStore, { CUSTOM_GROUP_ID } from '../store/useAppStore'
 import type { SelectionGroup } from '../store/useAppStore'
 import GroupOverview from './GroupOverview'
 import VariablePicker from './VariablePicker'
@@ -31,6 +31,7 @@ interface SummaryPanelProps {
 export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps) {
   const summaryPanelOpen = useAppStore((s) => s.summaryPanelOpen)
   const selectionGroups = useAppStore((s) => s.selectionGroups)
+  const customGroupCommittedCount = useAppStore((s) => s.customGroupCommittedCount)
   const summaryObsColumns = useAppStore((s) => s.summaryObsColumns)
   const summaryGenes = useAppStore((s) => s.summaryGenes)
   const obsColumnNames = useAppStore((s) => s.obsColumnNames)
@@ -44,6 +45,7 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
   const removeSummaryObsColumn = useAppStore((s) => s.removeSummaryObsColumn)
   const addSummaryGene = useAppStore((s) => s.addSummaryGene)
   const removeSummaryGene = useAppStore((s) => s.removeSummaryGene)
+  const setSelectionDisplayMode = useAppStore((s) => s.setSelectionDisplayMode)
 
   const [context, setContext] = useState<SummaryContext>('all')
 
@@ -56,16 +58,18 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
     for (let i = 0; i < numPoints; i++) indices[i] = i
     return [{
       id: ALL_CELLS_GROUP_ID,
-      polygon: [],
       type: 'rectangle' as const,
+      polygon: [],
       indices,
       color: ALL_CELLS_COLOR,
     }]
   }, [numPoints])
 
   const activeSelectionGroups = useMemo(
-    () => selectionGroups.filter((g) => g.indices.length > 0),
-    [selectionGroups],
+    () => selectionGroups.filter((g) =>
+      g.id === CUSTOM_GROUP_ID ? customGroupCommittedCount > 0 : g.indices.length > 0
+    ),
+    [selectionGroups, customGroupCommittedCount],
   )
 
   if (!summaryPanelOpen) return null
@@ -108,7 +112,9 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
     )
   }
 
-  const hasGroups = selectionGroups.some((g) => g.indices.length > 0)
+  const hasGroups = selectionGroups.some((g) =>
+    g.id === CUSTOM_GROUP_ID ? customGroupCommittedCount > 0 : g.indices.length > 0
+  )
   const hasMultipleGroups = activeSelectionGroups.length >= 2
   const hasVariables = summaryObsColumns.length > 0 || summaryGenes.length > 0
 
@@ -144,7 +150,10 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
               {groups.map((g) => (
                 <div key={g.id}>
                   <Typography.Text style={{ fontSize: 11, color: `rgb(${g.color.join(',')})`, fontWeight: 600, display: 'block', marginBottom: 4 }}>
-                    Group {g.id}
+                    {g.id === CUSTOM_GROUP_ID ? (() => {
+                      const { customGroupEnabledIds, customGroupIndexMap, customGroupColumn } = useAppStore.getState()
+                      return `Custom${customGroupColumn ? ` (${customGroupColumn})` : ''}: ${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`
+                    })() : `Group ${g.id}`}
                   </Typography.Text>
                   <ExpressionDotPlot groups={[g]} />
                 </div>
@@ -205,10 +214,14 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
           <Segmented
             size="small"
             value={context}
-            onChange={(v) => startTransition(() => setContext(v as SummaryContext))}
+            onChange={(v) => {
+              const next = v as SummaryContext
+              if (next === 'all') setSelectionDisplayMode('dim')
+              startTransition(() => setContext(next))
+            }}
             options={[
               { label: 'All Cells', value: 'all' },
-              { label: `Selections${hasGroups ? '' : ' (none)'}`, value: 'selections', disabled: !hasGroups },
+              { label: 'Selections', value: 'selections' },
               { label: 'Compare', value: 'compare', disabled: !hasMultipleGroups },
             ]}
             style={{ fontSize: 11 }}
@@ -221,11 +234,9 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
           </Typography.Text>
         </div>
 
-        {hasGroups && (
-          <div style={{ display: context === 'selections' ? 'block' : 'none' }}>
-            <GroupOverview groups={selectionGroups} totalCells={numPoints} />
-          </div>
-        )}
+        <div style={{ display: context === 'selections' ? 'block' : 'none' }}>
+          <GroupOverview groups={selectionGroups} totalCells={numPoints} />
+        </div>
 
         {renderCharts(allCellsGroups, context === 'all')}
         {hasGroups && renderCharts(activeSelectionGroups, context === 'selections')}

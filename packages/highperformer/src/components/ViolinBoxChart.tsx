@@ -4,10 +4,16 @@ import { scaleLinear } from '@visx/scale'
 import { AxisBottom, AxisLeft } from '@visx/axis'
 import { area, curveBasis } from 'd3-shape'
 import type { SelectionGroup } from '../store/useAppStore'
+import useAppStore, { CUSTOM_GROUP_ID } from '../store/useAppStore'
 import { ALL_CELLS_GROUP_ID } from '../constants'
 
 function groupLabel(id: number): string {
-  return id === ALL_CELLS_GROUP_ID ? 'All Cells' : `Group ${id}`
+  if (id === ALL_CELLS_GROUP_ID) return 'All Cells'
+  if (id === CUSTOM_GROUP_ID) {
+    const { customGroupEnabledIds, customGroupIndexMap, customGroupColumn } = useAppStore.getState()
+    return `Custom${customGroupColumn ? ` (${customGroupColumn})` : ''}: ${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`
+  }
+  return `Group ${id}`
 }
 
 function formatNum(n: number): string {

@@ -859,7 +859,7 @@ describe('useAppStore', () => {
       const groups = useAppStore.getState().selectionGroups
       expect(groups).toHaveLength(1)
       expect(groups[0].id).toBe(1)
-      expect(groups[0].polygon).toEqual(polygon)
+      expect(groups[0].type !== 'custom' && groups[0].polygon).toEqual(polygon)
       expect(groups[0].type).toBe('rectangle')
       expect(groups[0].color).toEqual(GROUP_COLORS[0])
     })

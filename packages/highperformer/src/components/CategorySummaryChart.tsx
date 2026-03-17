@@ -6,13 +6,19 @@ import { AxisBottom, AxisLeft } from '@visx/axis'
 import { Popover, Segmented, Typography } from 'antd'
 import { CloseOutlined, SettingOutlined } from '@ant-design/icons'
 import type { SelectionGroup } from '../store/useAppStore'
+import useAppStore, { CUSTOM_GROUP_ID } from '../store/useAppStore'
 import type { RGB } from '../utils/colors'
 import { ALL_CELLS_GROUP_ID } from '../constants'
 import ChartModal from './ChartModal'
 import { useContainerWidth } from '../hooks/useContainerWidth'
 
 function groupLabel(id: number): string {
-  return id === ALL_CELLS_GROUP_ID ? 'All Cells' : `Group ${id}`
+  if (id === ALL_CELLS_GROUP_ID) return 'All Cells'
+  if (id === CUSTOM_GROUP_ID) {
+    const { customGroupEnabledIds, customGroupIndexMap, customGroupColumn } = useAppStore.getState()
+    return `Custom${customGroupColumn ? ` (${customGroupColumn})` : ''}: ${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`
+  }
+  return `Group ${id}`
 }
 
 interface CategorySummaryChartProps {
@@ -578,7 +584,14 @@ export default function CategorySummaryChart({ name, categoryMap, countsByGroup,
 
   const renderChart = () => {
     if (isSingleGroup) {
-      return <PieChart data={chartData} categoryMap={categoryMap} groupId={activeGroups[0].id} countsByGroup={countsByGroup} onShowMore={openModalTable} />
+      return (
+        <div>
+          <Typography.Text style={{ fontSize: 11, color: `rgb(${activeGroups[0].color.join(',')})`, fontWeight: 600 }}>
+            {groupLabel(activeGroups[0].id)}
+          </Typography.Text>
+          <PieChart data={chartData} categoryMap={categoryMap} groupId={activeGroups[0].id} countsByGroup={countsByGroup} onShowMore={openModalTable} />
+        </div>
+      )
     }
     if (inlineView === 'chart') {
       return (

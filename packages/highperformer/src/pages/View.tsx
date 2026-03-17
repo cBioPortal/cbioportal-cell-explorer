@@ -9,6 +9,7 @@ import { CollisionFilterExtension, DataFilterExtension } from '@deck.gl/extensio
 import { _StatsWidget as StatsWidget } from '@deck.gl/widgets'
 import { ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from '@cbioportal-cell-explorer/profiler'
 import useAppStore from '../store/useAppStore'
+import type { SpatialSelectionGroup } from '../store/useAppStore'
 import ColorBySection from '../components/ColorBySection'
 import SelectionOverlay from '../components/SelectionOverlay'
 import SelectionToolbar from '../components/SelectionToolbar'
@@ -121,7 +122,8 @@ const WIDGETS = ENABLE_STATS_WIDGET
 // Fallback color when no color buffer is ready yet
 const FALLBACK_COLOR: [number, number, number, number] = [200, 200, 200, 128]
 
-const DIM_ALPHA = 10 // ~4% opacity for unselected points in dim mode
+const DIM_ALPHA = 77 // ~30% opacity for unselected points in dim mode
+const SELECTED_ALPHA = 255 // full opacity for selected points
 
 function dimColorBuffer(colorBuffer: Uint8Array, filterBuffer: Float32Array): Uint8Array {
   const out = new Uint8Array(colorBuffer.length)
@@ -130,6 +132,8 @@ function dimColorBuffer(colorBuffer: Uint8Array, filterBuffer: Float32Array): Ui
   for (let i = 0; i < numPoints; i++) {
     if (filterBuffer[i] === 0) {
       out[i * 4 + 3] = DIM_ALPHA
+    } else {
+      out[i * 4 + 3] = SELECTED_ALPHA
     }
   }
   return out
@@ -329,6 +333,78 @@ function CanvasLoadingOverlay() {
   )
 }
 
+function FilterBanner() {
+  const selectionDisplayMode = useAppStore((s) => s.selectionDisplayMode)
+  const selectionGroups = useAppStore((s) => s.selectionGroups)
+  const embeddingData = useAppStore((s) => s.embeddingData)
+  const customGroupColumn = useAppStore((s) => s.customGroupColumn)
+  const customGroupCommittedCount = useAppStore((s) => s.customGroupCommittedCount)
+  const customGroupIndexMap = useAppStore((s) => s.customGroupIndexMap)
+
+  const totalCells = embeddingData?.numPoints ?? 0
+  const hasCustomGroup = customGroupColumn !== null
+
+  // Show banner when custom group exists with no committed IDs
+  if (hasCustomGroup && customGroupCommittedCount === 0) {
+    return (
+      <div style={{
+        position: 'absolute',
+        top: 8,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 2,
+        background: 'rgba(0, 0, 0, 0.7)',
+        color: '#fff',
+        padding: '4px 12px',
+        borderRadius: 4,
+        fontSize: 11,
+        pointerEvents: 'none',
+      }}>
+        No IDs committed — showing all {totalCells.toLocaleString()} cells
+      </div>
+    )
+  }
+
+  if (selectionDisplayMode !== 'hide') return null
+
+  // Count visible cells from spatial groups + committed custom group count
+  let totalVisible = 0
+  let groupCount = 0
+  for (const g of selectionGroups) {
+    if (g.type === 'custom') {
+      if (customGroupCommittedCount > 0) { totalVisible += customGroupCommittedCount; groupCount++ }
+    } else if (g.indices.length > 0) {
+      totalVisible += g.indices.length
+      groupCount++
+    }
+  }
+
+  if (groupCount === 0) return null
+  const totalIds = Object.keys(customGroupIndexMap).length
+
+  return (
+    <div style={{
+      position: 'absolute',
+      top: 8,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: 2,
+      background: 'rgba(0, 0, 0, 0.7)',
+      color: '#fff',
+      padding: '4px 12px',
+      borderRadius: 4,
+      fontSize: 11,
+      pointerEvents: 'none',
+    }}>
+      {hasCustomGroup && totalIds > 0 && (() => {
+        const cg = selectionGroups.find((g) => g.type === 'custom')
+        const enabledCount = cg && 'ids' in cg ? cg.ids.length : 0
+        return `${enabledCount}/${totalIds} IDs · `
+      })()}{totalVisible.toLocaleString()} of {totalCells.toLocaleString()} cells
+    </div>
+  )
+}
+
 function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> }) {
   const embeddingData = useAppStore((s) => s.embeddingData)
   const colorBuffer = useAppStore((s) => s.colorBuffer)
@@ -387,6 +463,7 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     if (effectiveColor) {
       attributes.getFillColor = { value: effectiveColor, size: 4, normalized: true }
     }
+
     if (radiusBuffer) {
       attributes.getRadius = { value: radiusBuffer, size: 1 }
     }
@@ -426,21 +503,23 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
       }),
     })
 
-    const polygonLayer = selectionGroups.length > 0
+    const spatialGroups = selectionGroups.filter((g): g is SpatialSelectionGroup => g.type !== 'custom')
+    const polygonLayer = spatialGroups.length > 0
       ? new PolygonLayer({
           id: 'selection-polygons',
-          data: selectionGroups,
+          data: spatialGroups,
           getPolygon: (d: { polygon: [number, number][] }) => d.polygon,
-          getFillColor: (d: { color: [number, number, number] }) => [...d.color, 30],
           getLineColor: (d: { color: [number, number, number] }) => [...d.color, 200],
           getLineWidth: 2,
-          filled: true,
+          filled: false,
           stroked: true,
           lineWidthUnits: 'pixels' as const,
         })
       : null
 
-    return polygonLayer ? [scatterplot, polygonLayer] : [scatterplot]
+    const layers = [scatterplot] as unknown[]
+    if (polygonLayer) layers.push(polygonLayer)
+    return layers
   }, [layerData, colorBuffer, radiusBuffer, pointRadius, antialiasing, collisionEnabled, collisionRadiusScale, selectionFilterBuffer, selectionDisplayMode, selectionGroups])
 
   // Key forces deck.gl to re-initialize when view state changes (new embedding)
@@ -565,6 +644,7 @@ function View() {
           <MemoizedVisualization deckRef={deckRef} />
           <SelectionOverlay deckRef={deckRef} />
           <SelectionToolbar />
+          <FilterBanner />
           <CanvasLoadingOverlay />
           <EdgeTab
             side="right"
