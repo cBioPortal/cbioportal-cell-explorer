@@ -112,6 +112,9 @@ function useClipMin(
     versionRef.current++
     const version = versionRef.current
 
+    const customGroupEnabledIds = useAppStore.getState().customGroupEnabledIds
+    const customGroupIndexMap = useAppStore.getState().customGroupIndexMap
+
     const groupEntries: { id: number; indices: Uint32Array }[] = []
     for (const g of groups) {
       if (g.id === ALL_CELLS_GROUP_ID) {
@@ -119,6 +122,22 @@ function useClipMin(
         const allIndices = new Uint32Array(numPoints)
         for (let i = 0; i < numPoints; i++) allIndices[i] = i
         groupEntries.push({ id: g.id, indices: allIndices })
+      } else if (g.id === CUSTOM_GROUP_ID) {
+        // Build indices from index map (custom group has empty indices for perf)
+        let totalLen = 0
+        for (const eid of customGroupEnabledIds) {
+          const arr = customGroupIndexMap[eid]
+          if (arr) totalLen += arr.length
+        }
+        if (totalLen > 0) {
+          const indices = new Uint32Array(totalLen)
+          let offset = 0
+          for (const eid of customGroupEnabledIds) {
+            const arr = customGroupIndexMap[eid]
+            if (arr) { for (let i = 0; i < arr.length; i++) indices[offset + i] = arr[i]; offset += arr.length }
+          }
+          groupEntries.push({ id: g.id, indices })
+        }
       } else if (g.indices.length > 0) {
         groupEntries.push({ id: g.id, indices: g.indices })
       }
