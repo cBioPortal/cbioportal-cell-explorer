@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Typography } from 'antd'
 import type { SelectionGroup } from '../store/useAppStore'
-import { CUSTOM_GROUP_ID } from '../store/useAppStore'
+import useAppStore, { CUSTOM_GROUP_ID } from '../store/useAppStore'
 import { ALL_CELLS_GROUP_ID } from '../constants'
 import CustomGroupPanel from './CustomGroupPanel'
 
@@ -121,26 +121,45 @@ const SVG_HEIGHT = 140
 const MAX_RADIUS = 50
 const MIN_RADIUS = 18
 
-function VennDiagram({ groups, stats, totalCells }: {
+function VennDiagram({ groups, stats, totalCells, customGroupCount }: {
   groups: SelectionGroup[]
   stats: OverlapStats
   totalCells: number
+  customGroupCount: number
 }) {
-  const cx = SVG_WIDTH / 2
   const cy = SVG_HEIGHT / 2
 
-  const counts = groups.map((g) => g.indices.length)
-  const maxCount = Math.max(...counts)
+  // Separate spatial and custom groups
+  const spatialGroups = groups.filter((g) => g.id !== CUSTOM_GROUP_ID)
+  const customGroup = groups.find((g) => g.id === CUSTOM_GROUP_ID)
+  const hasCustom = customGroup != null && customGroupCount > 0
+  const hasSpatial = spatialGroups.length > 0
+
+  // Each half gets its own center
+  const HALF_WIDTH = hasCustom && hasSpatial ? SVG_WIDTH / 2 : SVG_WIDTH
+  const spatialCx = hasSpatial ? HALF_WIDTH / 2 : SVG_WIDTH / 2
+  const customCx = hasSpatial ? SVG_WIDTH / 2 + HALF_WIDTH / 2 : SVG_WIDTH / 2
+
+  // Radii — each half scales independently
+  const spatialMaxRadius = hasCustom ? MAX_RADIUS * 0.8 : MAX_RADIUS
+  const counts = spatialGroups.map((g) => g.indices.length)
+  const spatialMax = counts.length > 0 ? Math.max(...counts) : 0
   const radii = counts.map((c) =>
-    maxCount > 0 ? MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * Math.sqrt(c / maxCount) : MIN_RADIUS
+    spatialMax > 0 ? MIN_RADIUS + (spatialMaxRadius - MIN_RADIUS) * Math.sqrt(c / spatialMax) : MIN_RADIUS
   )
 
-  let circles: { x: number; y: number; r: number }[]
+  const customMaxRadius = hasSpatial ? MAX_RADIUS * 0.7 : MAX_RADIUS
+  const customRadius = customGroupCount > 0
+    ? MIN_RADIUS + (customMaxRadius - MIN_RADIUS) * Math.sqrt(Math.min(customGroupCount / (totalCells || 1), 1))
+    : MIN_RADIUS
 
-  if (groups.length === 1) {
-    circles = [{ x: cx, y: cy, r: radii[0] }]
-  } else if (groups.length === 2) {
-    const overlapKey = `${groups[0].id}-${groups[1].id}`
+  // Layout spatial groups in left half
+  let circles: { x: number; y: number; r: number }[] = []
+
+  if (spatialGroups.length === 1) {
+    circles = [{ x: spatialCx, y: cy, r: radii[0] }]
+  } else if (spatialGroups.length === 2) {
+    const overlapKey = `${spatialGroups[0].id}-${spatialGroups[1].id}`
     const overlapCount = stats.pairwiseOverlaps.get(overlapKey) ?? 0
     const totalArea1 = Math.PI * radii[0] * radii[0]
     const totalArea2 = Math.PI * radii[1] * radii[1]
@@ -150,14 +169,13 @@ function VennDiagram({ groups, stats, totalCells }: {
     const targetArea = overlapFraction * Math.min(totalArea1, totalArea2)
     const dist = findDistance(radii[0], radii[1], targetArea)
     circles = [
-      { x: cx - dist / 2, y: cy, r: radii[0] },
-      { x: cx + dist / 2, y: cy, r: radii[1] },
+      { x: spatialCx - dist / 2, y: cy, r: radii[0] },
+      { x: spatialCx + dist / 2, y: cy, r: radii[1] },
     ]
-  } else {
-    // 3+ groups: place iteratively using pairwise overlap distances
+  } else if (spatialGroups.length >= 3) {
     const pairDist = (i: number, j: number) => {
-      const key1 = `${groups[i].id}-${groups[j].id}`
-      const key2 = `${groups[j].id}-${groups[i].id}`
+      const key1 = `${spatialGroups[i].id}-${spatialGroups[j].id}`
+      const key2 = `${spatialGroups[j].id}-${spatialGroups[i].id}`
       const oc = stats.pairwiseOverlaps.get(key1) ?? stats.pairwiseOverlaps.get(key2) ?? 0
       const ai = Math.PI * radii[i] * radii[i]
       const aj = Math.PI * radii[j] * radii[j]
@@ -165,72 +183,77 @@ function VennDiagram({ groups, stats, totalCells }: {
       return findDistance(radii[i], radii[j], frac * Math.min(ai, aj))
     }
 
-    // Place first two on the x-axis
     const d01 = pairDist(0, 1)
     const raw: [number, number][] = [[0, 0], [d01, 0]]
 
-    // Place each subsequent circle via triangulation from first two
-    for (let k = 2; k < groups.length; k++) {
+    for (let k = 2; k < spatialGroups.length; k++) {
       const d0k = pairDist(0, k)
       const d1k = pairDist(1, k)
-      // Triangulate from circles 0 and 1
       const cosA = d01 > 0 ? (d0k * d0k + d01 * d01 - d1k * d1k) / (2 * d0k * d01) : 0
       const clampedA = Math.max(-1, Math.min(1, cosA))
       const sinA = Math.sqrt(1 - clampedA * clampedA)
-      // Alternate above/below x-axis for even/odd
       const sign = k % 2 === 0 ? -1 : 1
       raw.push([d0k * clampedA, sign * d0k * sinA])
     }
 
-    // Scale and center
     const allX = raw.map((p, i) => [p[0] - radii[i], p[0] + radii[i]]).flat()
     const allY = raw.map((p, i) => [p[1] - radii[i], p[1] + radii[i]]).flat()
     const bx0 = Math.min(...allX), bx1 = Math.max(...allX)
     const by0 = Math.min(...allY), by1 = Math.max(...allY)
     const bw = bx1 - bx0, bh = by1 - by0
-    const scale = Math.min((SVG_WIDTH - 20) / bw, (SVG_HEIGHT - 20) / bh, 1)
-    const ox = cx - ((bx0 + bx1) / 2) * scale
+    const scale = Math.min((HALF_WIDTH - 20) / bw, (SVG_HEIGHT - 20) / bh, 1)
+    const ox = spatialCx - ((bx0 + bx1) / 2) * scale
     const oy = cy - ((by0 + by1) / 2) * scale
 
     circles = raw.map((p, i) => ({ x: p[0] * scale + ox, y: p[1] * scale + oy, r: radii[i] * scale }))
   }
 
-  const colors = groups.map((g) => `rgb(${g.color.join(',')})`)
+  // Custom group circle in right half (or centered if no spatial groups)
+  if (hasCustom) {
+    circles.push({ x: customCx, y: cy, r: customRadius })
+  }
+
+  // Combine groups for rendering
+  const allGroups = hasCustom ? [...spatialGroups, customGroup] : spatialGroups
+
+  const colors = allGroups.map((g) => `rgb(${g.color.join(',')})`)
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <svg width={SVG_WIDTH} height={SVG_HEIGHT}>
+          {/* Divider line between spatial and custom halves */}
+          {hasCustom && hasSpatial && (
+            <line
+              x1={SVG_WIDTH / 2} y1={8}
+              x2={SVG_WIDTH / 2} y2={SVG_HEIGHT - 8}
+              stroke="#e8e8e8" strokeWidth={1} strokeDasharray="4 3"
+            />
+          )}
           {circles.map((c, i) => (
             <circle
-              key={groups[i].id}
+              key={allGroups[i].id}
               cx={c.x} cy={c.y} r={c.r}
               fill={colors[i]} fillOpacity={0.3}
               stroke={colors[i]} strokeWidth={1.5}
             />
           ))}
-          {/* Unique count labels — pushed outward from centroid */}
+          {/* Count labels */}
           {circles.map((c, i) => {
-            const unique = stats.uniqueCounts.get(groups[i].id) ?? 0
-            const centroidX = circles.reduce((s, cc) => s + cc.x, 0) / circles.length
-            const centroidY = circles.reduce((s, cc) => s + cc.y, 0) / circles.length
-            const dx = c.x - centroidX
-            const dy = c.y - centroidY
-            const len = Math.sqrt(dx * dx + dy * dy) || 1
-            const push = groups.length === 1 ? 0 : c.r * 0.4
-            const lx = c.x + (dx / len) * push
-            const ly = c.y + (dy / len) * push
+            const count = allGroups[i].id === CUSTOM_GROUP_ID
+              ? customGroupCount
+              : (stats.uniqueCounts.get(allGroups[i].id) ?? 0)
             return (
-              <text key={`u-${groups[i].id}`} x={lx} y={ly} textAnchor="middle" dy="0.35em" fontSize={10} fill="#333">
-                {unique.toLocaleString()}
+              <text key={`u-${allGroups[i].id}`} x={c.x} y={c.y} textAnchor="middle" dy="0.35em" fontSize={10} fill="#333">
+                {count.toLocaleString()}
               </text>
             )
           })}
-          {/* Overlap count at centroid */}
-          {groups.length > 1 && stats.overlapCount > 0 && (
+          {/* Overlap count at spatial centroid */}
+          {spatialGroups.length > 1 && stats.overlapCount > 0 && (
             <text
-              x={circles.reduce((s, c) => s + c.x, 0) / circles.length}
-              y={circles.reduce((s, c) => s + c.y, 0) / circles.length}
+              x={circles.slice(0, spatialGroups.length).reduce((s, c) => s + c.x, 0) / spatialGroups.length}
+              y={circles.slice(0, spatialGroups.length).reduce((s, c) => s + c.y, 0) / spatialGroups.length}
               textAnchor="middle" dy="0.35em" fontSize={10} fontWeight={600} fill="#333"
             >
               {stats.overlapCount.toLocaleString()}
@@ -240,8 +263,8 @@ function VennDiagram({ groups, stats, totalCells }: {
       </div>
       {/* Stats below diagram */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11, color: '#666', marginTop: 4 }}>
-        {groups.map((g) => {
-          const count = g.indices.length
+        {allGroups.map((g) => {
+          const count = g.id === CUSTOM_GROUP_ID ? customGroupCount : g.indices.length
           const pct = totalCells > 0 ? ((count / totalCells) * 100).toFixed(1) : '0.0'
           return (
             <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -280,21 +303,42 @@ function VennDiagram({ groups, stats, totalCells }: {
 }
 
 export default function GroupOverview({ groups, totalCells }: GroupOverviewProps) {
+  const customGroupEnabledIds = useAppStore((s) => s.customGroupEnabledIds)
+  const customGroupIndexMap = useAppStore((s) => s.customGroupIndexMap)
+
+  // Compute custom group count from index map (indices field is empty for perf)
+  const customGroupCount = useMemo(() => {
+    let count = 0
+    for (const id of customGroupEnabledIds) {
+      const arr = customGroupIndexMap[id]
+      if (arr) count += arr.length
+    }
+    return count
+  }, [customGroupEnabledIds, customGroupIndexMap])
+
   const activeGroups = useMemo(
-    () => groups.filter((g) => g.indices.length > 0),
-    [groups],
+    () => groups.filter((g) =>
+      g.id === CUSTOM_GROUP_ID ? customGroupCount > 0 : g.indices.length > 0
+    ),
+    [groups, customGroupCount],
+  )
+
+  // Overlap stats only from spatial groups
+  const spatialActiveGroups = useMemo(
+    () => activeGroups.filter((g) => g.id !== CUSTOM_GROUP_ID),
+    [activeGroups],
   )
 
   const stats = useMemo(
-    () => computeOverlap(activeGroups, totalCells),
-    [activeGroups, totalCells],
+    () => computeOverlap(spatialActiveGroups, totalCells),
+    [spatialActiveGroups, totalCells],
   )
 
   return (
     <div style={{ marginBottom: 12 }}>
       <Typography.Text strong style={{ fontSize: 12 }}>Groups</Typography.Text>
-      {activeGroups.length > 0 && (
-        <VennDiagram groups={activeGroups} stats={stats} totalCells={totalCells} />
+      {(spatialActiveGroups.length > 0 || customGroupCount > 0) && (
+        <VennDiagram groups={activeGroups} stats={stats} totalCells={totalCells} customGroupCount={customGroupCount} />
       )}
       <CustomGroupPanel />
     </div>
