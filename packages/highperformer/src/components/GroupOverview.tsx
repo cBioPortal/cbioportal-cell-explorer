@@ -34,6 +34,11 @@ function CustomGroupModal({ open, onClose }: { open: boolean; onClose: () => voi
     if (!customGroupRecomputing) setCommitting(false)
   }, [customGroupRecomputing])
 
+  // Sync local column state when store is cleared externally (e.g. Remove Custom Group)
+  useEffect(() => {
+    setColumn(customGroupColumn)
+  }, [customGroupColumn])
+
   const matchedIds = Object.keys(customGroupIndexMap)
   const hasBrowseData = matchedIds.length > 0
 
@@ -627,7 +632,6 @@ function VennDiagram({ groups, stats, totalCells, customGroupCount, customGroupI
 export default function GroupOverview({ groups, totalCells }: GroupOverviewProps) {
   const customGroupCount = useAppStore((s) => s.customGroupCommittedCount)
   const customGroupColumn = useAppStore((s) => s.customGroupColumn)
-  const customGroupEnabledIds = useAppStore((s) => s.customGroupEnabledIds)
   const customGroupIndexMap = useAppStore((s) => s.customGroupIndexMap)
   const selectionDisplayMode = useAppStore((s) => s.selectionDisplayMode)
   const setSelectionDisplayMode = useAppStore((s) => s.setSelectionDisplayMode)
@@ -709,7 +713,7 @@ export default function GroupOverview({ groups, totalCells }: GroupOverviewProps
             stats={stats}
             totalCells={totalCells}
             customGroupCount={customGroupCount}
-            customGroupIdLabel={`${customGroupColumn ? `(${customGroupColumn}) ` : ''}${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`}
+            customGroupIdLabel={`${customGroupColumn ? `(${customGroupColumn}) ` : ''}${useAppStore.getState().customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`}
             crossOverlap={crossOverlap}
           />
           <div style={{ fontSize: 10, color: '#999', textAlign: 'center', marginTop: 2 }}>
