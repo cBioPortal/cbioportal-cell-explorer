@@ -150,8 +150,8 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
                 <div key={g.id}>
                   <Typography.Text style={{ fontSize: 11, color: `rgb(${g.color.join(',')})`, fontWeight: 600, display: 'block', marginBottom: 4 }}>
                     {g.id === CUSTOM_GROUP_ID ? (() => {
-                      const { customGroupEnabledIds, customGroupIndexMap } = useAppStore.getState()
-                      return `Custom: ${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`
+                      const { customGroupEnabledIds, customGroupIndexMap, customGroupColumn } = useAppStore.getState()
+                      return `Custom${customGroupColumn ? ` (${customGroupColumn})` : ''}: ${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`
                     })() : `Group ${g.id}`}
                   </Typography.Text>
                   <ExpressionDotPlot groups={[g]} />

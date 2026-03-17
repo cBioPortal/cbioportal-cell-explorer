@@ -15,8 +15,8 @@ import { useContainerWidth } from '../hooks/useContainerWidth'
 function groupLabel(id: number): string {
   if (id === ALL_CELLS_GROUP_ID) return 'All Cells'
   if (id === CUSTOM_GROUP_ID) {
-    const { customGroupEnabledIds, customGroupIndexMap } = useAppStore.getState()
-    return `Custom: ${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`
+    const { customGroupEnabledIds, customGroupIndexMap, customGroupColumn } = useAppStore.getState()
+    return `Custom${customGroupColumn ? ` (${customGroupColumn})` : ''}: ${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`
   }
   return `Group ${id}`
 }

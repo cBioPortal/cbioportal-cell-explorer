@@ -115,8 +115,8 @@ export default function SelectionToolbar() {
                 backgroundColor: `rgb(${group.color[0]}, ${group.color[1]}, ${group.color[2]})`,
               }} />
               <span>{group.id === CUSTOM_GROUP_ID ? (() => {
-                const { customGroupEnabledIds, customGroupIndexMap } = useAppStore.getState()
-                return `Custom: ${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`
+                const { customGroupEnabledIds, customGroupIndexMap, customGroupColumn } = useAppStore.getState()
+                return `Custom${customGroupColumn ? ` (${customGroupColumn})` : ''}: ${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`
               })() : `Group ${group.id}`}</span>
               <span style={{ fontSize: 10, color: '#999' }}>
                 {(() => {
