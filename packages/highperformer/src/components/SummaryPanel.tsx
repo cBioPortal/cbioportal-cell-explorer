@@ -1,7 +1,7 @@
 import { startTransition, useMemo, useState } from 'react'
 import { Collapse, Segmented, Tooltip, Typography } from 'antd'
 import { BarChartOutlined, DotChartOutlined, InfoCircleOutlined, PieChartOutlined, SearchOutlined } from '@ant-design/icons'
-import useAppStore from '../store/useAppStore'
+import useAppStore, { CUSTOM_GROUP_ID } from '../store/useAppStore'
 import type { SelectionGroup } from '../store/useAppStore'
 import GroupOverview from './GroupOverview'
 import VariablePicker from './VariablePicker'
@@ -31,6 +31,7 @@ interface SummaryPanelProps {
 export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps) {
   const summaryPanelOpen = useAppStore((s) => s.summaryPanelOpen)
   const selectionGroups = useAppStore((s) => s.selectionGroups)
+  const customGroupEnabledIds = useAppStore((s) => s.customGroupEnabledIds)
   const summaryObsColumns = useAppStore((s) => s.summaryObsColumns)
   const summaryGenes = useAppStore((s) => s.summaryGenes)
   const obsColumnNames = useAppStore((s) => s.obsColumnNames)
@@ -64,8 +65,10 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
   }, [numPoints])
 
   const activeSelectionGroups = useMemo(
-    () => selectionGroups.filter((g) => g.indices.length > 0),
-    [selectionGroups],
+    () => selectionGroups.filter((g) =>
+      g.id === CUSTOM_GROUP_ID ? customGroupEnabledIds.size > 0 : g.indices.length > 0
+    ),
+    [selectionGroups, customGroupEnabledIds],
   )
 
   if (!summaryPanelOpen) return null
@@ -108,7 +111,9 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
     )
   }
 
-  const hasGroups = selectionGroups.some((g) => g.indices.length > 0)
+  const hasGroups = selectionGroups.some((g) =>
+    g.id === CUSTOM_GROUP_ID ? customGroupEnabledIds.size > 0 : g.indices.length > 0
+  )
   const hasMultipleGroups = activeSelectionGroups.length >= 2
   const hasVariables = summaryObsColumns.length > 0 || summaryGenes.length > 0
 

@@ -11,6 +11,17 @@ import {
 } from '@ant-design/icons'
 import useAppStore, { CUSTOM_GROUP_ID } from '../store/useAppStore'
 
+function useCustomGroupCount() {
+  const enabledIds = useAppStore((s) => s.customGroupEnabledIds)
+  const indexMap = useAppStore((s) => s.customGroupIndexMap)
+  let count = 0
+  for (const id of enabledIds) {
+    const arr = indexMap[id]
+    if (arr) count += arr.length
+  }
+  return count
+}
+
 export default function SelectionToolbar() {
   const selectionTool = useAppStore((s) => s.selectionTool)
   const setSelectionTool = useAppStore((s) => s.setSelectionTool)
@@ -19,6 +30,7 @@ export default function SelectionToolbar() {
   const selectionGroups = useAppStore((s) => s.selectionGroups)
   const clearGroup = useAppStore((s) => s.clearGroup)
   const clearAllSelections = useAppStore((s) => s.clearAllSelections)
+  const customGroupCount = useCustomGroupCount()
   const summaryPanelOpen = useAppStore((s) => s.summaryPanelOpen)
   const setSummaryPanelOpen = useAppStore((s) => s.setSummaryPanelOpen)
 
@@ -111,7 +123,10 @@ export default function SelectionToolbar() {
               }} />
               <span>{group.id === CUSTOM_GROUP_ID ? 'Custom' : `Group ${group.id}`}</span>
               <span style={{ fontSize: 10, color: '#999' }}>
-                {group.indices.length > 0 ? `(${group.indices.length.toLocaleString()})` : '...'}
+                {(() => {
+                  const count = group.id === CUSTOM_GROUP_ID ? customGroupCount : group.indices.length
+                  return count > 0 ? `(${count.toLocaleString()})` : '...'
+                })()}
               </span>
               <CloseOutlined
                 style={{ fontSize: 9, cursor: 'pointer', color: '#999' }}
