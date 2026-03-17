@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AutoComplete, Input, Button, Checkbox, Modal, Popover, Spin, Tooltip, Typography, Tag } from 'antd'
+import { AutoComplete, Input, Button, Checkbox, Collapse, Modal, Popover, Spin, Tooltip, Typography, Tag } from 'antd'
 import { EyeOutlined, EyeInvisibleOutlined, InfoCircleOutlined, SettingOutlined } from '@ant-design/icons'
 import VirtualList from '@rc-component/virtual-list'
 import useAppStore from '../store/useAppStore'
@@ -96,6 +96,7 @@ function CustomGroupModal({ open, onClose }: { open: boolean; onClose: () => voi
 export default function CustomGroupPanel() {
   const customGroupColumn = useAppStore((s) => s.customGroupColumn)
   const customGroupUnmatched = useAppStore((s) => s.customGroupUnmatched)
+  const customGroupWarning = useAppStore((s) => s.customGroupWarning)
   const customGroupRecomputing = useAppStore((s) => s.customGroupRecomputing)
   const customGroupIndexMap = useAppStore((s) => s.customGroupIndexMap)
   const customGroupEnabledIds = useAppStore((s) => s.customGroupEnabledIds)
@@ -105,6 +106,7 @@ export default function CustomGroupPanel() {
   const toggleCustomGroupId = useAppStore((s) => s.toggleCustomGroupId)
   const setAllCustomGroupIds = useAppStore((s) => s.setAllCustomGroupIds)
   const commitCustomGroupToggle = useAppStore((s) => s.commitCustomGroupToggle)
+  const cancelCustomGroupToggle = useAppStore((s) => s.cancelCustomGroupToggle)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [committing, setCommitting] = useState(false)
@@ -116,131 +118,165 @@ export default function CustomGroupPanel() {
   const matchedIds = Object.keys(customGroupIndexMap)
   const hasCustomGroup = customGroupColumn !== null
 
-  return (
-    <div style={{ padding: '8px 0', borderTop: '1px solid #f0f0f0', marginTop: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasCustomGroup ? 8 : 0 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Typography.Text strong style={{ fontSize: 11 }}>Custom Group</Typography.Text>
-          <Popover
-            content={
-              <div style={{ maxWidth: 250, fontSize: 12 }}>
-                Non-matching cells are hidden by default but can be toggled
-                back using the eye icon.
-              </div>
-            }
-            trigger="click"
-            placement="bottomLeft"
-          >
-            <InfoCircleOutlined style={{ fontSize: 11, color: '#999', cursor: 'pointer' }} />
-          </Popover>
-        </span>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {!hasCustomGroup && (
-            <Button type="text" size="small" onClick={() => setModalOpen(true)}>
-              + Add
-            </Button>
-          )}
-          {hasCustomGroup && (
-            <Tooltip title={selectionDisplayMode === 'hide' ? 'Dim unselected' : 'Hide unselected'} placement="top">
-              <Button
-                type="text"
-                size="small"
-                icon={selectionDisplayMode === 'hide' ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-                onClick={() => setSelectionDisplayMode(selectionDisplayMode === 'hide' ? 'dim' : 'hide')}
-              />
-            </Tooltip>
-          )}
-          {hasCustomGroup && (
-            <Popover
-              trigger="click"
-              placement="bottomRight"
-              content={
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <Button type="text" size="small" onClick={() => setModalOpen(true)}>
-                    Edit
-                  </Button>
-                  <Button type="text" size="small" danger onClick={clearCustomGroup}>
-                    Remove
-                  </Button>
-                </div>
-              }
-            >
-              <Button type="text" size="small" icon={<SettingOutlined />} />
-            </Popover>
-          )}
-        </div>
-      </div>
-
-      {customGroupUnmatched.length > 0 && (
-        <div style={{ fontSize: 11, marginTop: 4 }}>
-          <Typography.Text type="warning" style={{ fontSize: 11 }}>
-            {customGroupUnmatched.length} ID{customGroupUnmatched.length > 1 ? 's' : ''} not found:
-          </Typography.Text>
-          <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {customGroupUnmatched.map((id) => (
-              <Tag key={id} color="warning" style={{ fontSize: 10, margin: 0 }}>
-                {id}
-              </Tag>
-            ))}
-          </div>
-        </div>
+  const headerExtra = (
+    <div style={{ display: 'flex', gap: 4 }} onClick={(e) => e.stopPropagation()}>
+      {!hasCustomGroup && (
+        <Button type="text" size="small" onClick={() => setModalOpen(true)}>
+          + Add
+        </Button>
       )}
-
-      {matchedIds.length > 0 && (
-        <div style={{ marginTop: hasCustomGroup ? 0 : 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <Typography.Text style={{ fontSize: 11, color: '#666' }}>
-              {customGroupEnabledIds.size}/{matchedIds.length} IDs enabled
-            </Typography.Text>
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              {customGroupRecomputing && (
-                <Button
-                  size="small"
-                  type="primary"
-                  loading={committing}
-                  onClick={() => {
-                    setCommitting(true)
-                    // Double RAF: first renders spinner, second starts heavy work
-                    requestAnimationFrame(() => {
-                      requestAnimationFrame(() => {
-                        commitCustomGroupToggle()
-                      })
-                    })
-                  }}
-                >
-                  Update
-                </Button>
-              )}
-              <Button type="text" size="small" onClick={() => setAllCustomGroupIds(true)} disabled={customGroupEnabledIds.size === matchedIds.length}>
-                All
+      {hasCustomGroup && (
+        <Tooltip title={selectionDisplayMode === 'hide' ? 'Dim unselected' : 'Hide unselected'} placement="top">
+          <Button
+            type="text"
+            size="small"
+            icon={selectionDisplayMode === 'hide' ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+            onClick={() => setSelectionDisplayMode(selectionDisplayMode === 'hide' ? 'dim' : 'hide')}
+          />
+        </Tooltip>
+      )}
+      {hasCustomGroup && (
+        <Popover
+          trigger="click"
+          placement="bottomRight"
+          content={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <Button type="text" size="small" onClick={() => setModalOpen(true)}>
+                Edit
               </Button>
-              <Button type="text" size="small" onClick={() => setAllCustomGroupIds(false)} disabled={customGroupEnabledIds.size === 0}>
-                None
+              <Button type="text" size="small" danger onClick={clearCustomGroup}>
+                Remove
               </Button>
             </div>
-          </div>
-          <VirtualList
-            data={matchedIds}
-            height={200}
-            itemHeight={24}
-            itemKey={(id: string) => id}
-          >
-            {(id: string) => (
-              <Checkbox
-                checked={customGroupEnabledIds.has(id)}
-                onChange={() => toggleCustomGroupId(id)}
-                style={{ fontSize: 11, height: 24, display: 'flex', alignItems: 'center' }}
-              >
-                <span style={{ fontSize: 11 }}>{id}</span>
-                <span style={{ fontSize: 10, color: '#999', marginLeft: 4 }}>
-                  ({customGroupIndexMap[id]?.length ?? 0})
-                </span>
-              </Checkbox>
-            )}
-          </VirtualList>
-        </div>
+          }
+        >
+          <Button type="text" size="small" icon={<SettingOutlined />} />
+        </Popover>
       )}
+    </div>
+  )
 
+  const collapseLabel = (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <span style={{ fontSize: 11, fontWeight: 600 }}>Custom Group</span>
+      <Popover
+        content={
+          <div style={{ maxWidth: 250, fontSize: 12 }}>
+            Non-matching cells are hidden by default but can be toggled
+            back using the eye icon.
+          </div>
+        }
+        trigger="click"
+        placement="bottomLeft"
+      >
+        <InfoCircleOutlined style={{ fontSize: 11, color: '#999', cursor: 'pointer' }} onClick={(e) => e.stopPropagation()} />
+      </Popover>
+      {hasCustomGroup && (
+        <span style={{ fontSize: 10, color: '#999' }}>
+          ({customGroupEnabledIds.size}/{matchedIds.length})
+        </span>
+      )}
+    </span>
+  )
+
+  return (
+    <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8 }}>
+      <Collapse
+        ghost
+        size="small"
+        defaultActiveKey={hasCustomGroup ? ['custom'] : []}
+        items={[{
+          key: 'custom',
+          label: collapseLabel,
+          extra: headerExtra,
+          children: (
+            <>
+              {customGroupWarning && (
+                <Typography.Text type="warning" style={{ fontSize: 11, display: 'block', marginBottom: 8 }}>
+                  {customGroupWarning}
+                </Typography.Text>
+              )}
+
+              {customGroupUnmatched.length > 0 && (
+                <div style={{ fontSize: 11, marginBottom: 8 }}>
+                  <Typography.Text type="warning" style={{ fontSize: 11 }}>
+                    {customGroupUnmatched.length} ID{customGroupUnmatched.length > 1 ? 's' : ''} not found:
+                  </Typography.Text>
+                  <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {customGroupUnmatched.map((id) => (
+                      <Tag key={id} color="warning" style={{ fontSize: 10, margin: 0 }}>
+                        {id}
+                      </Tag>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {matchedIds.length > 0 && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      {customGroupRecomputing && (
+                        <>
+                          <Button
+                            size="small"
+                            type="primary"
+                            loading={committing}
+                            onClick={() => {
+                              setCommitting(true)
+                              requestAnimationFrame(() => {
+                                requestAnimationFrame(() => {
+                                  commitCustomGroupToggle()
+                                })
+                              })
+                            }}
+                          >
+                            Update
+                          </Button>
+                          <Button size="small" onClick={cancelCustomGroupToggle}>
+                            Cancel
+                          </Button>
+                        </>
+                      )}
+                      <Button type="text" size="small" onClick={() => setAllCustomGroupIds(true)} disabled={customGroupEnabledIds.size === matchedIds.length}>
+                        All
+                      </Button>
+                      <Button type="text" size="small" onClick={() => setAllCustomGroupIds(false)} disabled={customGroupEnabledIds.size === 0}>
+                        None
+                      </Button>
+                    </div>
+                  </div>
+                  <VirtualList
+                    data={matchedIds}
+                    height={200}
+                    itemHeight={24}
+                    itemKey={(id: string) => id}
+                  >
+                    {(id: string) => (
+                      <Checkbox
+                        checked={customGroupEnabledIds.has(id)}
+                        onChange={() => toggleCustomGroupId(id)}
+                        style={{ fontSize: 11, height: 24, display: 'flex', alignItems: 'center' }}
+                      >
+                        <span style={{ fontSize: 11 }}>{id}</span>
+                        <span style={{ fontSize: 10, color: '#999', marginLeft: 4 }}>
+                          ({customGroupIndexMap[id]?.length ?? 0})
+                        </span>
+                      </Checkbox>
+                    )}
+                  </VirtualList>
+                </div>
+              )}
+
+              {!hasCustomGroup && matchedIds.length === 0 && (
+                <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                  Click "+ Add" to create a custom group from IDs.
+                </Typography.Text>
+              )}
+            </>
+          ),
+        }]}
+      />
       <CustomGroupModal open={modalOpen} onClose={() => setModalOpen(false)} />
     </div>
   )
