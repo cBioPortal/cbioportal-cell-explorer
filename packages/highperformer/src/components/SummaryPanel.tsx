@@ -149,7 +149,7 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
               {groups.map((g) => (
                 <div key={g.id}>
                   <Typography.Text style={{ fontSize: 11, color: `rgb(${g.color.join(',')})`, fontWeight: 600, display: 'block', marginBottom: 4 }}>
-                    Group {g.id}
+                    {g.id === CUSTOM_GROUP_ID ? 'Custom' : `Group ${g.id}`}
                   </Typography.Text>
                   <ExpressionDotPlot groups={[g]} />
                 </div>

@@ -5,7 +5,7 @@ import { Bar } from '@visx/shape'
 import { AxisBottom, AxisLeft } from '@visx/axis'
 import { Checkbox, InputNumber, Popover, Segmented, Typography } from 'antd'
 import { CloseOutlined, SettingOutlined } from '@ant-design/icons'
-import useAppStore, { getPool } from '../store/useAppStore'
+import useAppStore, { getPool, CUSTOM_GROUP_ID } from '../store/useAppStore'
 import type { SelectionGroup } from '../store/useAppStore'
 import type { ExpressionSummaryResponse } from '../workers/summary.schemas'
 import { ALL_CELLS_GROUP_ID } from '../constants'
@@ -14,7 +14,9 @@ import ChartModal from './ChartModal'
 import { useContainerWidth } from '../hooks/useContainerWidth'
 
 function groupLabel(id: number): string {
-  return id === ALL_CELLS_GROUP_ID ? 'All Cells' : `Group ${id}`
+  if (id === ALL_CELLS_GROUP_ID) return 'All Cells'
+  if (id === CUSTOM_GROUP_ID) return 'Custom'
+  return `Group ${id}`
 }
 
 interface ExpressionSummaryChartProps {
