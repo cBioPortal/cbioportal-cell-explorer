@@ -118,6 +118,7 @@ export interface AppState {
   customGroupIds: string[]
   customGroupUnmatched: string[]
   customGroupLoading: boolean
+  customGroupRecomputing: boolean
   customGroupIndexMap: Record<string, number[]>
   customGroupEnabledIds: Set<string>
 
@@ -133,6 +134,7 @@ export interface AppState {
   clearCustomGroup: () => void
   toggleCustomGroupId: (id: string) => void
   setAllCustomGroupIds: (enabled: boolean) => void
+  commitCustomGroupToggle: () => void
 
   // Summary panel
   summaryPanelOpen: boolean
@@ -226,6 +228,7 @@ export function getPool(): WorkerPool {
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const DEBOUNCE_MS = 150
 
+
 const useAppStore = create<AppState>((set, get) => ({
   // Dataset
   datasetUrl: null,
@@ -318,6 +321,7 @@ const useAppStore = create<AppState>((set, get) => ({
   customGroupIds: [],
   customGroupUnmatched: [],
   customGroupLoading: false,
+  customGroupRecomputing: false,
   customGroupIndexMap: {},
   customGroupEnabledIds: new Set(),
 
@@ -395,22 +399,37 @@ const useAppStore = create<AppState>((set, get) => ({
   },
 
   _mergeFilterBuffer: () => {
-    const { embeddingData, selectionGroups } = get()
+    const { embeddingData, selectionGroups, customGroupEnabledIds, customGroupIndexMap } = get()
     if (!embeddingData) return
 
-    // If no groups have indices, clear the filter buffer
-    const hasAnyIndices = selectionGroups.some((g) => g.indices.length > 0)
-    if (!hasAnyIndices) {
+    // Check if any group has data — custom group uses index map instead of indices
+    const hasCustomData = customGroupEnabledIds.size > 0
+    const hasSpatialData = selectionGroups.some((g) => g.type !== 'custom' && g.indices.length > 0)
+    if (!hasCustomData && !hasSpatialData) {
       set({ selectionFilterBuffer: null })
       return
     }
 
     const buf = new Float32Array(embeddingData.numPoints)
+
+    // Spatial groups: read from indices as before
     for (const group of selectionGroups) {
+      if (group.type === 'custom') continue
       for (let i = 0; i < group.indices.length; i++) {
         buf[group.indices[i]] = 1
       }
     }
+
+    // Custom group: read directly from index map (no Uint32Array copy)
+    for (const enabledId of customGroupEnabledIds) {
+      const arr = customGroupIndexMap[enabledId]
+      if (arr) {
+        for (let i = 0; i < arr.length; i++) {
+          buf[arr[i]] = 1
+        }
+      }
+    }
+
     set({ selectionFilterBuffer: buf })
   },
 
@@ -426,6 +445,7 @@ const useAppStore = create<AppState>((set, get) => ({
       customGroupIds: [] as string[],
       customGroupUnmatched: [] as string[],
       customGroupLoading: false,
+      customGroupRecomputing: false,
       customGroupIndexMap: {} as Record<string, number[]>,
       customGroupEnabledIds: new Set<string>(),
       selectionDisplayMode: 'dim' as const,
@@ -467,6 +487,7 @@ const useAppStore = create<AppState>((set, get) => ({
       customGroupIds: [],
       customGroupUnmatched: [],
       customGroupLoading: false,
+      customGroupRecomputing: false,
       customGroupIndexMap: {},
       customGroupEnabledIds: new Set(),
     })
@@ -494,7 +515,7 @@ const useAppStore = create<AppState>((set, get) => ({
         .then((response) => {
           if (version !== selectionVersion) return // stale
 
-          if (response.indices.length === 0) {
+          if (response.matchedIds.length === 0) {
             set({
               customGroupUnmatched: response.unmatchedIds,
               customGroupLoading: false,
@@ -511,7 +532,7 @@ const useAppStore = create<AppState>((set, get) => ({
             column,
             ids,
             unmatchedIds: response.unmatchedIds,
-            indices: response.indices,
+            indices: new Uint32Array(0), // indices read from customGroupIndexMap instead
             color: GROUP_COLORS[3],
           }
 
@@ -539,6 +560,7 @@ const useAppStore = create<AppState>((set, get) => ({
       customGroupIds: [],
       customGroupUnmatched: [],
       customGroupLoading: false,
+      customGroupRecomputing: false,
       customGroupIndexMap: {},
       customGroupEnabledIds: new Set(),
       selectionDisplayMode: 'dim',
@@ -547,66 +569,56 @@ const useAppStore = create<AppState>((set, get) => ({
   },
 
   toggleCustomGroupId: (id) => {
-    const { customGroupEnabledIds, customGroupIndexMap, selectionGroups } = get()
+    const { customGroupEnabledIds } = get()
     const next = new Set(customGroupEnabledIds)
     if (next.has(id)) next.delete(id)
     else next.add(id)
 
-    // Rebuild indices from enabled IDs
-    const allIndices: number[] = []
-    for (const enabledId of next) {
-      const indices = customGroupIndexMap[enabledId]
-      if (indices) allIndices.push(...indices)
-    }
+    // Only update the checkbox state — no filter buffer or selectionGroups changes.
+    // User clicks "Update" to commit all toggle changes at once.
+    set({ customGroupEnabledIds: next, customGroupRecomputing: true })
+  },
 
-    const withoutCustom = selectionGroups.filter((g) => g.id !== CUSTOM_GROUP_ID)
-    if (allIndices.length === 0) {
-      set({ customGroupEnabledIds: next, selectionGroups: withoutCustom })
-    } else {
+  commitCustomGroupToggle: () => {
+    // Yield to browser so loading state renders before blocking work
+    setTimeout(() => {
+      const { customGroupEnabledIds, customGroupIndexMap, selectionGroups } = get()
+
+      // Compute count from index map (no Uint32Array allocation)
+      let totalLen = 0
+      for (const enabledId of customGroupEnabledIds) {
+        const arr = customGroupIndexMap[enabledId]
+        if (arr) totalLen += arr.length
+      }
+
+      const withoutCustom = selectionGroups.filter((g) => g.id !== CUSTOM_GROUP_ID)
+      if (totalLen === 0) {
+        set({ selectionGroups: withoutCustom, customGroupRecomputing: false })
+        get()._mergeFilterBuffer()
+        return
+      }
+
       const existing = selectionGroups.find((g) => g.id === CUSTOM_GROUP_ID) as CustomSelectionGroup | undefined
       const customGroup: CustomSelectionGroup = {
         id: CUSTOM_GROUP_ID,
         type: 'custom',
         column: existing?.column ?? '',
-        ids: Array.from(next),
+        ids: Array.from(customGroupEnabledIds),
         unmatchedIds: get().customGroupUnmatched,
-        indices: new Uint32Array(allIndices),
+        indices: new Uint32Array(0), // indices read from customGroupIndexMap instead
         color: GROUP_COLORS[3],
       }
-      set({ customGroupEnabledIds: next, selectionGroups: [...withoutCustom, customGroup] })
-    }
-    get()._mergeFilterBuffer()
+      set({ selectionGroups: [...withoutCustom, customGroup], customGroupRecomputing: false })
+      get()._mergeFilterBuffer()
+    }, 0)
   },
 
   setAllCustomGroupIds: (enabled) => {
-    const { customGroupIndexMap, selectionGroups } = get()
+    const { customGroupIndexMap } = get()
     const matchedIds = Object.keys(customGroupIndexMap)
     const next = enabled ? new Set(matchedIds) : new Set<string>()
 
-    const allIndices: number[] = []
-    if (enabled) {
-      for (const id of matchedIds) {
-        allIndices.push(...customGroupIndexMap[id])
-      }
-    }
-
-    const withoutCustom = selectionGroups.filter((g) => g.id !== CUSTOM_GROUP_ID)
-    if (allIndices.length === 0) {
-      set({ customGroupEnabledIds: next, selectionGroups: withoutCustom })
-    } else {
-      const existing = selectionGroups.find((g) => g.id === CUSTOM_GROUP_ID) as CustomSelectionGroup | undefined
-      const customGroup: CustomSelectionGroup = {
-        id: CUSTOM_GROUP_ID,
-        type: 'custom',
-        column: existing?.column ?? '',
-        ids: Array.from(next),
-        unmatchedIds: get().customGroupUnmatched,
-        indices: new Uint32Array(allIndices),
-        color: GROUP_COLORS[3],
-      }
-      set({ customGroupEnabledIds: next, selectionGroups: [...withoutCustom, customGroup] })
-    }
-    get()._mergeFilterBuffer()
+    set({ customGroupEnabledIds: next, customGroupRecomputing: true })
   },
 
   setSummaryPanelOpen: (open) => set({ summaryPanelOpen: open }),
@@ -709,7 +721,7 @@ const useAppStore = create<AppState>((set, get) => ({
       categoryWarning: null, _categoryCodes: null, _expressionData: null,
       varColumns: [], geneLabelColumn: null, geneLabelMap: null,
       selectionGroups: [], selectionFilterBuffer: null, selectionTool: 'pan', selectionDisplayMode: 'dim',
-      customGroupColumn: null, customGroupIds: [], customGroupUnmatched: [], customGroupLoading: false, customGroupIndexMap: {}, customGroupEnabledIds: new Set(),
+      customGroupColumn: null, customGroupIds: [], customGroupUnmatched: [], customGroupLoading: false, customGroupRecomputing: false, customGroupIndexMap: {}, customGroupEnabledIds: new Set(),
       summaryPanelOpen: true,
       summaryObsColumns: [], summaryGenes: [],
       summaryObsData: new Map(), summaryObsContinuousData: new Map(),
