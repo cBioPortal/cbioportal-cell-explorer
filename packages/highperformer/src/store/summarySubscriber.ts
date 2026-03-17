@@ -117,7 +117,27 @@ export function attachSummarySubscriber(store: StoreApi): () => void {
       groups.push({ id: ALL_CELLS_GROUP_ID, indices: allCellsIndices })
     }
     for (const g of state.selectionGroups) {
-      if (g.indices.length > 0) {
+      if (g.type === 'custom') {
+        // Custom group: build indices from index map (indices field is empty for perf)
+        const { customGroupEnabledIds, customGroupIndexMap } = state
+        let totalLen = 0
+        for (const id of customGroupEnabledIds) {
+          const arr = customGroupIndexMap[id]
+          if (arr) totalLen += arr.length
+        }
+        if (totalLen > 0) {
+          const indices = new Uint32Array(totalLen)
+          let offset = 0
+          for (const id of customGroupEnabledIds) {
+            const arr = customGroupIndexMap[id]
+            if (arr) {
+              for (let i = 0; i < arr.length; i++) indices[offset + i] = arr[i]
+              offset += arr.length
+            }
+          }
+          groups.push({ id: g.id, indices })
+        }
+      } else if (g.indices.length > 0) {
         groups.push({ id: g.id, indices: g.indices })
       }
     }
