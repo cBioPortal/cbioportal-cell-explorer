@@ -337,13 +337,55 @@ function FilterBanner() {
   const selectionDisplayMode = useAppStore((s) => s.selectionDisplayMode)
   const selectionGroups = useAppStore((s) => s.selectionGroups)
   const embeddingData = useAppStore((s) => s.embeddingData)
+  const customGroupColumn = useAppStore((s) => s.customGroupColumn)
+  const customGroupEnabledIds = useAppStore((s) => s.customGroupEnabledIds)
+  const customGroupIndexMap = useAppStore((s) => s.customGroupIndexMap)
+
+  const totalCells = embeddingData?.numPoints ?? 0
+  const hasCustomGroup = customGroupColumn !== null
+  const noIdsEnabled = hasCustomGroup && customGroupEnabledIds.size === 0
+
+  // Show banner when custom group exists with no IDs selected
+  if (noIdsEnabled) {
+    return (
+      <div style={{
+        position: 'absolute',
+        top: 8,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 2,
+        background: 'rgba(0, 0, 0, 0.7)',
+        color: '#fff',
+        padding: '4px 12px',
+        borderRadius: 4,
+        fontSize: 11,
+        pointerEvents: 'none',
+      }}>
+        0 of {Object.keys(customGroupIndexMap).length} IDs selected — showing all {totalCells.toLocaleString()} cells
+      </div>
+    )
+  }
 
   if (selectionDisplayMode !== 'hide') return null
-  const activeGroups = selectionGroups.filter((g) => g.indices.length > 0)
-  if (activeGroups.length === 0) return null
 
-  const totalVisible = new Set(activeGroups.flatMap((g) => Array.from(g.indices))).size
-  const totalCells = embeddingData?.numPoints ?? 0
+  // Count visible cells from spatial groups + custom group index map
+  let totalVisible = 0
+  let groupCount = 0
+  for (const g of selectionGroups) {
+    if (g.type === 'custom') {
+      let count = 0
+      for (const id of customGroupEnabledIds) {
+        const arr = customGroupIndexMap[id]
+        if (arr) count += arr.length
+      }
+      if (count > 0) { totalVisible += count; groupCount++ }
+    } else if (g.indices.length > 0) {
+      totalVisible += g.indices.length
+      groupCount++
+    }
+  }
+
+  if (groupCount === 0) return null
 
   return (
     <div style={{
@@ -359,8 +401,7 @@ function FilterBanner() {
       fontSize: 11,
       pointerEvents: 'none',
     }}>
-      Showing {totalVisible.toLocaleString()} of {totalCells.toLocaleString()} cells
-      ({activeGroups.length} group{activeGroups.length > 1 ? 's' : ''})
+      {hasCustomGroup && `${customGroupEnabledIds.size} of ${Object.keys(customGroupIndexMap).length} IDs selected — `}Showing {totalVisible.toLocaleString()} of {totalCells.toLocaleString()} cells
     </div>
   )
 }
