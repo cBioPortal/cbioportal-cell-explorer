@@ -31,7 +31,7 @@ interface SummaryPanelProps {
 export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps) {
   const summaryPanelOpen = useAppStore((s) => s.summaryPanelOpen)
   const selectionGroups = useAppStore((s) => s.selectionGroups)
-  const customGroupEnabledIds = useAppStore((s) => s.customGroupEnabledIds)
+  const customGroupCommittedCount = useAppStore((s) => s.customGroupCommittedCount)
   const summaryObsColumns = useAppStore((s) => s.summaryObsColumns)
   const summaryGenes = useAppStore((s) => s.summaryGenes)
   const obsColumnNames = useAppStore((s) => s.obsColumnNames)
@@ -67,9 +67,9 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
 
   const activeSelectionGroups = useMemo(
     () => selectionGroups.filter((g) =>
-      g.id === CUSTOM_GROUP_ID ? customGroupEnabledIds.size > 0 : g.indices.length > 0
+      g.id === CUSTOM_GROUP_ID ? customGroupCommittedCount > 0 : g.indices.length > 0
     ),
-    [selectionGroups, customGroupEnabledIds],
+    [selectionGroups, customGroupCommittedCount],
   )
 
   if (!summaryPanelOpen) return null
@@ -113,7 +113,7 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
   }
 
   const hasGroups = selectionGroups.some((g) =>
-    g.id === CUSTOM_GROUP_ID ? customGroupEnabledIds.size > 0 : g.indices.length > 0
+    g.id === CUSTOM_GROUP_ID ? customGroupCommittedCount > 0 : g.indices.length > 0
   )
   const hasMultipleGroups = activeSelectionGroups.length >= 2
   const hasVariables = summaryObsColumns.length > 0 || summaryGenes.length > 0
