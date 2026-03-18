@@ -14,6 +14,7 @@ import ColorBySection from '../components/ColorBySection'
 import SelectionOverlay from '../components/SelectionOverlay'
 import SelectionToolbar from '../components/SelectionToolbar'
 import SummaryPanel from '../components/SummaryPanel'
+import { VersionTag } from '../components/VersionTag'
 import { loadDatasets, saveDatasets } from '../utils/datasets'
 
 const { Sider, Content } = Layout
@@ -173,7 +174,10 @@ function BrandingHeader() {
   return (
     <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <Link to="/" style={{ textDecoration: 'none' }}>
-        <Typography.Title level={5} style={{ margin: 0 }}>cBioPortal Cell Explorer</Typography.Title>
+        <Typography.Title level={5} style={{ margin: 0 }}>
+          cBioPortal Cell Explorer{' '}
+          <VersionTag version={__APP_VERSION__} commitHash={__COMMIT_HASH__} />
+        </Typography.Title>
       </Link>
     </div>
   )
