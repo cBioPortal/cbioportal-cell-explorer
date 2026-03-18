@@ -163,6 +163,14 @@ export interface AppState {
   reorderSummaryObsColumns: (reordered: string[]) => void
   reorderSummaryGenes: (reordered: string[]) => void
 
+  // UI visibility toggles (for embedded mode)
+  showHeader: boolean
+  showSidebar: boolean
+  showDatasetDropdown: boolean
+
+  // Error state
+  loadingError: string | null
+
   // Actions
   openDataset: (url: string) => Promise<void>
   setSelectedEmbedding: (key: string) => void
@@ -332,6 +340,14 @@ const useAppStore = create<AppState>((set, get) => ({
   customGroupEnabledIds: new Set(),
   customGroupCommittedCount: 0,
   customGroupPreviousEnabledIds: null,
+
+  // UI toggles
+  showHeader: true,
+  showSidebar: true,
+  showDatasetDropdown: true,
+
+  // Error state
+  loadingError: null,
 
   // Summary panel
   summaryPanelOpen: true,
@@ -802,7 +818,7 @@ const useAppStore = create<AppState>((set, get) => ({
   openDataset: async (url) => {
     if (url === get().datasetUrl && get().adata) return
     set({
-      datasetUrl: url, loading: true, adata: null, nObs: null, nVar: null, obsmKeys: [],
+      datasetUrl: url, loading: true, loadingError: null, adata: null, nObs: null, nVar: null, obsmKeys: [],
       selectedEmbedding: null, embeddingData: null, colorBuffer: null,
       colorMode: 'category', selectedObsColumn: null, selectedGene: null,
       obsColumnNames: [], varNames: [], categoryMap: [], expressionRange: null,
@@ -831,8 +847,8 @@ const useAppStore = create<AppState>((set, get) => ({
         opacity: adata.nObs > 1_000_000 ? 0.3 : 0.5,
       })
       if (defaultKey) get().fetchEmbedding(defaultKey)
-    } catch {
-      set({ loading: false })
+    } catch (err) {
+      set({ loading: false, loadingError: err instanceof Error ? err.message : 'Failed to load dataset' })
     }
   },
 
