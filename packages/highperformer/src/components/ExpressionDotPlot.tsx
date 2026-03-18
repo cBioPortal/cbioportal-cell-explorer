@@ -510,7 +510,7 @@ export default function ExpressionDotPlot({ groups }: ExpressionDotPlotProps) {
     setModalOpen(true)
   }
 
-  const obsSelector = categoricalColumns.length > 1 ? (
+  const obsSelector = (
     <Select
       size="small"
       value={activeObs}
@@ -518,7 +518,7 @@ export default function ExpressionDotPlot({ groups }: ExpressionDotPlotProps) {
       options={categoricalColumns.map((c) => ({ value: c, label: c }))}
       style={{ minWidth: 120, fontSize: 11 }}
     />
-  ) : null
+  )
 
   const colorScaleSelector = (
     <Select
