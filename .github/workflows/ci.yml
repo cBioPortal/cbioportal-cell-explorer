@@ -85,6 +85,8 @@ jobs:
       - run: pnpm --filter @cbioportal-cell-explorer/highperformer build
         env:
           VITE_BASE_URL: /cbioportal-cell-explorer/
+          VITE_ENABLE_POSTMESSAGE: "true"
+          VITE_POSTMESSAGE_ORIGIN: "https://www.cbioportal.org, https://deploy-preview-*--cbioportalfrontend.netlify.app"
 
       # Build app (kept for reference, not deployed)
       # To switch back: uncomment this block, comment out highperformer build above,
