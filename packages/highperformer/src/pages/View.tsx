@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
-import { Collapse, InputNumber, Layout, Switch, Tooltip, Typography, Select, Spin } from 'antd'
+import { Collapse, InputNumber, Layout, Popover, Switch, Typography, Select, Spin, message } from 'antd'
 import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HolderOutlined, LeftOutlined, LinkOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons'
 import { DeckGL } from '@deck.gl/react'
 import { OrthographicView } from '@deck.gl/core'
@@ -10,6 +10,7 @@ import { _StatsWidget as StatsWidget } from '@deck.gl/widgets'
 import { ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from '@cbioportal-cell-explorer/profiler'
 import useAppStore from '../store/useAppStore'
 import type { SpatialSelectionGroup } from '../store/useAppStore'
+import { buildConfigFromState, buildConfigUrl, buildDatasetUrl } from '../config/buildConfig'
 import { parseConfig } from '../config/parseConfig'
 import { applyConfig } from '../config/applyConfig'
 import { DatasetError } from '../components/DatasetError'
@@ -186,6 +187,72 @@ function BrandingHeader() {
   )
 }
 
+function ShareLinkPopover({ datasetUrl }: { datasetUrl: string }) {
+  const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState<'dataset' | 'config' | null>(null)
+
+  const handleCopy = (type: 'dataset' | 'config') => {
+    let url: string
+    if (type === 'dataset') {
+      url = buildDatasetUrl(datasetUrl)
+    } else {
+      const config = buildConfigFromState()
+      if (!config) return
+      url = buildConfigUrl(config)
+      if (url.length > 8000) {
+        message.warning('Link copied — URL is very long and may not work in all browsers.')
+      }
+    }
+    navigator.clipboard.writeText(url).catch(() => {
+      message.error('Failed to copy link to clipboard')
+    })
+    setCopied(type)
+    setTimeout(() => {
+      setCopied(null)
+      setOpen(false)
+    }, 1000)
+  }
+
+  const content = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 180 }}>
+      <div
+        style={{ padding: '4px 8px', cursor: 'pointer', borderRadius: 4 }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f5' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+        onClick={() => handleCopy('dataset')}
+      >
+        <Typography.Text style={{ fontSize: 12 }}>
+          {copied === 'dataset' ? 'Copied!' : 'Copy dataset link'}
+        </Typography.Text>
+      </div>
+      <div
+        style={{ padding: '4px 8px', cursor: 'pointer', borderRadius: 4 }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f5' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+        onClick={() => handleCopy('config')}
+      >
+        <Typography.Text style={{ fontSize: 12 }}>
+          {copied === 'config' ? 'Copied!' : 'Copy link with current view'}
+        </Typography.Text>
+      </div>
+    </div>
+  )
+
+  return (
+    <Popover
+      content={content}
+      trigger="click"
+      open={open}
+      onOpenChange={setOpen}
+      placement="bottomLeft"
+    >
+      <LinkOutlined
+        style={{ fontSize: 11, marginLeft: 6, cursor: 'pointer', color: '#999' }}
+      />
+    </Popover>
+  )
+}
+
 function LeftSidebarContent() {
   const navigate = useNavigate()
   const datasetUrl = useAppStore((s) => s.datasetUrl)
@@ -218,15 +285,7 @@ function LeftSidebarContent() {
             <span>
               Dataset
               {datasetUrl && (
-                <Tooltip title="Copy shareable link">
-                  <LinkOutlined
-                    style={{ fontSize: 11, marginLeft: 6, cursor: 'pointer', color: '#999' }}
-                    onClick={() => {
-                      const link = `${window.location.origin}${import.meta.env.BASE_URL}view?url=${datasetUrl}`
-                      navigator.clipboard.writeText(link)
-                    }}
-                  />
-                </Tooltip>
+                <ShareLinkPopover datasetUrl={datasetUrl} />
               )}
             </span>
             {nObs != null && (
@@ -332,18 +391,18 @@ function CanvasLoadingOverlay() {
   const embeddingLoading = useAppStore((s) => s.embeddingLoading)
   const colorBufferLoading = useAppStore((s) => s.colorBufferLoading)
 
-  const message = embeddingLoading
+  const loadingMessage = embeddingLoading
     ? 'Loading embedding…'
     : colorBufferLoading
       ? 'Updating colors…'
       : null
 
-  if (!message) return null
+  if (!loadingMessage) return null
 
   return (
     <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, textAlign: 'center' }}>
       <Spin />
-      <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>{message}</div>
+      <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>{loadingMessage}</div>
     </div>
   )
 }
