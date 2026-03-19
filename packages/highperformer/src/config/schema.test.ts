@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { AppConfigSchema, type AppConfig } from './schema'
+import { AppConfigSchema, MessageSchema, type AppConfig } from './schema'
 
 describe('AppConfigSchema', () => {
   it('validates a minimal config with only url', () => {
@@ -104,5 +104,61 @@ describe('AppConfigSchema', () => {
       filter: { ids: [], obsColumn: 'sample_id' },
     })
     expect(result.success).toBe(true)
+  })
+})
+
+describe('MessageSchema', () => {
+  it('validates a valid applyConfig message', () => {
+    const result = MessageSchema.safeParse({
+      type: 'applyConfig',
+      payload: { url: 'https://example.com/data.zarr' },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects message with missing type', () => {
+    const result = MessageSchema.safeParse({
+      payload: { url: 'https://example.com/data.zarr' },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects message with unknown type', () => {
+    const result = MessageSchema.safeParse({
+      type: 'unknownType',
+      payload: { url: 'https://example.com/data.zarr' },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects message with invalid payload', () => {
+    const result = MessageSchema.safeParse({
+      type: 'applyConfig',
+      payload: { embedding: 'X_umap' }, // missing url
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects non-object messages', () => {
+    expect(MessageSchema.safeParse('hello').success).toBe(false)
+    expect(MessageSchema.safeParse(42).success).toBe(false)
+    expect(MessageSchema.safeParse(null).success).toBe(false)
+  })
+
+  it('validates payload with full config', () => {
+    const result = MessageSchema.safeParse({
+      type: 'applyConfig',
+      payload: {
+        url: 'https://example.com/data.zarr',
+        embedding: 'X_umap',
+        filter: { ids: ['cell1'], obsColumn: 'sample_id' },
+        showHeader: false,
+      },
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.payload.url).toBe('https://example.com/data.zarr')
+      expect(result.data.payload.showHeader).toBe(false)
+    }
   })
 })
