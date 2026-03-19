@@ -1,4 +1,4 @@
-import { startTransition, useMemo, useState } from 'react'
+import { startTransition, useMemo } from 'react'
 import { Collapse, Segmented, Tooltip, Typography } from 'antd'
 import { BarChartOutlined, DotChartOutlined, InfoCircleOutlined, PieChartOutlined, SearchOutlined } from '@ant-design/icons'
 import useAppStore, { CUSTOM_GROUP_ID } from '../store/useAppStore'
@@ -46,8 +46,7 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
   const addSummaryGene = useAppStore((s) => s.addSummaryGene)
   const removeSummaryGene = useAppStore((s) => s.removeSummaryGene)
   const setSelectionDisplayMode = useAppStore((s) => s.setSelectionDisplayMode)
-
-  const [context, setContext] = useState<SummaryContext>('all')
+  const context = useAppStore((s) => s.summaryContext)
 
   // Build groups with real indices for the active context
   const numPoints = embeddingData?.numPoints ?? 0
@@ -217,7 +216,7 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
             onChange={(v) => {
               const next = v as SummaryContext
               if (next === 'all') setSelectionDisplayMode('dim')
-              startTransition(() => setContext(next))
+              startTransition(() => useAppStore.setState({ summaryContext: next }))
             }}
             options={[
               { label: 'All Cells', value: 'all' },

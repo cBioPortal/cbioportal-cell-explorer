@@ -101,5 +101,6 @@ export async function applyConfig(config: AppConfig): Promise<void> {
   // 3e: Custom group filter (last — depends on obs column data)
   if (config.filter && config.filter.ids.length > 0) {
     store.getState().selectByIds(config.filter.obsColumn, config.filter.ids)
+    store.setState({ summaryContext: 'selections' })
   }
 }

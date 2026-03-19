@@ -142,6 +142,7 @@ export interface AppState {
   cancelCustomGroupToggle: () => void
 
   // Summary panel
+  summaryContext: 'all' | 'selections' | 'compare'
   summaryPanelOpen: boolean
   summaryObsColumns: string[]
   summaryGenes: string[]
@@ -352,6 +353,7 @@ const useAppStore = create<AppState>((set, get) => ({
   loadingError: null,
 
   // Summary panel
+  summaryContext: 'all' as const,
   summaryPanelOpen: true,
   summaryObsColumns: [],
   summaryGenes: [],
@@ -828,7 +830,7 @@ const useAppStore = create<AppState>((set, get) => ({
       varColumns: [], geneLabelColumn: null, geneLabelMap: null,
       selectionGroups: [], selectionFilterBuffer: null, selectionTool: 'pan', selectionDisplayMode: 'dim',
       customGroupColumn: null, customGroupIds: [], customGroupUnmatched: [], customGroupWarning: null, customGroupLoading: false, customGroupRecomputing: false, customGroupIndexMap: {}, customGroupEnabledIds: new Set(), customGroupCommittedCount: 0,
-      summaryPanelOpen: true,
+      summaryContext: 'all' as const, summaryPanelOpen: true,
       summaryObsColumns: [], summaryGenes: [],
       summaryObsData: new Map(), summaryObsContinuousData: new Map(),
       summaryGeneData: new Map(), summaryGeneRanges: new Map(),
