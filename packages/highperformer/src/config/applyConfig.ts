@@ -8,7 +8,8 @@ export async function applyConfig(config: AppConfig): Promise<void> {
   // Phase 1: Set UI toggles immediately
   store.setState({
     showHeader: config.showHeader,
-    showSidebar: config.showSidebar,
+    showLeftSidebar: config.showLeftSidebar,
+    showRightSidebar: config.showRightSidebar,
     showDatasetDropdown: config.showDatasetDropdown,
   })
 

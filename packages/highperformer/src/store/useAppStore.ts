@@ -165,7 +165,8 @@ export interface AppState {
 
   // UI visibility toggles (for embedded mode)
   showHeader: boolean
-  showSidebar: boolean
+  showLeftSidebar: boolean
+  showRightSidebar: boolean
   showDatasetDropdown: boolean
 
   // Error state
@@ -343,7 +344,8 @@ const useAppStore = create<AppState>((set, get) => ({
 
   // UI toggles
   showHeader: true,
-  showSidebar: true,
+  showLeftSidebar: true,
+  showRightSidebar: true,
   showDatasetDropdown: true,
 
   // Error state

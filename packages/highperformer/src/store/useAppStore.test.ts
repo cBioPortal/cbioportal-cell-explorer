@@ -1009,8 +1009,12 @@ describe('useAppStore', () => {
       expect(useAppStore.getState().showHeader).toBe(true)
     })
 
-    it('defaults showSidebar to true', () => {
-      expect(useAppStore.getState().showSidebar).toBe(true)
+    it('defaults showLeftSidebar to true', () => {
+      expect(useAppStore.getState().showLeftSidebar).toBe(true)
+    })
+
+    it('defaults showRightSidebar to true', () => {
+      expect(useAppStore.getState().showRightSidebar).toBe(true)
     })
 
     it('defaults showDatasetDropdown to true', () => {

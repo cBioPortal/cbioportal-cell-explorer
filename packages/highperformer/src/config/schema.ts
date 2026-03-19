@@ -16,7 +16,8 @@ const RawConfigSchema = z.object({
   summaryObsColumns: z.array(z.string()).optional(),
   summaryGenes: z.array(z.string()).optional(),
   showHeader: z.boolean().default(true),
-  showSidebar: z.boolean().default(true),
+  showLeftSidebar: z.boolean().default(true),
+  showRightSidebar: z.boolean().default(true),
   showDatasetDropdown: z.boolean().default(true),
 })
 

@@ -626,9 +626,10 @@ function View() {
   const openDataset = useAppStore((s) => s.openDataset)
   const loadingError = useAppStore((s) => s.loadingError)
   const datasetUrl = useAppStore((s) => s.datasetUrl)
-  const showSidebar = useAppStore((s) => s.showSidebar)
-  const [leftCollapsed, setLeftCollapsed] = useState(false)
-  const [rightWidth, setRightWidth] = useState(RIGHT_SIDEBAR_WIDTH)
+  const showLeftSidebar = useAppStore((s) => s.showLeftSidebar)
+  const showRightSidebar = useAppStore((s) => s.showRightSidebar)
+  const [leftCollapsed, setLeftCollapsed] = useState(!showLeftSidebar)
+  const [rightWidth, setRightWidth] = useState(showRightSidebar ? RIGHT_SIDEBAR_WIDTH : SIDEBAR_COLLAPSED_WIDTH)
   const deckRef = useRef<DeckGL>(null)
 
   const { onMouseDown: onDragStart, setSnappedRef } = useRightSidebarDrag(setRightWidth)
@@ -682,27 +683,23 @@ function View() {
   return (
     <Layout style={{ height: '100vh', background: '#fff' }}>
       <Layout style={{ flex: 1, overflow: 'hidden', paddingBottom: ENABLE_PROFILER ? PROFILE_BAR_HEIGHT : 0 }}>
-        {showSidebar && (
-          <Sider
-            width={LEFT_SIDEBAR_WIDTH}
-            collapsible
-            collapsed={leftCollapsed}
-            collapsedWidth={SIDEBAR_COLLAPSED_WIDTH}
-            trigger={null}
-            theme="light"
-            style={{ borderRight: leftCollapsed ? undefined : '1px solid #f0f0f0', overflow: 'auto', background: '#fff', transition: 'width 200ms ease' }}
-          >
-            {leftCollapsed ? <CollapsedSidebar onExpand={() => setLeftCollapsed(false)} /> : <LeftSidebarContent />}
-          </Sider>
-        )}
+        <Sider
+          width={LEFT_SIDEBAR_WIDTH}
+          collapsible
+          collapsed={leftCollapsed}
+          collapsedWidth={SIDEBAR_COLLAPSED_WIDTH}
+          trigger={null}
+          theme="light"
+          style={{ borderRight: leftCollapsed ? undefined : '1px solid #f0f0f0', overflow: 'auto', background: '#fff', transition: 'width 200ms ease' }}
+        >
+          {leftCollapsed ? <CollapsedSidebar onExpand={() => setLeftCollapsed(false)} /> : <LeftSidebarContent />}
+        </Sider>
         <Content style={{ position: 'relative' }}>
-          {showSidebar && (
-            <EdgeTab
-              side="left"
-              onClick={() => setLeftCollapsed((c) => !c)}
-              icon={leftCollapsed ? <RightOutlined /> : <LeftOutlined />}
-            />
-          )}
+          <EdgeTab
+            side="left"
+            onClick={() => setLeftCollapsed((c) => !c)}
+            icon={leftCollapsed ? <RightOutlined /> : <LeftOutlined />}
+          />
           <MemoizedVisualization deckRef={deckRef} />
           <SelectionOverlay deckRef={deckRef} />
           <SelectionToolbar />

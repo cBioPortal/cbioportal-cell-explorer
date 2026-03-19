@@ -26,7 +26,8 @@ describe('AppConfigSchema', () => {
       summaryObsColumns: ['cell_type', 'batch'],
       summaryGenes: ['TP53', 'BRCA1'],
       showHeader: false,
-      showSidebar: true,
+      showLeftSidebar: true,
+      showRightSidebar: true,
       showDatasetDropdown: false,
     })
     expect(result.success).toBe(true)
@@ -48,7 +49,8 @@ describe('AppConfigSchema', () => {
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data.showHeader).toBe(true)
-      expect(result.data.showSidebar).toBe(true)
+      expect(result.data.showLeftSidebar).toBe(true)
+      expect(result.data.showRightSidebar).toBe(true)
       expect(result.data.showDatasetDropdown).toBe(true)
     }
   })

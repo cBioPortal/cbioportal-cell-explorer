@@ -29,7 +29,8 @@ describe('applyConfig', () => {
     const config: AppConfig = {
       url: 'https://example.com/data.zarr',
       showHeader: false,
-      showSidebar: false,
+      showLeftSidebar: true,
+      showRightSidebar: false,
       showDatasetDropdown: false,
     }
 
@@ -37,7 +38,8 @@ describe('applyConfig', () => {
 
     const state = useAppStore.getState()
     expect(state.showHeader).toBe(false)
-    expect(state.showSidebar).toBe(false)
+    expect(state.showLeftSidebar).toBe(true)
+    expect(state.showRightSidebar).toBe(false)
     expect(state.showDatasetDropdown).toBe(false)
   })
 
@@ -47,7 +49,8 @@ describe('applyConfig', () => {
     const config: AppConfig = {
       url: 'https://example.com/data.zarr',
       showHeader: true,
-      showSidebar: true,
+      showLeftSidebar: true,
+      showRightSidebar: true,
       showDatasetDropdown: true,
     }
 
@@ -61,7 +64,8 @@ describe('applyConfig', () => {
     const config: AppConfig = {
       url: 'https://example.com/data.zarr',
       showHeader: true,
-      showSidebar: true,
+      showLeftSidebar: true,
+      showRightSidebar: true,
       showDatasetDropdown: true,
     }
 
@@ -69,7 +73,8 @@ describe('applyConfig', () => {
 
     const state = useAppStore.getState()
     expect(state.showHeader).toBe(true)
-    expect(state.showSidebar).toBe(true)
+    expect(state.showLeftSidebar).toBe(true)
+    expect(state.showRightSidebar).toBe(true)
     expect(state.showDatasetDropdown).toBe(true)
   })
 
@@ -80,7 +85,8 @@ describe('applyConfig', () => {
       url: 'https://example.com/data.zarr',
       embedding: 'X_umap',
       showHeader: true,
-      showSidebar: true,
+      showLeftSidebar: true,
+      showRightSidebar: true,
       showDatasetDropdown: true,
     }
 
@@ -107,7 +113,8 @@ describe('applyConfig', () => {
       url: 'https://example.com/data.zarr',
       embedding: 'X_nonexistent',
       showHeader: true,
-      showSidebar: true,
+      showLeftSidebar: true,
+      showRightSidebar: true,
       showDatasetDropdown: true,
     }
 
@@ -126,7 +133,8 @@ describe('applyConfig', () => {
       url: 'https://example.com/data.zarr',
       filter: { ids: ['cell1', 'cell2'], obsColumn: 'sample_id' },
       showHeader: true,
-      showSidebar: true,
+      showLeftSidebar: true,
+      showRightSidebar: true,
       showDatasetDropdown: true,
     }
 
