@@ -11,6 +11,7 @@ import { ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from '@cbioportal-
 import useAppStore from '../store/useAppStore'
 import type { SpatialSelectionGroup } from '../store/useAppStore'
 import { buildConfigFromState, buildConfigUrl, buildDatasetUrl } from '../config/buildConfig'
+import { usePostMessage } from '../config/usePostMessage'
 import { parseConfig } from '../config/parseConfig'
 import { applyConfig } from '../config/applyConfig'
 import { DatasetError } from '../components/DatasetError'
@@ -688,6 +689,9 @@ function View() {
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightWidth, setRightWidth] = useState(RIGHT_SIDEBAR_WIDTH)
   const deckRef = useRef<DeckGL>(null)
+
+  // PostMessage listener for iframe embedding (gated by env vars)
+  usePostMessage()
 
   const { onMouseDown: onDragStart, setSnappedRef } = useRightSidebarDrag(setRightWidth)
 

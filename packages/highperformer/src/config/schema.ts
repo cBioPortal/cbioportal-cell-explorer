@@ -37,3 +37,10 @@ export const AppConfigSchema = RawConfigSchema.transform((data) => {
 })
 
 export type AppConfig = z.output<typeof AppConfigSchema>
+
+export const MessageSchema = z.object({
+  type: z.literal('applyConfig'),
+  payload: AppConfigSchema,
+})
+
+export type AppMessage = z.output<typeof MessageSchema>
