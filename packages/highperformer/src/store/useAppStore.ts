@@ -142,6 +142,7 @@ export interface AppState {
   cancelCustomGroupToggle: () => void
 
   // Summary panel
+  summaryContext: 'all' | 'selections' | 'compare'
   summaryPanelOpen: boolean
   summaryObsColumns: string[]
   summaryGenes: string[]
@@ -162,6 +163,15 @@ export interface AppState {
   removeSummaryGene: (name: string) => void
   reorderSummaryObsColumns: (reordered: string[]) => void
   reorderSummaryGenes: (reordered: string[]) => void
+
+  // UI visibility toggles (for embedded mode)
+  showHeader: boolean
+  showLeftSidebar: boolean
+  showRightSidebar: boolean
+  showDatasetDropdown: boolean
+
+  // Error state
+  loadingError: string | null
 
   // Actions
   openDataset: (url: string) => Promise<void>
@@ -333,7 +343,17 @@ const useAppStore = create<AppState>((set, get) => ({
   customGroupCommittedCount: 0,
   customGroupPreviousEnabledIds: null,
 
+  // UI toggles
+  showHeader: true,
+  showLeftSidebar: true,
+  showRightSidebar: true,
+  showDatasetDropdown: true,
+
+  // Error state
+  loadingError: null,
+
   // Summary panel
+  summaryContext: 'all' as const,
   summaryPanelOpen: true,
   summaryObsColumns: [],
   summaryGenes: [],
@@ -802,7 +822,7 @@ const useAppStore = create<AppState>((set, get) => ({
   openDataset: async (url) => {
     if (url === get().datasetUrl && get().adata) return
     set({
-      datasetUrl: url, loading: true, adata: null, nObs: null, nVar: null, obsmKeys: [],
+      datasetUrl: url, loading: true, loadingError: null, adata: null, nObs: null, nVar: null, obsmKeys: [],
       selectedEmbedding: null, embeddingData: null, colorBuffer: null,
       colorMode: 'category', selectedObsColumn: null, selectedGene: null,
       obsColumnNames: [], varNames: [], categoryMap: [], expressionRange: null,
@@ -810,7 +830,7 @@ const useAppStore = create<AppState>((set, get) => ({
       varColumns: [], geneLabelColumn: null, geneLabelMap: null,
       selectionGroups: [], selectionFilterBuffer: null, selectionTool: 'pan', selectionDisplayMode: 'dim',
       customGroupColumn: null, customGroupIds: [], customGroupUnmatched: [], customGroupWarning: null, customGroupLoading: false, customGroupRecomputing: false, customGroupIndexMap: {}, customGroupEnabledIds: new Set(), customGroupCommittedCount: 0,
-      summaryPanelOpen: true,
+      summaryContext: 'all' as const, summaryPanelOpen: true,
       summaryObsColumns: [], summaryGenes: [],
       summaryObsData: new Map(), summaryObsContinuousData: new Map(),
       summaryGeneData: new Map(), summaryGeneRanges: new Map(),
@@ -831,8 +851,8 @@ const useAppStore = create<AppState>((set, get) => ({
         opacity: adata.nObs > 1_000_000 ? 0.3 : 0.5,
       })
       if (defaultKey) get().fetchEmbedding(defaultKey)
-    } catch {
-      set({ loading: false })
+    } catch (err) {
+      set({ loading: false, loadingError: err instanceof Error ? err.message : 'Failed to load dataset' })
     }
   },
 

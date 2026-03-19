@@ -980,7 +980,7 @@ describe('useAppStore', () => {
       expect(useAppStore.getState().selectionGroups).toHaveLength(3)
     })
 
-    it('_mergeFilterBuffer builds correct Float32Array', () => {
+    it('_mergeFilterBuffer builds correct Float32Array from spatial groups', () => {
       useAppStore.setState({
         embeddingData: {
           positions: new Float32Array([0, 0, 1, 1, 2, 2, 3, 3]),
@@ -1001,6 +1001,30 @@ describe('useAppStore', () => {
       expect(buf[1]).toBe(1) // in group 2
       expect(buf[2]).toBe(1) // in both groups (overlap)
       expect(buf[3]).toBe(0) // in neither
+    })
+  })
+
+  describe('UI toggle fields', () => {
+    it('defaults showHeader to true', () => {
+      expect(useAppStore.getState().showHeader).toBe(true)
+    })
+
+    it('defaults showLeftSidebar to true', () => {
+      expect(useAppStore.getState().showLeftSidebar).toBe(true)
+    })
+
+    it('defaults showRightSidebar to true', () => {
+      expect(useAppStore.getState().showRightSidebar).toBe(true)
+    })
+
+    it('defaults showDatasetDropdown to true', () => {
+      expect(useAppStore.getState().showDatasetDropdown).toBe(true)
+    })
+  })
+
+  describe('loadingError field', () => {
+    it('defaults loadingError to null', () => {
+      expect(useAppStore.getState().loadingError).toBeNull()
     })
   })
 })

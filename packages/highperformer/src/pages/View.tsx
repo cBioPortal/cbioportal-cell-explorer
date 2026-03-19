@@ -10,6 +10,9 @@ import { _StatsWidget as StatsWidget } from '@deck.gl/widgets'
 import { ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from '@cbioportal-cell-explorer/profiler'
 import useAppStore from '../store/useAppStore'
 import type { SpatialSelectionGroup } from '../store/useAppStore'
+import { parseConfig } from '../config/parseConfig'
+import { applyConfig } from '../config/applyConfig'
+import { DatasetError } from '../components/DatasetError'
 import ColorBySection from '../components/ColorBySection'
 import SelectionOverlay from '../components/SelectionOverlay'
 import SelectionToolbar from '../components/SelectionToolbar'
@@ -186,6 +189,8 @@ function BrandingHeader() {
 function LeftSidebarContent() {
   const navigate = useNavigate()
   const datasetUrl = useAppStore((s) => s.datasetUrl)
+  const showHeader = useAppStore((s) => s.showHeader)
+  const showDatasetDropdown = useAppStore((s) => s.showDatasetDropdown)
   const nObs = useAppStore((s) => s.nObs)
   const nVar = useAppStore((s) => s.nVar)
   const obsmKeys = useAppStore((s) => s.obsmKeys)
@@ -206,7 +211,7 @@ function LeftSidebarContent() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ flex: 1, overflow: 'auto' }}>
-        <BrandingHeader />
+        {showHeader && <BrandingHeader />}
 
         <div style={sectionStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', ...labelStyle }}>
@@ -230,14 +235,20 @@ function LeftSidebarContent() {
               </Typography.Text>
             )}
           </div>
-          <Select
-            style={{ width: '100%' }}
-            size="small"
-            placeholder="Select dataset"
-            value={datasetUrl}
-            onChange={(url: string) => navigate(`/view?url=${encodeURIComponent(url)}`)}
-            options={datasetOptions.map((url) => ({ label: urlLabel(url), value: url }))}
-          />
+          {showDatasetDropdown ? (
+            <Select
+              style={{ width: '100%' }}
+              size="small"
+              placeholder="Select dataset"
+              value={datasetUrl}
+              onChange={(url: string) => navigate(`/view?url=${encodeURIComponent(url)}`)}
+              options={datasetOptions.map((url) => ({ label: urlLabel(url), value: url }))}
+            />
+          ) : (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {datasetUrl ? urlLabel(datasetUrl) : 'No dataset'}
+            </Typography.Text>
+          )}
         </div>
 
         <div style={sectionStyle}>
@@ -610,8 +621,11 @@ function ProfileBarWrapper() {
 
 function View() {
   const [searchParams] = useSearchParams()
-  const datasetUrl = searchParams.get('url')
+  const configParam = searchParams.get('config')
+  const urlParam = searchParams.get('url')
   const openDataset = useAppStore((s) => s.openDataset)
+  const loadingError = useAppStore((s) => s.loadingError)
+  const datasetUrl = useAppStore((s) => s.datasetUrl)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightWidth, setRightWidth] = useState(RIGHT_SIDEBAR_WIDTH)
   const deckRef = useRef<DeckGL>(null)
@@ -621,9 +635,50 @@ function View() {
   // Keep the drag hook's ref in sync with the current snapped width
   useEffect(() => { setSnappedRef(rightWidth) }, [rightWidth, setSnappedRef])
 
+  const configApplied = useRef(false)
+
   useEffect(() => {
-    if (datasetUrl) openDataset(datasetUrl)
-  }, [datasetUrl, openDataset])
+    if (configApplied.current) return
+
+    if (configParam) {
+      const config = parseConfig(configParam)
+      if (config) {
+        configApplied.current = true
+        if (!config.showLeftSidebar) setLeftCollapsed(true)
+        if (!config.showRightSidebar) setRightWidth(SIDEBAR_COLLAPSED_WIDTH)
+        applyConfig(config)
+        return
+      }
+    }
+
+    if (urlParam) {
+      configApplied.current = true
+      openDataset(urlParam)
+    }
+  }, [configParam, urlParam, openDataset])
+
+  if (loadingError) {
+    const isEmbedded = window.self !== window.top
+    return (
+      <DatasetError
+        error={loadingError}
+        url={datasetUrl ?? urlParam ?? ''}
+        onRetry={() => {
+          if (configParam) {
+            const config = parseConfig(configParam)
+            if (config) {
+              configApplied.current = false
+              applyConfig(config)
+              return
+            }
+          }
+          if (datasetUrl) openDataset(datasetUrl)
+          else if (urlParam) openDataset(urlParam)
+        }}
+        showHomeLink={!isEmbedded}
+      />
+    )
+  }
 
   return (
     <Layout style={{ height: '100vh', background: '#fff' }}>
