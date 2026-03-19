@@ -222,7 +222,7 @@ function ShareLinkPopover({ datasetUrl }: { datasetUrl: string }) {
         onClick={() => handleCopy('dataset')}
       >
         <Typography.Text style={{ fontSize: 12 }}>
-          {copied === 'dataset' ? 'Copied!' : 'Copy dataset link'}
+          {copied === 'dataset' ? 'Copied!' : 'Share dataset'}
         </Typography.Text>
       </div>
       <div
@@ -232,7 +232,7 @@ function ShareLinkPopover({ datasetUrl }: { datasetUrl: string }) {
         onClick={() => handleCopy('config')}
       >
         <Typography.Text style={{ fontSize: 12 }}>
-          {copied === 'config' ? 'Copied!' : 'Copy link with current view'}
+          {copied === 'config' ? 'Copied!' : 'Share current view'}
         </Typography.Text>
       </div>
     </div>
