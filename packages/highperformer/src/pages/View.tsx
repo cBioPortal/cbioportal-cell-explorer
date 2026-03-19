@@ -626,10 +626,8 @@ function View() {
   const openDataset = useAppStore((s) => s.openDataset)
   const loadingError = useAppStore((s) => s.loadingError)
   const datasetUrl = useAppStore((s) => s.datasetUrl)
-  const showLeftSidebar = useAppStore((s) => s.showLeftSidebar)
-  const showRightSidebar = useAppStore((s) => s.showRightSidebar)
-  const [leftCollapsed, setLeftCollapsed] = useState(!showLeftSidebar)
-  const [rightWidth, setRightWidth] = useState(showRightSidebar ? RIGHT_SIDEBAR_WIDTH : SIDEBAR_COLLAPSED_WIDTH)
+  const [leftCollapsed, setLeftCollapsed] = useState(false)
+  const [rightWidth, setRightWidth] = useState(RIGHT_SIDEBAR_WIDTH)
   const deckRef = useRef<DeckGL>(null)
 
   const { onMouseDown: onDragStart, setSnappedRef } = useRightSidebarDrag(setRightWidth)
@@ -646,6 +644,8 @@ function View() {
       const config = parseConfig(configParam)
       if (config) {
         configApplied.current = true
+        if (!config.showLeftSidebar) setLeftCollapsed(true)
+        if (!config.showRightSidebar) setRightWidth(SIDEBAR_COLLAPSED_WIDTH)
         applyConfig(config)
         return
       }
