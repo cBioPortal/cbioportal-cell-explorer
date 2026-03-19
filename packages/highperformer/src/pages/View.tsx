@@ -696,25 +696,24 @@ function View() {
 
   const configApplied = useRef(false)
 
+  // Handle ?config= param (applied once on initial load)
   useEffect(() => {
-    if (configApplied.current) return
-
-    if (configParam) {
-      const config = parseConfig(configParam)
-      if (config) {
-        configApplied.current = true
-        if (!config.showLeftSidebar) setLeftCollapsed(true)
-        if (!config.showRightSidebar) setRightWidth(SIDEBAR_COLLAPSED_WIDTH)
-        applyConfig(config)
-        return
-      }
-    }
-
-    if (urlParam) {
+    if (!configParam || configApplied.current) return
+    const config = parseConfig(configParam)
+    if (config) {
       configApplied.current = true
-      openDataset(urlParam)
+      if (!config.showLeftSidebar) setLeftCollapsed(true)
+      if (!config.showRightSidebar) setRightWidth(SIDEBAR_COLLAPSED_WIDTH)
+      applyConfig(config)
     }
-  }, [configParam, urlParam, openDataset])
+  }, [configParam])
+
+  // Handle ?url= param — loads dataset on initial visit and when switching via dropdown
+  // Skipped when ?config= was used (applyConfig handles dataset loading)
+  useEffect(() => {
+    if (configParam) return
+    if (urlParam) openDataset(urlParam)
+  }, [urlParam, configParam, openDataset])
 
   if (loadingError) {
     const isEmbedded = window.self !== window.top
