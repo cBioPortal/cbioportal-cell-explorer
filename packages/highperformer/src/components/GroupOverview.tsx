@@ -301,12 +301,14 @@ const SVG_HEIGHT = 140
 const MAX_RADIUS = 50
 const MIN_RADIUS = 18
 
-function VennDiagram({ groups, stats, totalCells, customGroupCount, customGroupIdLabel, crossOverlap }: {
+function VennDiagram({ groups, stats, totalCells, customGroupCount, customGroupIdLabel, crossOverlap, customGroupEnabledIds, onManageIds }: {
   groups: SelectionGroup[]
   stats: OverlapStats
   totalCells: number
   customGroupCount: number
   customGroupIdLabel: string
+  customGroupEnabledIds?: Set<string>
+  onManageIds?: () => void
   crossOverlap: Map<number, number>
 }) {
   const cy = SVG_HEIGHT / 2
@@ -463,6 +465,28 @@ function VennDiagram({ groups, stats, totalCells, customGroupCount, customGroupI
               </div>
             )
           })}
+          {customGroupEnabledIds && customGroupEnabledIds.size > 0 && (
+            <>
+              <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 4, marginTop: 2 }}>
+                <span style={{ color: '#999', fontSize: 10 }}>Enabled IDs:</span>
+                <div style={{ maxHeight: 120, overflowY: 'auto', marginTop: 2 }}>
+                  {Array.from(customGroupEnabledIds).slice(0, 20).map((id) => (
+                    <div key={id} style={{ fontSize: 10, color: '#555', lineHeight: 1.6 }}>{id}</div>
+                  ))}
+                  {customGroupEnabledIds.size > 20 && (
+                    <div style={{ fontSize: 10, color: '#999', fontStyle: 'italic' }}>
+                      and {customGroupEnabledIds.size - 20} more...
+                    </div>
+                  )}
+                </div>
+              </div>
+              {onManageIds && (
+                <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 4, marginTop: 2 }}>
+                  <a onClick={onManageIds} style={{ fontSize: 10, cursor: 'pointer' }}>Manage IDs</a>
+                </div>
+              )}
+            </>
+          )}
         </>
       )}
     </div>
@@ -607,6 +631,8 @@ export default function GroupOverview({ groups, totalCells }: GroupOverviewProps
             customGroupCount={customGroupCount}
             customGroupIdLabel={`${customGroupColumn ? `(${customGroupColumn}) ` : ''}${useAppStore.getState().customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`}
             crossOverlap={crossOverlap}
+            customGroupEnabledIds={customGroupCount > 0 ? useAppStore.getState().customGroupEnabledIds : undefined}
+            onManageIds={() => setModalOpen(true)}
           />
           <div style={{ fontSize: 10, color: '#999', textAlign: 'center', marginTop: 2 }}>
             {activeGroups.map((g) => {
