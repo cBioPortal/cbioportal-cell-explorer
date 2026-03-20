@@ -82,11 +82,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       # Build highperformer (deployed to GitHub Pages)
+      # NOTE: localhost origins are allowed temporarily for local cBioPortal development.
+      # This will change once we move to utilize resource data.
       - run: pnpm --filter @cbioportal-cell-explorer/highperformer build
         env:
           VITE_BASE_URL: /cbioportal-cell-explorer/
           VITE_ENABLE_POSTMESSAGE: "true"
-          VITE_POSTMESSAGE_ORIGIN: "https://www.cbioportal.org, https://deploy-preview-*--cbioportalfrontend.netlify.app"
+          VITE_POSTMESSAGE_ORIGIN: "https://www.cbioportal.org, https://deploy-preview-*--cbioportalfrontend.netlify.app, http://localhost:*, https://localhost:*"
 
       # Build app (kept for reference, not deployed)
       # To switch back: uncomment this block, comment out highperformer build above,
