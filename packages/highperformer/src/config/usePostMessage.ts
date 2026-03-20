@@ -54,6 +54,8 @@ export function usePostMessage(): void {
       return
     }
 
+    const debug = import.meta.env.VITE_POSTMESSAGE_DEBUG === 'true'
+
     const patterns =
       originEnv === '*'
         ? null
@@ -68,9 +70,24 @@ export function usePostMessage(): void {
       originEnv,
     )
 
+    // Signal to parent that the listener is ready
+    if (window.self !== window.top) {
+      window.parent.postMessage({ type: 'ready' }, '*')
+      if (debug) console.log('[postMessage:debug] Sent ready signal to parent')
+    }
+
     const listener = (event: MessageEvent) => {
+      if (debug) {
+        console.log('[postMessage:debug] Raw message received:', { origin: event.origin, data: event.data })
+      }
+
       const result = MessageSchema.safeParse(event.data)
-      if (!result.success) return
+      if (!result.success) {
+        if (debug && event.data && typeof event.data === 'object' && 'type' in event.data) {
+          console.log('[postMessage:debug] Message validation failed:', result.error.issues)
+        }
+        return
+      }
 
       if (patterns && !isOriginAllowed(event.origin, patterns)) {
         console.warn(
@@ -82,8 +99,20 @@ export function usePostMessage(): void {
 
       const { payload } = result.data
 
+      if (debug) {
+        console.log('[postMessage:debug] Valid message received:', {
+          type: result.data.type,
+          url: payload.url,
+          lastAppliedUrl: lastAppliedUrl.current,
+          isFirstMessage: payload.url !== lastAppliedUrl.current,
+          hasFilter: !!payload.filter,
+          filterIdCount: payload.filter?.ids.length ?? 0,
+        })
+      }
+
       // Different URL or first message: full applyConfig
       if (payload.url !== lastAppliedUrl.current) {
+        if (debug) console.log('[postMessage:debug] Applying full config (new URL or first message)')
         lastAppliedUrl.current = payload.url
         applyConfig(payload)
         return
@@ -93,6 +122,7 @@ export function usePostMessage(): void {
       const store = useAppStore
 
       if (payload.filter && payload.filter.ids.length > 0) {
+        if (debug) console.log('[postMessage:debug] Filter-only update:', payload.filter.ids.length, 'IDs on column', payload.filter.obsColumn)
         // Wait for dataset readiness before applying filter
         waitForStore(store, (s) => s.obsColumnNames.length > 0)
           .then(() => {
@@ -100,6 +130,7 @@ export function usePostMessage(): void {
               .getState()
               .selectByIds(payload.filter!.obsColumn, payload.filter!.ids)
             store.setState({ summaryContext: 'selections' })
+            if (debug) console.log('[postMessage:debug] Filter applied successfully')
           })
           .catch(() => {
             console.warn(
@@ -107,6 +138,7 @@ export function usePostMessage(): void {
             )
           })
       } else {
+        if (debug) console.log('[postMessage:debug] Clearing custom group (empty or missing filter)')
         // No filter or empty IDs: clear custom group
         store.getState().clearCustomGroup()
         store.setState({ summaryContext: 'all' })
