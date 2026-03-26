@@ -10,7 +10,7 @@
   },
   "keywords": [],
   "author": "Jason Hwee (Hweej) <hweej@users.noreply.github.com>",
-  "license": "ISC",
+  "license": "MIT",
   "engines": {
     "node": ">=22"
   },
