@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
+    "@cbioportal-cell-explorer/api-client": "workspace:*",
     "@cbioportal-cell-explorer/profiler": "workspace:*",
     "@cbioportal-cell-explorer/zarrstore": "workspace:*",
     "@deck.gl/core": "^9.2.10",
