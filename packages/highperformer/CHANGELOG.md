@@ -1,5 +1,13 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.2.1
+
+### Patch Changes
+
+- [#215](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/215) [`8e8bfb2`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/8e8bfb2a654ccb4cca770c6f2b2bacebb2989f66) Thanks [@hweej](https://github.com/hweej)! - Add backend detection via /api/info probe and display version info in branding header popover
+
+- [#199](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/199) [`be630ec`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/be630ec34edd4ac32f03896819cf0c8cbf3db781) Thanks [@hweej](https://github.com/hweej)! - Show custom group IDs in the venn diagram click popover with a truncated list (first 20) and a "Manage IDs" link to open the full modal
+
 ## 0.2.0
 
 ### Minor Changes
