@@ -21,6 +21,12 @@ export interface EmbeddingData {
   bounds: EmbeddingBounds
 }
 
+export interface BackendInfo {
+  version: string
+  environment: string
+  git_sha: string | null
+}
+
 export type ColorMode = 'category' | 'gene'
 
 // Selection types
@@ -163,6 +169,10 @@ export interface AppState {
   removeSummaryGene: (name: string) => void
   reorderSummaryObsColumns: (reordered: string[]) => void
   reorderSummaryGenes: (reordered: string[]) => void
+
+  // Backend info (null = no backend detected)
+  backendInfo: BackendInfo | null
+  probeBackend: () => Promise<void>
 
   // UI visibility toggles (for embedded mode)
   showHeader: boolean
@@ -344,6 +354,18 @@ const useAppStore = create<AppState>((set, get) => ({
   customGroupPreviousEnabledIds: null,
 
   // UI toggles
+  backendInfo: null,
+  probeBackend: async () => {
+    try {
+      const res = await fetch('/api/info')
+      if (!res.ok) return
+      const data = await res.json()
+      set({ backendInfo: data })
+    } catch {
+      // No backend available — frontend-only mode
+    }
+  },
+
   showHeader: true,
   showLeftSidebar: true,
   showRightSidebar: true,
