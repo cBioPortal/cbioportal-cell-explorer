@@ -13,9 +13,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.10",
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
-    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
+    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.13",
     "@cbioportal-cell-explorer/profiler": "workspace:^",
     "@cbioportal-cell-explorer/zarrstore": "workspace:^",
     "@visx/axis": "^3.12.0",
@@ -23,13 +23,13 @@
     "@visx/scale": "^3.12.0",
     "@visx/shape": "^3.12.0",
     "@visx/zoom": "^3.12.0",
-    "antd": "^6.3.1",
-    "deck.gl": "^9.2.10",
+    "antd": "^6.3.5",
+    "deck.gl": "^9.2.11",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.13.1",
+    "react-router-dom": "^7.13.2",
     "zod": "^4.3.6",
-    "zustand": "^5.0.11"
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
