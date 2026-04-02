@@ -1,0 +1,21 @@
+{
+  "name": "@cbioportal-cell-explorer/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "cbioportal-cell-explorer": "./src/main.ts"
+  },
+  "exports": "./src/main.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cbioportal-cell-explorer/zarrstore": "workspace:*",
+    "@petamoriken/float16": "^3.9.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "cell-explorer",
+  "description": "Tools for querying cBioPortal cell-level zarr (AnnData) datasets",
+  "author": {
+    "name": "cBioPortal"
+  }
+}
