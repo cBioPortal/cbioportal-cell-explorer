@@ -18,6 +18,13 @@ vi.mock('../workers/universal.worker.ts?worker', () => {
   return { default: class MockWorker {} }
 })
 
+// Mock the API client
+const mockGET = vi.fn()
+const mockPOST = vi.fn()
+vi.mock('../api', () => ({
+  api: { GET: mockGET, POST: mockPOST },
+}))
+
 const { default: useAppStore, getColorBuildVersion, resetColorBuildVersion, resetSelectionVersion } = await import('./useAppStore')
 
 describe('useAppStore', () => {
@@ -25,6 +32,8 @@ describe('useAppStore', () => {
     vi.useFakeTimers()
     useAppStore.setState(useAppStore.getInitialState())
     mockDispatch.mockClear()
+    mockGET.mockReset()
+    mockPOST.mockReset()
     resetColorBuildVersion()
     resetSelectionVersion()
     mockDispatch.mockResolvedValue({ type: 'colorBuffer', buffer: new Uint8Array(8), version: 1 })
@@ -1025,6 +1034,95 @@ describe('useAppStore', () => {
   describe('loadingError field', () => {
     it('defaults loadingError to null', () => {
       expect(useAppStore.getState().loadingError).toBeNull()
+    })
+  })
+
+  describe('auth state', () => {
+    it('has correct auth defaults', () => {
+      const state = useAppStore.getState()
+      expect(state.user).toBeNull()
+      expect(state.authChecked).toBe(false)
+      expect(state.backendInfo).toBeNull()
+    })
+  })
+
+  describe('probeBackend', () => {
+    it('sets backendInfo on success', async () => {
+      const info = { version: '0.1.0', environment: 'development', git_sha: 'abc1234', auth_enabled: true }
+      mockGET.mockResolvedValue({ data: info })
+
+      await useAppStore.getState().probeBackend()
+
+      expect(mockGET).toHaveBeenCalledWith('/api/info')
+      expect(useAppStore.getState().backendInfo).toEqual(info)
+    })
+
+    it('leaves backendInfo null when data is undefined', async () => {
+      mockGET.mockResolvedValue({ data: undefined, error: { detail: 'Not found' } })
+
+      await useAppStore.getState().probeBackend()
+
+      expect(useAppStore.getState().backendInfo).toBeNull()
+    })
+
+    it('leaves backendInfo null on network error', async () => {
+      mockGET.mockRejectedValue(new Error('Network error'))
+
+      await useAppStore.getState().probeBackend()
+
+      expect(useAppStore.getState().backendInfo).toBeNull()
+    })
+  })
+
+  describe('checkAuth', () => {
+    it('sets user and authChecked on success', async () => {
+      const user = { sub: 'user-1', name: 'Test User', email: 'test@example.com', roles: [] }
+      mockGET.mockResolvedValue({ data: user })
+
+      await useAppStore.getState().checkAuth()
+
+      expect(mockGET).toHaveBeenCalledWith('/api/auth/me')
+      expect(useAppStore.getState().user).toEqual(user)
+      expect(useAppStore.getState().authChecked).toBe(true)
+    })
+
+    it('sets user to null and authChecked on 401', async () => {
+      mockGET.mockResolvedValue({ data: undefined, error: { detail: 'Unauthorized' } })
+
+      await useAppStore.getState().checkAuth()
+
+      expect(useAppStore.getState().user).toBeNull()
+      expect(useAppStore.getState().authChecked).toBe(true)
+    })
+
+    it('sets user to null and authChecked on network error', async () => {
+      mockGET.mockRejectedValue(new Error('Network error'))
+
+      await useAppStore.getState().checkAuth()
+
+      expect(useAppStore.getState().user).toBeNull()
+      expect(useAppStore.getState().authChecked).toBe(true)
+    })
+  })
+
+  describe('logout', () => {
+    it('calls POST /api/auth/logout and clears user', async () => {
+      useAppStore.setState({ user: { sub: 'user-1', name: 'Test', email: null, roles: [] } })
+      mockPOST.mockResolvedValue({ data: undefined })
+
+      await useAppStore.getState().logout()
+
+      expect(mockPOST).toHaveBeenCalledWith('/api/auth/logout')
+      expect(useAppStore.getState().user).toBeNull()
+    })
+
+    it('clears user even when POST fails', async () => {
+      useAppStore.setState({ user: { sub: 'user-1', name: 'Test', email: null, roles: [] } })
+      mockPOST.mockRejectedValue(new Error('Network error'))
+
+      await useAppStore.getState().logout()
+
+      expect(useAppStore.getState().user).toBeNull()
     })
   })
 })
