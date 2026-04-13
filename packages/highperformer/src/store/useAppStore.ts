@@ -21,11 +21,10 @@ export interface EmbeddingData {
   bounds: EmbeddingBounds
 }
 
-export interface BackendInfo {
-  version: string
-  environment: string
-  git_sha: string | null
-}
+import type { components } from '@cbioportal-cell-explorer/api-client'
+
+export type BackendInfo = components['schemas']['InfoResponse']
+export type User = components['schemas']['User']
 
 export type ColorMode = 'category' | 'gene'
 
@@ -173,6 +172,12 @@ export interface AppState {
   // Backend info (null = no backend detected)
   backendInfo: BackendInfo | null
   probeBackend: () => Promise<void>
+
+  // Auth
+  user: User | null
+  authChecked: boolean
+  checkAuth: () => Promise<void>
+  logout: () => Promise<void>
 
   // UI visibility toggles (for embedded mode)
   showHeader: boolean
@@ -357,13 +362,33 @@ const useAppStore = create<AppState>((set, get) => ({
   backendInfo: null,
   probeBackend: async () => {
     try {
-      const res = await fetch('/api/info')
-      if (!res.ok) return
-      const data = await res.json()
-      set({ backendInfo: data })
+      const { api } = await import('../api')
+      const { data } = await api.GET('/api/info')
+      if (data) set({ backendInfo: data })
     } catch {
       // No backend available — frontend-only mode
     }
+  },
+
+  user: null,
+  authChecked: false,
+  checkAuth: async () => {
+    try {
+      const { api } = await import('../api')
+      const { data } = await api.GET('/api/auth/me')
+      set({ user: data ?? null, authChecked: true })
+    } catch {
+      set({ user: null, authChecked: true })
+    }
+  },
+  logout: async () => {
+    try {
+      const { api } = await import('../api')
+      await api.POST('/api/auth/logout')
+    } catch {
+      // Clear local state regardless
+    }
+    set({ user: null })
   },
 
   showHeader: true,
