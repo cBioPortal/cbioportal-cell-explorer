@@ -1,6 +1,6 @@
 import { notification } from 'antd'
 import { createApiClient } from '@cbioportal-cell-explorer/api-client/client'
-import type { Middleware } from 'openapi-fetch'
+import type { Middleware } from '@cbioportal-cell-explorer/api-client/client'
 
 let lastNotification = 0
 const NOTIFICATION_DEBOUNCE_MS = 5000
