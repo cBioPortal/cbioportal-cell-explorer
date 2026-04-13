@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
-import { Collapse, InputNumber, Layout, Popover, Switch, Typography, Select, Spin, message } from 'antd'
-import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HolderOutlined, InfoCircleOutlined, LeftOutlined, LinkOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons'
+import { Button, Collapse, InputNumber, Layout, Popover, Switch, Typography, Select, Spin, message } from 'antd'
+import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HolderOutlined, InfoCircleOutlined, LeftOutlined, LinkOutlined, LoginOutlined, LogoutOutlined, RightOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons'
 import { DeckGL } from '@deck.gl/react'
 import { OrthographicView } from '@deck.gl/core'
 import { PolygonLayer, ScatterplotLayer } from '@deck.gl/layers'
@@ -159,6 +159,20 @@ const collapsedIconStyle: React.CSSProperties = {
   justifyContent: 'center',
 }
 
+function CollapsedAuthIcon() {
+  const backendInfo = useAppStore((s) => s.backendInfo)
+  const authChecked = useAppStore((s) => s.authChecked)
+  const user = useAppStore((s) => s.user)
+
+  if (!backendInfo?.auth_enabled || !authChecked) return null
+
+  return (
+    <div style={{ ...collapsedIconStyle, paddingBottom: 12 }}>
+      {user ? <UserOutlined /> : <LoginOutlined />}
+    </div>
+  )
+}
+
 function CollapsedSidebar({ onExpand }: { onExpand: () => void }) {
   return (
     <div onClick={onExpand} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', paddingTop: 12 }}>
@@ -169,7 +183,8 @@ function CollapsedSidebar({ onExpand }: { onExpand: () => void }) {
       <div style={collapsedIconStyle}><DotChartOutlined /></div>
       <div style={collapsedIconStyle}><BgColorsOutlined /></div>
       <div style={{ flex: 1 }} />
-      <div style={{ ...collapsedIconStyle, borderTop: '1px solid #f0f0f0', width: '100%', paddingBottom: 12 }}><SettingOutlined /></div>
+      <div style={{ ...collapsedIconStyle, borderTop: '1px solid #f0f0f0', width: '100%' }}><SettingOutlined /></div>
+      <CollapsedAuthIcon />
     </div>
   )
 }
@@ -207,6 +222,50 @@ function InfoPopoverContent() {
           )}
         </>
       )}
+    </div>
+  )
+}
+
+function AuthSection() {
+  const backendInfo = useAppStore((s) => s.backendInfo)
+  const authChecked = useAppStore((s) => s.authChecked)
+  const user = useAppStore((s) => s.user)
+  const logout = useAppStore((s) => s.logout)
+
+  if (!backendInfo?.auth_enabled || !authChecked) return null
+
+  if (!user) {
+    return (
+      <div style={{ padding: '8px 16px', borderTop: '1px solid #f0f0f0' }}>
+        <Button
+          type="text"
+          size="small"
+          icon={<LoginOutlined />}
+          onClick={() => { window.location.href = '/api/auth/login' }}
+          style={{ fontSize: 12, color: '#1677ff', padding: 0 }}
+        >
+          Sign in
+        </Button>
+      </div>
+    )
+  }
+
+  const displayName = user.name ?? user.email ?? user.sub
+
+  return (
+    <div style={{ padding: '8px 16px', borderTop: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <span style={{ fontSize: 12, color: '#666', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <UserOutlined /> {displayName}
+      </span>
+      <Button
+        type="text"
+        size="small"
+        icon={<LogoutOutlined />}
+        onClick={() => { logout() }}
+        style={{ fontSize: 11, color: '#999', padding: 0 }}
+      >
+        Sign out
+      </Button>
     </div>
   )
 }
@@ -368,6 +427,7 @@ function LeftSidebarContent() {
 
       <div style={{ borderTop: '1px solid #f0f0f0' }}>
         <RenderingControls />
+        <AuthSection />
       </div>
     </div>
   )
