@@ -14,7 +14,13 @@ const ENABLE_ZARR_VIEW = import.meta.env.VITE_ENABLE_ZARR_VIEW === 'true'
 
 function App() {
   const probeBackend = useAppStore((s) => s.probeBackend)
-  useEffect(() => { probeBackend() }, [probeBackend])
+  const checkAuth = useAppStore((s) => s.checkAuth)
+  useEffect(() => {
+    probeBackend().then(() => {
+      const { backendInfo } = useAppStore.getState()
+      if (backendInfo?.auth_enabled) checkAuth()
+    })
+  }, [probeBackend, checkAuth])
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
