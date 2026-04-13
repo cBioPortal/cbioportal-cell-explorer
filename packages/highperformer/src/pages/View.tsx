@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
-import { Collapse, InputNumber, Layout, Popover, Switch, Typography, Select, Spin, message } from 'antd'
-import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HolderOutlined, InfoCircleOutlined, LeftOutlined, LinkOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons'
+import { Button, Collapse, Dropdown, InputNumber, Layout, Popover, Switch, Typography, Select, Spin, message } from 'antd'
+import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HolderOutlined, InfoCircleOutlined, LeftOutlined, LinkOutlined, LoginOutlined, LogoutOutlined, RightOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons'
 import { DeckGL } from '@deck.gl/react'
 import { OrthographicView } from '@deck.gl/core'
 import { PolygonLayer, ScatterplotLayer } from '@deck.gl/layers'
@@ -211,6 +211,47 @@ function InfoPopoverContent() {
   )
 }
 
+function AuthControls() {
+  const backendInfo = useAppStore((s) => s.backendInfo)
+  const authChecked = useAppStore((s) => s.authChecked)
+  const user = useAppStore((s) => s.user)
+  const logout = useAppStore((s) => s.logout)
+
+  if (!backendInfo?.auth_enabled || !authChecked) return null
+
+  if (!user) {
+    return (
+      <Button
+        type="text"
+        size="small"
+        icon={<LoginOutlined />}
+        onClick={() => { window.location.href = '/api/auth/login' }}
+        style={{ fontSize: 12, color: '#666' }}
+      >
+        Sign in
+      </Button>
+    )
+  }
+
+  const displayName = user.name ?? user.email ?? user.sub
+  const items = [
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: 'Sign out',
+      onClick: () => { logout() },
+    },
+  ]
+
+  return (
+    <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
+      <Button type="text" size="small" icon={<UserOutlined />} style={{ fontSize: 12, color: '#666' }}>
+        {displayName}
+      </Button>
+    </Dropdown>
+  )
+}
+
 function BrandingHeader() {
   return (
     <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -220,9 +261,12 @@ function BrandingHeader() {
           <span style={{ fontSize: 12, color: '#999', fontWeight: 'normal' }}>v{__APP_VERSION__}</span>
         </Typography.Title>
       </Link>
-      <Popover content={<InfoPopoverContent />} trigger="click" placement="bottomRight">
-        <InfoCircleOutlined style={{ fontSize: 14, color: '#999', cursor: 'pointer' }} />
-      </Popover>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <AuthControls />
+        <Popover content={<InfoPopoverContent />} trigger="click" placement="bottomRight">
+          <InfoCircleOutlined style={{ fontSize: 14, color: '#999', cursor: 'pointer' }} />
+        </Popover>
+      </div>
     </div>
   )
 }
