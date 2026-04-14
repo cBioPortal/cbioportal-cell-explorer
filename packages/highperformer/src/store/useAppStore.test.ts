@@ -1125,4 +1125,28 @@ describe('useAppStore', () => {
       expect(useAppStore.getState().user).toBeNull()
     })
   })
+
+  describe('catalog', () => {
+    it('has empty catalogDatasets initially', () => {
+      expect(useAppStore.getState().catalogDatasets).toEqual([])
+    })
+
+    it('fetchCatalog stores datasets from API', async () => {
+      const mockDatasets = [
+        { slug: 'brca-demo', name: 'BRCA Demo', description: 'Test', is_public: true, url: 'https://cdn.example.com/brca.zarr' },
+        { slug: 'private-study', name: 'Private Study', description: null, is_public: false, url: null },
+      ]
+      mockGET.mockResolvedValueOnce({ data: { datasets: mockDatasets } })
+
+      await useAppStore.getState().fetchCatalog()
+      expect(mockGET).toHaveBeenCalledWith('/api/datasets')
+      expect(useAppStore.getState().catalogDatasets).toEqual(mockDatasets)
+    })
+
+    it('fetchCatalog handles API failure gracefully', async () => {
+      mockGET.mockRejectedValueOnce(new Error('Network error'))
+      await useAppStore.getState().fetchCatalog()
+      expect(useAppStore.getState().catalogDatasets).toEqual([])
+    })
+  })
 })

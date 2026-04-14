@@ -179,6 +179,16 @@ export interface AppState {
   checkAuth: () => Promise<void>
   logout: () => Promise<void>
 
+  // Dataset catalog
+  catalogDatasets: Array<{
+    slug: string
+    name: string
+    description: string | null
+    is_public: boolean
+    url: string | null
+  }>
+  fetchCatalog: () => Promise<void>
+
   // UI visibility toggles (for embedded mode)
   showHeader: boolean
   showLeftSidebar: boolean
@@ -389,6 +399,17 @@ const useAppStore = create<AppState>((set, get) => ({
       // Clear local state regardless
     }
     set({ user: null })
+  },
+
+  catalogDatasets: [],
+  fetchCatalog: async () => {
+    try {
+      const { api } = await import('../api')
+      const { data } = await api.GET('/api/datasets')
+      if (data?.datasets) set({ catalogDatasets: data.datasets })
+    } catch {
+      // Backend unavailable or request failed — keep existing catalog
+    }
   },
 
   showHeader: true,
