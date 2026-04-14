@@ -32,6 +32,37 @@ function CatalogTab() {
   const backendInfo = useAppStore((s) => s.backendInfo)
   const user = useAppStore((s) => s.user)
   const navigate = useNavigate()
+  const [probeResults, setProbeResults] = useState<Map<string, ProbeResult>>(new Map())
+
+  // Probe public datasets for accessibility
+  useEffect(() => {
+    const controller = new AbortController()
+    const publicUrls = catalogDatasets.filter((d) => d.url).map((d) => d.url!)
+
+    for (const url of publicUrls) {
+      setProbeResults((prev) => {
+        if (prev.has(url)) return prev
+        const next = new Map(prev)
+        next.set(url, { status: 'pending' })
+        return next
+      })
+
+      probeStore(url, controller.signal)
+        .then((result) => {
+          if (controller.signal.aborted) return
+          setProbeResults((prev) => new Map(prev).set(url, result.ok
+            ? { status: 'ok', version: result.version }
+            : { status: 'error' },
+          ))
+        })
+        .catch(() => {
+          if (controller.signal.aborted) return
+          setProbeResults((prev) => new Map(prev).set(url, { status: 'error' }))
+        })
+    }
+
+    return () => controller.abort()
+  }, [catalogDatasets])
 
   const handleOpen = async (slug: string) => {
     await openCatalogDataset(slug)
@@ -44,28 +75,46 @@ function CatalogTab() {
         <List
           bordered
           dataSource={catalogDatasets}
-          renderItem={(item) => (
-            <List.Item
-              style={{ cursor: 'pointer' }}
-              onClick={() => handleOpen(item.slug)}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-                <div style={{ flex: 1 }}>
-                  <Typography.Text strong>{item.name}</Typography.Text>
-                  {item.description && (
-                    <div><Typography.Text type="secondary" style={{ fontSize: 12 }}>{item.description}</Typography.Text></div>
+          renderItem={(item) => {
+            const probe = item.url ? probeResults.get(item.url) : undefined
+            return (
+              <List.Item
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleOpen(item.slug)}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+                  {item.url && probe ? (
+                    <Tooltip title={probeTooltip(probe)}>
+                      <StatusIcon status={probe.status} />
+                    </Tooltip>
+                  ) : !item.url ? (
+                    <Tooltip title="Sign in to access">
+                      <LockOutlined style={{ fontSize: 14, color: '#faad14' }} />
+                    </Tooltip>
+                  ) : null}
+                  <div style={{ flex: 1 }}>
+                    <Typography.Text strong>{item.name}</Typography.Text>
+                    {item.description && (
+                      <div><Typography.Text type="secondary" style={{ fontSize: 12 }}>{item.description}</Typography.Text></div>
+                    )}
+                    {item.url && (
+                      <div><Typography.Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>{item.url}</Typography.Text></div>
+                    )}
+                  </div>
+                  <Tag
+                    color={item.is_public ? 'green' : 'orange'}
+                    icon={item.is_public ? <GlobalOutlined /> : <LockOutlined />}
+                    style={{ fontSize: 11, margin: 0 }}
+                  >
+                    {item.is_public ? 'public' : 'private'}
+                  </Tag>
+                  {probe?.status === 'ok' && probe.version && (
+                    <Tag color="default" style={{ fontSize: 11, lineHeight: '18px', margin: 0 }}>v{probe.version}</Tag>
                   )}
                 </div>
-                <Tag
-                  color={item.is_public ? 'green' : 'orange'}
-                  icon={item.is_public ? <GlobalOutlined /> : <LockOutlined />}
-                  style={{ fontSize: 11, margin: 0 }}
-                >
-                  {item.is_public ? 'public' : 'private'}
-                </Tag>
-              </div>
-            </List.Item>
-          )}
+              </List.Item>
+            )
+          }}
         />
       ) : (
         <Typography.Text type="secondary">
