@@ -210,8 +210,8 @@ export class AnnDataStore {
     this.#labelCache.clear();
   }
 
-  static async open(url: string): Promise<AnnDataStore> {
-    const zarrStore = await ZarrStore.open(url);
+  static async open(url: string, overrides?: RequestInit): Promise<AnnDataStore> {
+    const zarrStore = await ZarrStore.open(url, overrides);
     const attrs = zarrStore.attrs;
 
     if (attrs["encoding-type"] !== "anndata") {

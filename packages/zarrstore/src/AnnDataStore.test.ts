@@ -331,3 +331,12 @@ describe("AnnDataStore", () => {
     });
   });
 });
+
+describe('AnnDataStore.open overrides', () => {
+  it('accepts an optional overrides parameter', async () => {
+    const url = `${globalThis.__TEST_BASE_URL__}/pbmc3k.zarr`
+    const store = await AnnDataStore.open(url, { headers: { 'X-Test': 'value' } })
+    expect(store).toBeDefined()
+    expect(store.nObs).toBeGreaterThan(0)
+  })
+})
