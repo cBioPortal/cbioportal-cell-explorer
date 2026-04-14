@@ -1148,5 +1148,65 @@ describe('useAppStore', () => {
       await useAppStore.getState().fetchCatalog()
       expect(useAppStore.getState().catalogDatasets).toEqual([])
     })
+
+    it('openCatalogDataset opens a public dataset directly', async () => {
+      useAppStore.setState({
+        catalogDatasets: [
+          { slug: 'public-ds', name: 'Public', description: null, is_public: true, url: 'https://cdn.example.com/test.zarr' },
+        ],
+      })
+
+      const { AnnDataStore } = await import('@cbioportal-cell-explorer/zarrstore')
+      const mockOpen = vi.spyOn(AnnDataStore, 'open').mockResolvedValueOnce({
+        nObs: 100, nVar: 50, obsmKeys: () => ['X_umap'],
+      } as any)
+
+      await useAppStore.getState().openCatalogDataset('public-ds')
+      expect(mockOpen).toHaveBeenCalledWith('https://cdn.example.com/test.zarr', undefined)
+      mockOpen.mockRestore()
+    })
+
+    it('openCatalogDataset calls /access for private datasets', async () => {
+      useAppStore.setState({
+        catalogDatasets: [
+          { slug: 'private-ds', name: 'Private', description: null, is_public: false, url: null },
+        ],
+      })
+
+      mockPOST.mockResolvedValueOnce({
+        data: {
+          url: 'https://lab.example.com/private.zarr',
+          credential_type: 'bearer_token',
+          token: 'test-jwt-token',
+          expires_at: '2026-04-14T12:00:00Z',
+        },
+      })
+
+      const { AnnDataStore } = await import('@cbioportal-cell-explorer/zarrstore')
+      const mockOpen = vi.spyOn(AnnDataStore, 'open').mockResolvedValueOnce({
+        nObs: 100, nVar: 50, obsmKeys: () => ['X_umap'],
+      } as any)
+
+      await useAppStore.getState().openCatalogDataset('private-ds')
+      expect(mockPOST).toHaveBeenCalledWith('/api/datasets/{slug}/access', { params: { path: { slug: 'private-ds' } } })
+      expect(mockOpen).toHaveBeenCalledWith(
+        'https://lab.example.com/private.zarr',
+        { headers: { Authorization: 'Bearer test-jwt-token' } },
+      )
+      mockOpen.mockRestore()
+    })
+
+    it('openCatalogDataset sets error on 503', async () => {
+      useAppStore.setState({
+        catalogDatasets: [
+          { slug: 'broken-ds', name: 'Broken', description: null, is_public: false, url: null },
+        ],
+      })
+
+      mockPOST.mockResolvedValueOnce({ data: undefined, error: { detail: 'not configured' }, response: { status: 503 } })
+
+      await useAppStore.getState().openCatalogDataset('broken-ds')
+      expect(useAppStore.getState().loadingError).toContain('temporarily unavailable')
+    })
   })
 })

@@ -188,6 +188,7 @@ export interface AppState {
     url: string | null
   }>
   fetchCatalog: () => Promise<void>
+  openCatalogDataset: (slug: string) => Promise<void>
 
   // UI visibility toggles (for embedded mode)
   showHeader: boolean
@@ -409,6 +410,45 @@ const useAppStore = create<AppState>((set, get) => ({
       if (data?.datasets) set({ catalogDatasets: data.datasets })
     } catch {
       // Backend unavailable or request failed — keep existing catalog
+    }
+  },
+
+  openCatalogDataset: async (slug) => {
+    const dataset = get().catalogDatasets.find((d) => d.slug === slug)
+    if (!dataset) return
+
+    // Public dataset — open directly
+    if (dataset.url) {
+      return get().openDataset(dataset.url)
+    }
+
+    // Private dataset — get access credentials
+    try {
+      const { api } = await import('../api')
+      const { data, error, response } = await api.POST('/api/datasets/{slug}/access', {
+        params: { path: { slug } },
+      })
+
+      if (!data) {
+        const status = response?.status
+        if (status === 503) {
+          set({ loadingError: 'Dataset temporarily unavailable' })
+        } else {
+          set({ loadingError: error?.detail ?? 'Failed to access dataset' })
+        }
+        return
+      }
+
+      if (data.credential_type === 'bearer_token' && data.token) {
+        return get().openDataset(data.url, {
+          headers: { Authorization: `Bearer ${data.token}` },
+        })
+      }
+
+      // signed_cookies or public — no overrides needed
+      return get().openDataset(data.url)
+    } catch {
+      set({ loadingError: 'Failed to access dataset' })
     }
   },
 
