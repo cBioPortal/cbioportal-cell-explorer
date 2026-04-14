@@ -199,7 +199,7 @@ export interface AppState {
   loadingError: string | null
 
   // Actions
-  openDataset: (url: string) => Promise<void>
+  openDataset: (url: string, overrides?: RequestInit) => Promise<void>
   setSelectedEmbedding: (key: string) => void
   fetchEmbedding: (key: string) => Promise<void>
   rebuildColorBuffer: () => void
@@ -887,7 +887,7 @@ const useAppStore = create<AppState>((set, get) => ({
   reorderSummaryGenes: (reordered) => set({ summaryGenes: reordered }),
 
   // Actions
-  openDataset: async (url) => {
+  openDataset: async (url, overrides) => {
     if (url === get().datasetUrl && get().adata) return
     set({
       datasetUrl: url, loading: true, loadingError: null, adata: null, nObs: null, nVar: null, obsmKeys: [],
@@ -905,7 +905,7 @@ const useAppStore = create<AppState>((set, get) => ({
       summaryCache: new Map(),
     })
     try {
-      const adata = await AnnDataStore.open(url)
+      const adata = await AnnDataStore.open(url, overrides)
       const obsmKeys = adata.obsmKeys()
       const umap = obsmKeys.find((k) => /umap/i.test(k))
       const defaultKey = umap ?? obsmKeys[0] ?? null
