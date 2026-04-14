@@ -81,6 +81,22 @@ function CatalogTab() {
               <List.Item
                 style={{ cursor: 'pointer' }}
                 onClick={() => handleOpen(item.slug)}
+                actions={item.url ? [
+                  ...(ENABLE_ZARR_VIEW ? [
+                    <Tooltip key="inspect" title="Inspect Zarr structure">
+                      <Link to={`/zarr_view?url=${encodeURIComponent(item.url)}`} onClick={(e) => e.stopPropagation()}>
+                        <Button type="text" icon={<ApartmentOutlined />} />
+                      </Link>
+                    </Tooltip>,
+                  ] : []),
+                  <Tooltip key="copy" title="Copy zarr URL">
+                    <Button
+                      type="text"
+                      icon={<LinkOutlined />}
+                      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(item.url!) }}
+                    />
+                  </Tooltip>,
+                ] : []}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
                   {item.url && probe ? (
