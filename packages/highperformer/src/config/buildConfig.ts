@@ -7,7 +7,9 @@ export function buildConfigFromState(): AppConfig | null {
   if (!state.datasetUrl) return null
 
   const config: Record<string, unknown> = {
-    url: state.datasetUrl,
+    ...(state.datasetSlug
+      ? { dataset: state.datasetSlug }
+      : { url: state.datasetUrl }),
     showHeader: state.showHeader,
     showLeftSidebar: state.showLeftSidebar,
     showRightSidebar: state.showRightSidebar,
@@ -49,5 +51,9 @@ export function buildConfigUrl(config: AppConfig): string {
 
 export function buildDatasetUrl(datasetUrl: string): string {
   const base = `${window.location.origin}${import.meta.env.BASE_URL}`
+  const slug = useAppStore.getState().datasetSlug
+  if (slug) {
+    return `${base}view?dataset=${encodeURIComponent(slug)}`
+  }
   return `${base}view?url=${datasetUrl}`
 }

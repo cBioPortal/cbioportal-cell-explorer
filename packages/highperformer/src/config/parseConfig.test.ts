@@ -35,7 +35,7 @@ describe('parseConfig', () => {
 
   it('returns null and warns on invalid schema', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const json = JSON.stringify({ embedding: 'X_umap' }) // missing url
+    const json = JSON.stringify({ showHeader: 'not-a-boolean' }) // invalid type, no url or dataset
     const result = parseConfig(json)
     expect(result).toBeNull()
     expect(warn).toHaveBeenCalled()
