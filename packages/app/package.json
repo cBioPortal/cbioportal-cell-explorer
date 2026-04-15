@@ -13,21 +13,21 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ant-design/icons": "^6.1.0",
+    "@ant-design/icons": "^6.1.1",
     "@cbioportal-cell-explorer/api-client": "workspace:*",
     "@cbioportal-cell-explorer/profiler": "workspace:*",
     "@cbioportal-cell-explorer/zarrstore": "workspace:*",
-    "@deck.gl/core": "^9.2.10",
-    "@deck.gl/layers": "^9.2.10",
-    "@deck.gl/react": "^9.2.10",
+    "@deck.gl/core": "^9.3.0",
+    "@deck.gl/layers": "^9.3.0",
+    "@deck.gl/react": "^9.3.0",
     "@visx/visx": "4.0.1-alpha.0",
-    "antd": "^6.3.1",
-    "deck.gl": "^9.2.10",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "react-router": "^7.13.1",
+    "antd": "^6.3.5",
+    "deck.gl": "^9.3.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-router": "^7.14.1",
     "zod": "^4.3.6",
-    "zustand": "^5.0.11"
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
