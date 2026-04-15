@@ -55,6 +55,7 @@ export type SelectionGroup = SpatialSelectionGroup | CustomSelectionGroup
 export interface AppState {
   // Dataset
   datasetUrl: string | null
+  datasetSlug: string | null
   adata: AnnDataStore | null
   loading: boolean
 
@@ -273,6 +274,7 @@ const DEBOUNCE_MS = 150
 const useAppStore = create<AppState>((set, get) => ({
   // Dataset
   datasetUrl: null,
+  datasetSlug: null,
   adata: null,
   loading: false,
 
@@ -414,12 +416,33 @@ const useAppStore = create<AppState>((set, get) => ({
   },
 
   openCatalogDataset: async (slug) => {
-    const dataset = get().catalogDatasets.find((d) => d.slug === slug)
-    if (!dataset) return
+    let dataset = get().catalogDatasets.find((d) => d.slug === slug)
+
+    // If not in local catalog yet (e.g., cold start from a shared link),
+    // fetch the dataset directly from the API
+    if (!dataset) {
+      try {
+        const { api } = await import('../api')
+        const { data } = await api.GET('/api/datasets/{slug}', {
+          params: { path: { slug } },
+        })
+        if (data) {
+          dataset = data
+        } else {
+          set({ loadingError: 'Dataset not found' })
+          return
+        }
+      } catch {
+        set({ loadingError: 'Failed to load dataset' })
+        return
+      }
+    }
 
     // Public dataset — open directly
     if (dataset.url) {
-      return get().openDataset(dataset.url)
+      await get().openDataset(dataset.url)
+      set({ datasetSlug: slug })
+      return
     }
 
     // Private dataset — get access credentials
@@ -440,13 +463,16 @@ const useAppStore = create<AppState>((set, get) => ({
       }
 
       if (data.credential_type === 'bearer_token' && data.token) {
-        return get().openDataset(data.url, {
+        await get().openDataset(data.url, {
           headers: { Authorization: `Bearer ${data.token}` },
         })
+        set({ datasetSlug: slug })
+        return
       }
 
       // signed_cookies or public — no overrides needed
-      return get().openDataset(data.url)
+      await get().openDataset(data.url)
+      set({ datasetSlug: slug })
     } catch {
       set({ loadingError: 'Failed to access dataset' })
     }
@@ -930,7 +956,7 @@ const useAppStore = create<AppState>((set, get) => ({
   openDataset: async (url, overrides) => {
     if (url === get().datasetUrl && get().adata) return
     set({
-      datasetUrl: url, loading: true, loadingError: null, adata: null, nObs: null, nVar: null, obsmKeys: [],
+      datasetUrl: url, datasetSlug: null, loading: true, loadingError: null, adata: null, nObs: null, nVar: null, obsmKeys: [],
       selectedEmbedding: null, embeddingData: null, colorBuffer: null,
       colorMode: 'category', selectedObsColumn: null, selectedGene: null,
       obsColumnNames: [], varNames: [], categoryMap: [], expressionRange: null,

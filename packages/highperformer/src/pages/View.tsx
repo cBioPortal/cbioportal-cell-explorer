@@ -741,7 +741,9 @@ function View() {
   const [searchParams] = useSearchParams()
   const configParam = searchParams.get('config')
   const urlParam = searchParams.get('url')
+  const datasetParam = searchParams.get('dataset')
   const openDataset = useAppStore((s) => s.openDataset)
+  const openCatalogDataset = useAppStore((s) => s.openCatalogDataset)
   const loadingError = useAppStore((s) => s.loadingError)
   const datasetUrl = useAppStore((s) => s.datasetUrl)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
@@ -770,12 +772,13 @@ function View() {
     }
   }, [configParam])
 
-  // Handle ?url= param — loads dataset on initial visit and when switching via dropdown
+  // Handle ?url= or ?dataset= param — loads dataset on initial visit
   // Skipped when ?config= was used (applyConfig handles dataset loading)
   useEffect(() => {
     if (configParam) return
-    if (urlParam) openDataset(urlParam)
-  }, [urlParam, configParam, openDataset])
+    if (datasetParam) openCatalogDataset(datasetParam)
+    else if (urlParam) openDataset(urlParam)
+  }, [urlParam, datasetParam, configParam, openDataset, openCatalogDataset])
 
   if (loadingError) {
     const isEmbedded = window.self !== window.top
