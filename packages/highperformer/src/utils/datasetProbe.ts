@@ -1,11 +1,13 @@
-export async function probeStore(url: string, signal: AbortSignal): Promise<{ ok: boolean; version?: number }> {
+export async function probeStore(url: string, signal: AbortSignal, headers?: Record<string, string>): Promise<{ ok: boolean; version?: number }> {
   const base = url.endsWith('/') ? url : url + '/'
+  const opts: RequestInit = { method: 'GET', signal }
+  if (headers) opts.headers = headers
 
   // Try zarr.json (v3), then .zmetadata (v2) — simple GET, no preflight
-  const v3 = await fetch(base + 'zarr.json', { method: 'GET', signal })
+  const v3 = await fetch(base + 'zarr.json', opts)
   if (v3.ok) return { ok: true, version: 3 }
 
-  const v2 = await fetch(base + '.zmetadata', { method: 'GET', signal })
+  const v2 = await fetch(base + '.zmetadata', opts)
   if (v2.ok) return { ok: true, version: 2 }
 
   return { ok: false }

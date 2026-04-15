@@ -1,7 +1,7 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Input, Button, List, Tag, Tooltip, Typography, Tabs } from 'antd'
-import { ApartmentOutlined, CheckCircleOutlined, CopyOutlined, DeleteOutlined, ExclamationCircleOutlined, LinkOutlined, LoadingOutlined, LockOutlined, GlobalOutlined } from '@ant-design/icons'
+import { Input, Button, List, Tooltip, Typography, Tabs } from 'antd'
+import { ApartmentOutlined, CopyOutlined, DeleteOutlined, LinkOutlined } from '@ant-design/icons'
 import { loadDatasets, saveDatasets } from '../utils/datasets'
 import { probeStore } from '../utils/datasetProbe'
 import useAppStore from '../store/useAppStore'
@@ -14,16 +14,42 @@ interface ProbeResult {
   version?: number
 }
 
-const StatusIcon = ({ status }: { status: ProbeResult['status'] }) => {
-  if (status === 'pending') return <LoadingOutlined style={{ fontSize: 14, color: '#d9d9d9' }} />
-  if (status === 'ok') return <CheckCircleOutlined style={{ fontSize: 14, color: '#52c41a' }} />
-  return <ExclamationCircleOutlined style={{ fontSize: 14, color: '#ff4d4f' }} />
+function StatusLine({ probe, isPublic }: { probe?: ProbeResult; isPublic: boolean }) {
+  const accessLabel = isPublic ? 'Public' : 'Private'
+  const accessColor = isPublic ? '#52c41a' : '#faad14'
+
+  let reachLabel: string
+  let reachColor: string
+  if (!probe) {
+    reachLabel = isPublic ? '' : 'Requires authentication'
+    reachColor = '#999'
+  } else if (probe.status === 'pending') {
+    reachLabel = 'Checking...'
+    reachColor = '#999'
+  } else if (probe.status === 'ok') {
+    reachLabel = probe.version ? `Reachable (v${probe.version})` : 'Reachable'
+    reachColor = '#52c41a'
+  } else {
+    reachLabel = 'Unreachable'
+    reachColor = '#ff4d4f'
+  }
+
+  return (
+    <div style={{ fontSize: 11, marginTop: 4 }}>
+      <span style={{ color: accessColor }}>● {accessLabel}</span>
+      {reachLabel && (
+        <>
+          <span style={{ color: '#ccc', margin: '0 6px' }}>·</span>
+          <span style={{ color: reachColor }}>{reachLabel}</span>
+        </>
+      )}
+    </div>
+  )
 }
 
-function probeTooltip(result: ProbeResult): string {
-  if (result.status === 'pending') return 'Checking...'
-  if (result.status === 'error') return 'Unreachable — check CORS, URL, or permissions'
-  return `Accessible (Zarr v${result.version})`
+interface ResolvedAccess {
+  url: string
+  token?: string
 }
 
 function CatalogTab() {
@@ -33,40 +59,89 @@ function CatalogTab() {
   const user = useAppStore((s) => s.user)
   const navigate = useNavigate()
   const [probeResults, setProbeResults] = useState<Map<string, ProbeResult>>(new Map())
+  const [resolvedAccess, setResolvedAccess] = useState<Map<string, ResolvedAccess>>(new Map())
 
-  // Probe public datasets for accessibility
+  // Resolve access for private datasets, then probe all datasets
   useEffect(() => {
     const controller = new AbortController()
-    const publicUrls = catalogDatasets.filter((d) => d.url).map((d) => d.url!)
 
-    for (const url of publicUrls) {
-      setProbeResults((prev) => {
-        if (prev.has(url)) return prev
-        const next = new Map(prev)
-        next.set(url, { status: 'pending' })
-        return next
-      })
+    // Probe public datasets directly
+    for (const ds of catalogDatasets) {
+      if (ds.url) {
+        const url = ds.url
+        setProbeResults((prev) => {
+          if (prev.has(ds.slug)) return prev
+          return new Map(prev).set(ds.slug, { status: 'pending' })
+        })
+        setResolvedAccess((prev) => new Map(prev).set(ds.slug, { url }))
 
-      probeStore(url, controller.signal)
-        .then((result) => {
-          if (controller.signal.aborted) return
-          setProbeResults((prev) => new Map(prev).set(url, result.ok
-            ? { status: 'ok', version: result.version }
-            : { status: 'error' },
-          ))
-        })
-        .catch(() => {
-          if (controller.signal.aborted) return
-          setProbeResults((prev) => new Map(prev).set(url, { status: 'error' }))
-        })
+        probeStore(url, controller.signal)
+          .then((result) => {
+            if (controller.signal.aborted) return
+            setProbeResults((prev) => new Map(prev).set(ds.slug, result.ok
+              ? { status: 'ok', version: result.version }
+              : { status: 'error' },
+            ))
+          })
+          .catch(() => {
+            if (controller.signal.aborted) return
+            setProbeResults((prev) => new Map(prev).set(ds.slug, { status: 'error' }))
+          })
+      }
     }
 
+    // Resolve private datasets via /access, then probe with token
+    const resolvePrivate = async () => {
+      const { api } = await import('../api')
+      for (const ds of catalogDatasets) {
+        if (ds.url || controller.signal.aborted) continue
+
+        setProbeResults((prev) => new Map(prev).set(ds.slug, { status: 'pending' }))
+
+        try {
+          const { data } = await api.POST('/api/datasets/{slug}/access', {
+            params: { path: { slug: ds.slug } },
+          })
+          if (controller.signal.aborted || !data) continue
+
+          const access: ResolvedAccess = { url: data.url }
+          if (data.credential_type === 'bearer_token' && data.token) {
+            access.token = data.token
+          }
+          setResolvedAccess((prev) => new Map(prev).set(ds.slug, access))
+
+          // Probe with auth headers if needed
+          const headers: Record<string, string> = {}
+          if (access.token) {
+            headers['Authorization'] = `Bearer ${access.token}`
+          }
+
+          try {
+            const result = await probeStore(data.url, controller.signal, Object.keys(headers).length > 0 ? headers : undefined)
+            if (controller.signal.aborted) continue
+            setProbeResults((prev) => new Map(prev).set(ds.slug, result.ok
+              ? { status: 'ok', version: result.version }
+              : { status: 'error' },
+            ))
+          } catch {
+            if (!controller.signal.aborted) {
+              setProbeResults((prev) => new Map(prev).set(ds.slug, { status: 'error' }))
+            }
+          }
+        } catch {
+          if (!controller.signal.aborted) {
+            setProbeResults((prev) => new Map(prev).set(ds.slug, { status: 'error' }))
+          }
+        }
+      }
+    }
+
+    resolvePrivate()
     return () => controller.abort()
   }, [catalogDatasets])
 
-  const handleOpen = async (slug: string) => {
-    await openCatalogDataset(slug)
-    navigate('/view')
+  const handleOpen = (slug: string) => {
+    navigate(`/view?dataset=${encodeURIComponent(slug)}`)
   }
 
   return (
@@ -76,15 +151,17 @@ function CatalogTab() {
           bordered
           dataSource={catalogDatasets}
           renderItem={(item) => {
-            const probe = item.url ? probeResults.get(item.url) : undefined
+            const probe = probeResults.get(item.slug)
+            const access = resolvedAccess.get(item.slug)
+            const displayUrl = item.url ?? access?.url
             return (
               <List.Item
                 style={{ cursor: 'pointer' }}
                 onClick={() => handleOpen(item.slug)}
-                actions={item.url ? [
+                actions={displayUrl ? [
                   ...(ENABLE_ZARR_VIEW ? [
                     <Tooltip key="inspect" title="Inspect Zarr structure">
-                      <Link to={`/zarr_view?url=${encodeURIComponent(item.url)}`} onClick={(e) => e.stopPropagation()}>
+                      <Link to={`/zarr_view?url=${encodeURIComponent(displayUrl)}`} onClick={(e) => e.stopPropagation()}>
                         <Button type="text" icon={<ApartmentOutlined />} />
                       </Link>
                     </Tooltip>,
@@ -93,40 +170,20 @@ function CatalogTab() {
                     <Button
                       type="text"
                       icon={<LinkOutlined />}
-                      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(item.url!) }}
+                      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(displayUrl) }}
                     />
                   </Tooltip>,
                 ] : []}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-                  {item.url && probe ? (
-                    <Tooltip title={probeTooltip(probe)}>
-                      <StatusIcon status={probe.status} />
-                    </Tooltip>
-                  ) : !item.url ? (
-                    <Tooltip title="Sign in to access">
-                      <LockOutlined style={{ fontSize: 14, color: '#faad14' }} />
-                    </Tooltip>
-                  ) : null}
-                  <div style={{ flex: 1 }}>
-                    <Typography.Text strong>{item.name}</Typography.Text>
-                    {item.description && (
-                      <div><Typography.Text type="secondary" style={{ fontSize: 12 }}>{item.description}</Typography.Text></div>
-                    )}
-                    {item.url && (
-                      <div><Typography.Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>{item.url}</Typography.Text></div>
-                    )}
-                  </div>
-                  <Tag
-                    color={item.is_public ? 'green' : 'orange'}
-                    icon={item.is_public ? <GlobalOutlined /> : <LockOutlined />}
-                    style={{ fontSize: 11, margin: 0 }}
-                  >
-                    {item.is_public ? 'public' : 'private'}
-                  </Tag>
-                  {probe?.status === 'ok' && probe.version && (
-                    <Tag color="default" style={{ fontSize: 11, lineHeight: '18px', margin: 0 }}>v{probe.version}</Tag>
+                <div style={{ flex: 1 }}>
+                  <Typography.Text strong>{item.name}</Typography.Text>
+                  {item.description && (
+                    <div><Typography.Text type="secondary" style={{ fontSize: 12 }}>{item.description}</Typography.Text></div>
                   )}
+                  {displayUrl && (
+                    <div><Typography.Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>{displayUrl}</Typography.Text></div>
+                  )}
+                  <StatusLine probe={probe} isPublic={item.is_public} />
                 </div>
               </List.Item>
             )
@@ -251,19 +308,11 @@ function MyUrlsTab() {
                   />,
                 ]}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Tooltip title={probeTooltip(result)}>
-                    <StatusIcon status={result.status} />
-                  </Tooltip>
+                <div style={{ flex: 1 }}>
                   <Link to={`/view?url=${encodeURIComponent(item)}`}>
                     <Typography.Text>{item}</Typography.Text>
                   </Link>
-                  {result.status === 'ok' && result.version && (
-                    <Tag color="default" style={{ fontSize: 11, lineHeight: '18px', margin: 0 }}>v{result.version}</Tag>
-                  )}
-                  {result.status === 'error' && (
-                    <Tag color="error" style={{ fontSize: 11, lineHeight: '18px', margin: 0 }}>unreachable</Tag>
-                  )}
+                  <StatusLine probe={result} isPublic={true} />
                 </div>
               </List.Item>
             )
@@ -278,6 +327,32 @@ function MyUrlsTab() {
 
 function Home() {
   const backendInfo = useAppStore((s) => s.backendInfo)
+  const [activeTab, setActiveTab] = useState('catalog')
+  const [backendProbed, setBackendProbed] = useState(false)
+
+  useEffect(() => {
+    // Wait for probeBackend to finish before rendering layout
+    const check = () => {
+      const { backendInfo } = useAppStore.getState()
+      // backendInfo is set (backend found) or authChecked is true (probe finished, no backend)
+      if (backendInfo !== null || useAppStore.getState().authChecked) {
+        setBackendProbed(true)
+      }
+    }
+    check()
+    const unsub = useAppStore.subscribe(check)
+    return unsub
+  }, [])
+
+  if (!backendProbed) {
+    return (
+      <div style={{ maxWidth: 960 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <h2 style={{ margin: 0 }}>Datasets</h2>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ maxWidth: 960 }}>
@@ -288,7 +363,8 @@ function Home() {
 
       {backendInfo ? (
         <Tabs
-          defaultActiveKey="catalog"
+          activeKey={activeTab}
+          onChange={setActiveTab}
           items={[
             { key: 'catalog', label: 'Catalog', children: <CatalogTab /> },
             { key: 'urls', label: 'My URLs', children: <MyUrlsTab /> },
