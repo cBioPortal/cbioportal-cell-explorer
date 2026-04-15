@@ -10,9 +10,18 @@ describe('AppConfigSchema', () => {
     }
   })
 
-  it('rejects config without url', () => {
+  it('rejects config without url or dataset', () => {
     const result = AppConfigSchema.safeParse({ embedding: 'X_umap' })
     expect(result.success).toBe(false)
+  })
+
+  it('validates a config with dataset slug instead of url', () => {
+    const result = AppConfigSchema.safeParse({ dataset: 'pbmc3k-private' })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.dataset).toBe('pbmc3k-private')
+      expect(result.data.url).toBeUndefined()
+    }
   })
 
   it('validates a full config', () => {
@@ -134,7 +143,7 @@ describe('MessageSchema', () => {
   it('rejects message with invalid payload', () => {
     const result = MessageSchema.safeParse({
       type: 'applyConfig',
-      payload: { embedding: 'X_umap' }, // missing url
+      payload: { embedding: 'X_umap' }, // missing url and dataset
     })
     expect(result.success).toBe(false)
   })

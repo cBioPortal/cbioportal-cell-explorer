@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { Button, Collapse, InputNumber, Layout, Popover, Switch, Typography, Select, Spin, message } from 'antd'
-import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HolderOutlined, InfoCircleOutlined, LeftOutlined, LinkOutlined, LoginOutlined, LogoutOutlined, RightOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons'
+import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HolderOutlined, InfoCircleOutlined, LeftOutlined, LinkOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons'
 import { DeckGL } from '@deck.gl/react'
 import { OrthographicView } from '@deck.gl/core'
 import { PolygonLayer, ScatterplotLayer } from '@deck.gl/layers'
@@ -15,6 +15,7 @@ import { usePostMessage } from '../config/usePostMessage'
 import { parseConfig } from '../config/parseConfig'
 import { applyConfig } from '../config/applyConfig'
 import { DatasetError } from '../components/DatasetError'
+import UserAvatar from '../components/UserAvatar'
 import ColorBySection from '../components/ColorBySection'
 import SelectionOverlay from '../components/SelectionOverlay'
 import SelectionToolbar from '../components/SelectionToolbar'
@@ -160,15 +161,9 @@ const collapsedIconStyle: React.CSSProperties = {
 }
 
 function CollapsedAuthIcon() {
-  const backendInfo = useAppStore((s) => s.backendInfo)
-  const authChecked = useAppStore((s) => s.authChecked)
-  const user = useAppStore((s) => s.user)
-
-  if (!backendInfo?.auth_enabled || !authChecked) return null
-
   return (
     <div style={{ ...collapsedIconStyle, paddingBottom: 12 }}>
-      {user ? <UserOutlined /> : <LoginOutlined />}
+      <UserAvatar />
     </div>
   )
 }
@@ -227,45 +222,9 @@ function InfoPopoverContent() {
 }
 
 function AuthSection() {
-  const backendInfo = useAppStore((s) => s.backendInfo)
-  const authChecked = useAppStore((s) => s.authChecked)
-  const user = useAppStore((s) => s.user)
-  const logout = useAppStore((s) => s.logout)
-
-  if (!backendInfo?.auth_enabled || !authChecked) return null
-
-  if (!user) {
-    return (
-      <div style={{ padding: '8px 16px', borderTop: '1px solid #f0f0f0' }}>
-        <Button
-          type="text"
-          size="small"
-          icon={<LoginOutlined />}
-          onClick={() => { window.location.href = '/api/auth/login' }}
-          style={{ fontSize: 12, color: '#1677ff', padding: 0 }}
-        >
-          Sign in
-        </Button>
-      </div>
-    )
-  }
-
-  const displayName = user.name ?? user.email ?? user.sub
-
   return (
-    <div style={{ padding: '8px 16px', borderTop: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <span style={{ fontSize: 12, color: '#666', display: 'flex', alignItems: 'center', gap: 6 }}>
-        <UserOutlined /> {displayName}
-      </span>
-      <Button
-        type="text"
-        size="small"
-        icon={<LogoutOutlined />}
-        onClick={() => { logout() }}
-        style={{ fontSize: 11, color: '#999', padding: 0 }}
-      >
-        Sign out
-      </Button>
+    <div style={{ padding: '8px 16px', borderTop: '1px solid #f0f0f0' }}>
+      <UserAvatar showName />
     </div>
   )
 }
@@ -782,7 +741,9 @@ function View() {
   const [searchParams] = useSearchParams()
   const configParam = searchParams.get('config')
   const urlParam = searchParams.get('url')
+  const datasetParam = searchParams.get('dataset')
   const openDataset = useAppStore((s) => s.openDataset)
+  const openCatalogDataset = useAppStore((s) => s.openCatalogDataset)
   const loadingError = useAppStore((s) => s.loadingError)
   const datasetUrl = useAppStore((s) => s.datasetUrl)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
@@ -811,12 +772,13 @@ function View() {
     }
   }, [configParam])
 
-  // Handle ?url= param — loads dataset on initial visit and when switching via dropdown
+  // Handle ?url= or ?dataset= param — loads dataset on initial visit
   // Skipped when ?config= was used (applyConfig handles dataset loading)
   useEffect(() => {
     if (configParam) return
-    if (urlParam) openDataset(urlParam)
-  }, [urlParam, configParam, openDataset])
+    if (datasetParam) openCatalogDataset(datasetParam)
+    else if (urlParam) openDataset(urlParam)
+  }, [urlParam, datasetParam, configParam, openDataset, openCatalogDataset])
 
   if (loadingError) {
     const isEmbedded = window.self !== window.top

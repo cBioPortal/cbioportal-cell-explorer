@@ -55,6 +55,7 @@ export type SelectionGroup = SpatialSelectionGroup | CustomSelectionGroup
 export interface AppState {
   // Dataset
   datasetUrl: string | null
+  datasetSlug: string | null
   adata: AnnDataStore | null
   loading: boolean
 
@@ -179,6 +180,17 @@ export interface AppState {
   checkAuth: () => Promise<void>
   logout: () => Promise<void>
 
+  // Dataset catalog
+  catalogDatasets: Array<{
+    slug: string
+    name: string
+    description: string | null
+    is_public: boolean
+    url: string | null
+  }>
+  fetchCatalog: () => Promise<void>
+  openCatalogDataset: (slug: string) => Promise<void>
+
   // UI visibility toggles (for embedded mode)
   showHeader: boolean
   showLeftSidebar: boolean
@@ -189,7 +201,7 @@ export interface AppState {
   loadingError: string | null
 
   // Actions
-  openDataset: (url: string) => Promise<void>
+  openDataset: (url: string, overrides?: RequestInit) => Promise<void>
   setSelectedEmbedding: (key: string) => void
   fetchEmbedding: (key: string) => Promise<void>
   rebuildColorBuffer: () => void
@@ -262,6 +274,7 @@ const DEBOUNCE_MS = 150
 const useAppStore = create<AppState>((set, get) => ({
   // Dataset
   datasetUrl: null,
+  datasetSlug: null,
   adata: null,
   loading: false,
 
@@ -389,6 +402,80 @@ const useAppStore = create<AppState>((set, get) => ({
       // Clear local state regardless
     }
     set({ user: null })
+  },
+
+  catalogDatasets: [],
+  fetchCatalog: async () => {
+    try {
+      const { api } = await import('../api')
+      const { data } = await api.GET('/api/datasets')
+      if (data?.datasets) set({ catalogDatasets: data.datasets })
+    } catch {
+      // Backend unavailable or request failed — keep existing catalog
+    }
+  },
+
+  openCatalogDataset: async (slug) => {
+    let dataset = get().catalogDatasets.find((d) => d.slug === slug)
+
+    // If not in local catalog yet (e.g., cold start from a shared link),
+    // fetch the dataset directly from the API
+    if (!dataset) {
+      try {
+        const { api } = await import('../api')
+        const { data } = await api.GET('/api/datasets/{slug}', {
+          params: { path: { slug } },
+        })
+        if (data) {
+          dataset = data
+        } else {
+          set({ loadingError: 'Dataset not found' })
+          return
+        }
+      } catch {
+        set({ loadingError: 'Failed to load dataset' })
+        return
+      }
+    }
+
+    // Public dataset — open directly
+    if (dataset.url) {
+      await get().openDataset(dataset.url)
+      set({ datasetSlug: slug })
+      return
+    }
+
+    // Private dataset — get access credentials
+    try {
+      const { api } = await import('../api')
+      const { data, error, response } = await api.POST('/api/datasets/{slug}/access', {
+        params: { path: { slug } },
+      })
+
+      if (!data) {
+        const status = response?.status
+        if (status === 503) {
+          set({ loadingError: 'Dataset temporarily unavailable' })
+        } else {
+          set({ loadingError: error?.detail ?? 'Failed to access dataset' })
+        }
+        return
+      }
+
+      if (data.credential_type === 'bearer_token' && data.token) {
+        await get().openDataset(data.url, {
+          headers: { Authorization: `Bearer ${data.token}` },
+        })
+        set({ datasetSlug: slug })
+        return
+      }
+
+      // signed_cookies or public — no overrides needed
+      await get().openDataset(data.url)
+      set({ datasetSlug: slug })
+    } catch {
+      set({ loadingError: 'Failed to access dataset' })
+    }
   },
 
   showHeader: true,
@@ -866,10 +953,10 @@ const useAppStore = create<AppState>((set, get) => ({
   reorderSummaryGenes: (reordered) => set({ summaryGenes: reordered }),
 
   // Actions
-  openDataset: async (url) => {
+  openDataset: async (url, overrides) => {
     if (url === get().datasetUrl && get().adata) return
     set({
-      datasetUrl: url, loading: true, loadingError: null, adata: null, nObs: null, nVar: null, obsmKeys: [],
+      datasetUrl: url, datasetSlug: null, loading: true, loadingError: null, adata: null, nObs: null, nVar: null, obsmKeys: [],
       selectedEmbedding: null, embeddingData: null, colorBuffer: null,
       colorMode: 'category', selectedObsColumn: null, selectedGene: null,
       obsColumnNames: [], varNames: [], categoryMap: [], expressionRange: null,
@@ -884,7 +971,7 @@ const useAppStore = create<AppState>((set, get) => ({
       summaryCache: new Map(),
     })
     try {
-      const adata = await AnnDataStore.open(url)
+      const adata = await AnnDataStore.open(url, overrides)
       const obsmKeys = adata.obsmKeys()
       const umap = obsmKeys.find((k) => /umap/i.test(k))
       const defaultKey = umap ?? obsmKeys[0] ?? null

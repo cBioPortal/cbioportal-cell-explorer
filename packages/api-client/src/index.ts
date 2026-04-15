@@ -104,6 +104,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/datasources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Datasources */
+        get: operations["list_datasources_api_admin_datasources_get"];
+        put?: never;
+        /** Create Datasource */
+        post: operations["create_datasource_api_admin_datasources_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/datasources/{datasource_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Datasource */
+        put: operations["update_datasource_api_admin_datasources__datasource_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/datasets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Dataset */
+        post: operations["create_dataset_api_admin_datasets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/datasets/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Dataset */
+        put: operations["update_dataset_api_admin_datasets__slug__put"];
+        post?: never;
+        /** Delete Dataset */
+        delete: operations["delete_dataset_api_admin_datasets__slug__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -138,10 +208,185 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/datasets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Datasets
+         * @description List datasets the caller can access.
+         */
+        get: operations["list_datasets_api_datasets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dataset
+         * @description Get a single dataset by slug.
+         */
+        get: operations["get_dataset_api_datasets__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{slug}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Access Dataset
+         * @description Get access credentials for a dataset.
+         */
+        post: operations["access_dataset_api_datasets__slug__access_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** DatasetAdminResponse */
+        DatasetAdminResponse: {
+            /** Id */
+            id: string;
+            /** Datasource Id */
+            datasource_id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Path */
+            path: string;
+            /** Description */
+            description: string | null;
+            /** Is Public */
+            is_public: boolean;
+            /** Required Roles */
+            required_roles: string[];
+        };
+        /** DatasetCreate */
+        DatasetCreate: {
+            /** Datasource Id */
+            datasource_id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Path */
+            path: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Is Public
+             * @default false
+             */
+            is_public: boolean;
+            /**
+             * Required Roles
+             * @default []
+             */
+            required_roles: string[];
+        };
+        /** DatasetListResponse */
+        DatasetListResponse: {
+            /** Datasets */
+            datasets: components["schemas"]["DatasetResponse"][];
+        };
+        /** DatasetResponse */
+        DatasetResponse: {
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Is Public */
+            is_public: boolean;
+            /** Url */
+            url: string | null;
+        };
+        /** DatasetUpdate */
+        DatasetUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Path */
+            path?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Is Public */
+            is_public?: boolean | null;
+            /** Required Roles */
+            required_roles?: string[] | null;
+        };
+        /** DatasourceCreate */
+        DatasourceCreate: {
+            /** Name */
+            name: string;
+            type: components["schemas"]["DatasourceType"];
+            /** Base Url */
+            base_url: string;
+            /** Credential Ref */
+            credential_ref?: string | null;
+        };
+        /** DatasourceListResponse */
+        DatasourceListResponse: {
+            /** Datasources */
+            datasources: components["schemas"]["DatasourceResponse"][];
+        };
+        /** DatasourceResponse */
+        DatasourceResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            type: components["schemas"]["DatasourceType"];
+            /** Base Url */
+            base_url: string;
+            /** Credential Ref */
+            credential_ref: string | null;
+        };
+        /**
+         * DatasourceType
+         * @description Supported datasource types.
+         * @enum {string}
+         */
+        DatasourceType: "s3_cloudfront" | "http_token";
+        /** DatasourceUpdate */
+        DatasourceUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Base Url */
+            base_url?: string | null;
+            /** Credential Ref */
+            credential_ref?: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -309,6 +554,191 @@ export interface operations {
             };
         };
     };
+    list_datasources_api_admin_datasources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceListResponse"];
+                };
+            };
+        };
+    };
+    create_datasource_api_admin_datasources_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatasourceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_datasource_api_admin_datasources__datasource_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                datasource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatasourceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_dataset_api_admin_datasets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatasetCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetAdminResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_dataset_api_admin_datasets__slug__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatasetUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetAdminResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_dataset_api_admin_datasets__slug__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_api_health_get: {
         parameters: {
             query?: never;
@@ -345,6 +775,90 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InfoResponse"];
+                };
+            };
+        };
+    };
+    list_datasets_api_datasets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetListResponse"];
+                };
+            };
+        };
+    };
+    get_dataset_api_datasets__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    access_dataset_api_datasets__slug__access_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

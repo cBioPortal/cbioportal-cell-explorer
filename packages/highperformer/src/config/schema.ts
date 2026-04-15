@@ -6,7 +6,8 @@ const FilterSchema = z.object({
 })
 
 const RawConfigSchema = z.object({
-  url: z.string(),
+  url: z.string().optional(),
+  dataset: z.string().optional(),
   embedding: z.string().optional(),
   colorBy: z.enum(['gene', 'category']).optional(),
   gene: z.string().optional(),
@@ -19,6 +20,8 @@ const RawConfigSchema = z.object({
   showLeftSidebar: z.boolean().default(true),
   showRightSidebar: z.boolean().default(true),
   showDatasetDropdown: z.boolean().default(true),
+}).refine((data) => data.url || data.dataset, {
+  message: 'Either "url" or "dataset" must be provided',
 })
 
 export const AppConfigSchema = RawConfigSchema.transform((data) => {

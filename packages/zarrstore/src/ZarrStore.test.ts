@@ -50,3 +50,18 @@ describe("ZarrStore", () => {
     expect(stats.cacheHits).toBeGreaterThan(0);
   });
 });
+
+describe('ZarrStore.open overrides', () => {
+  it('accepts an optional overrides parameter', async () => {
+    const url = `${globalThis.__TEST_BASE_URL__}/pbmc3k.zarr`
+    const store = await ZarrStore.open(url, { headers: { 'X-Test': 'value' } })
+    expect(store).toBeDefined()
+    expect(store.root).toBeDefined()
+  })
+
+  it('works without overrides (backward compatible)', async () => {
+    const url = `${globalThis.__TEST_BASE_URL__}/pbmc3k.zarr`
+    const store = await ZarrStore.open(url)
+    expect(store).toBeDefined()
+  })
+})

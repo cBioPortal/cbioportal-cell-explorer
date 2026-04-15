@@ -15,12 +15,22 @@ const ENABLE_ZARR_VIEW = import.meta.env.VITE_ENABLE_ZARR_VIEW === 'true'
 function App() {
   const probeBackend = useAppStore((s) => s.probeBackend)
   const checkAuth = useAppStore((s) => s.checkAuth)
+  const fetchCatalog = useAppStore((s) => s.fetchCatalog)
+  const user = useAppStore((s) => s.user)
+
   useEffect(() => {
     probeBackend().then(() => {
       const { backendInfo } = useAppStore.getState()
+      if (backendInfo) fetchCatalog()
       if (backendInfo?.auth_enabled) checkAuth()
     })
-  }, [probeBackend, checkAuth])
+  }, [probeBackend, checkAuth, fetchCatalog])
+
+  // Re-fetch catalog when auth state changes
+  useEffect(() => {
+    const { backendInfo } = useAppStore.getState()
+    if (backendInfo) fetchCatalog()
+  }, [user, fetchCatalog])
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>

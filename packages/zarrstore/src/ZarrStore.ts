@@ -31,14 +31,14 @@ export class ZarrStore {
     this.#effectiveStore = effectiveStore ?? store;
   }
 
-  static async open(url: string): Promise<ZarrStore> {
+  static async open(url: string, overrides?: RequestInit): Promise<ZarrStore> {
     // useSuffixRequest: false — uses HEAD+GET instead of Range suffix requests.
     // Range headers trigger CORS preflights (OPTIONS), which fail on CloudFront
     // distributions that don't allow OPTIONS method. HEAD+GET adds one extra
     // request per shard but avoids preflight entirely. To re-enable, CloudFront
     // needs: OPTIONS in allowed methods, CORS-S3Origin request policy, and
     // Origin in the cache key. See: https://github.com/cBioPortal/cbioportal-cell-explorer/issues/162
-    const fetchStore = new zarr.FetchStore(url, { useSuffixRequest: false });
+    const fetchStore = new zarr.FetchStore(url, { useSuffixRequest: false, overrides });
     const instrumented = new InstrumentedStore(fetchStore);
 
     let effectiveStore: ConsolidatedStore | undefined;

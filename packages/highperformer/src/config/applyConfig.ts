@@ -17,7 +17,11 @@ export async function applyConfig(config: AppConfig): Promise<void> {
   // openDataset early-returns if the URL matches the current dataset.
   // In that case, metadata may already be available — waitForStore
   // handles this by checking the predicate immediately before subscribing.
-  store.getState().openDataset(config.url)
+  if (config.dataset) {
+    await store.getState().openCatalogDataset(config.dataset)
+  } else if (config.url) {
+    store.getState().openDataset(config.url)
+  }
 
   // Phase 3: Wait for dataset metadata, then apply remaining config
   const hasPostLoadConfig =
