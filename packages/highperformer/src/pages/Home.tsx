@@ -327,22 +327,8 @@ function MyUrlsTab() {
 
 function Home() {
   const backendInfo = useAppStore((s) => s.backendInfo)
+  const backendProbed = useAppStore((s) => s.backendProbed)
   const [activeTab, setActiveTab] = useState('catalog')
-  const [backendProbed, setBackendProbed] = useState(false)
-
-  useEffect(() => {
-    // Wait for probeBackend to finish before rendering layout
-    const check = () => {
-      const { backendInfo } = useAppStore.getState()
-      // backendInfo is set (backend found) or authChecked is true (probe finished, no backend)
-      if (backendInfo !== null || useAppStore.getState().authChecked) {
-        setBackendProbed(true)
-      }
-    }
-    check()
-    const unsub = useAppStore.subscribe(check)
-    return unsub
-  }, [])
 
   if (!backendProbed) {
     return (

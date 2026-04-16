@@ -172,6 +172,7 @@ export interface AppState {
 
   // Backend info (null = no backend detected)
   backendInfo: BackendInfo | null
+  backendProbed: boolean
   probeBackend: () => Promise<void>
 
   // Auth
@@ -373,6 +374,7 @@ const useAppStore = create<AppState>((set, get) => ({
 
   // UI toggles
   backendInfo: null,
+  backendProbed: false,
   probeBackend: async () => {
     try {
       const { api } = await import('../api')
@@ -381,6 +383,7 @@ const useAppStore = create<AppState>((set, get) => ({
     } catch {
       // No backend available — frontend-only mode
     }
+    set({ backendProbed: true })
   },
 
   user: null,
