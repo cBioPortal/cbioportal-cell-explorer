@@ -1047,30 +1047,34 @@ describe('useAppStore', () => {
   })
 
   describe('probeBackend', () => {
-    it('sets backendInfo on success', async () => {
+    it('sets backendInfo and backendProbed on success', async () => {
       const info = { version: '0.1.0', environment: 'development', git_sha: 'abc1234', auth_enabled: true }
       mockGET.mockResolvedValue({ data: info })
 
+      expect(useAppStore.getState().backendProbed).toBe(false)
       await useAppStore.getState().probeBackend()
 
       expect(mockGET).toHaveBeenCalledWith('/api/info')
       expect(useAppStore.getState().backendInfo).toEqual(info)
+      expect(useAppStore.getState().backendProbed).toBe(true)
     })
 
-    it('leaves backendInfo null when data is undefined', async () => {
+    it('sets backendProbed when data is undefined', async () => {
       mockGET.mockResolvedValue({ data: undefined, error: { detail: 'Not found' } })
 
       await useAppStore.getState().probeBackend()
 
       expect(useAppStore.getState().backendInfo).toBeNull()
+      expect(useAppStore.getState().backendProbed).toBe(true)
     })
 
-    it('leaves backendInfo null on network error', async () => {
+    it('sets backendProbed on network error (frontend-only mode)', async () => {
       mockGET.mockRejectedValue(new Error('Network error'))
 
       await useAppStore.getState().probeBackend()
 
       expect(useAppStore.getState().backendInfo).toBeNull()
+      expect(useAppStore.getState().backendProbed).toBe(true)
     })
   })
 
