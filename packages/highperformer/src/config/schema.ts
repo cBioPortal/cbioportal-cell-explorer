@@ -10,6 +10,12 @@ const ViewportSchema = z.object({
   zoom: z.number(),
 })
 
+const MappedColumnSchema = z.object({
+  label: z.string(),
+  sourceColumn: z.string(),
+  mapping: z.record(z.string(), z.string()),
+})
+
 export const AppConfigSchema = z.object({
   // dataset source
   url: z.string().optional(),
@@ -30,6 +36,12 @@ export const AppConfigSchema = z.object({
   // categoryMap; unknown labels yield a field_value_invalid error.
   highlightedCategories: z.array(z.string()).optional(),
   geneLabelColumn: z.string().optional(),
+
+  // Host-injected categorical columns (e.g. clinical attributes from cBioPortal):
+  // `mapping` keys are values of the obs `sourceColumn` (e.g. donor_id), and each
+  // cell gets the value of its key, or 'Unknown'. The result is a virtual obs column
+  // named `label` that can be colored by like a native one.
+  mappedColumns: z.array(MappedColumnSchema).optional(),
 
   // filter (tightly bound — nested)
   filter: FilterSchema.optional(),
@@ -96,6 +108,7 @@ export const AppConfigSchema = z.object({
 })
 
 export type AppConfig = z.output<typeof AppConfigSchema>
+export type MappedColumnDef = z.output<typeof MappedColumnSchema>
 
 export const MessageSchema = z.object({
   type: z.literal('applyConfig'),

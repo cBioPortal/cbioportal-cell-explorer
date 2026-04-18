@@ -63,6 +63,35 @@
     "geneLabelColumn": {
       "type": "string"
     },
+    "mappedColumns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "sourceColumn": {
+            "type": "string"
+          },
+          "mapping": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "label",
+          "sourceColumn",
+          "mapping"
+        ],
+        "additionalProperties": false
+      }
+    },
     "filter": {
       "type": "object",
       "properties": {

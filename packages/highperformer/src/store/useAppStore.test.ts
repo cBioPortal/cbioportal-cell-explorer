@@ -527,6 +527,51 @@ describe('useAppStore', () => {
     })
   })
 
+  describe('mapped columns', () => {
+    const embeddingData = {
+      positions: new Float32Array([0, 0, 1, 1, 2, 2]),
+      numPoints: 3,
+      bounds: { minX: 0, maxX: 2, minY: 0, maxY: 2 },
+    }
+
+    it('expands a donor-level mapping to cells and lists the column', async () => {
+      const mockAdata = { obsColumn: vi.fn().mockResolvedValue(['P1', 'P2', 'P3']) }
+      useAppStore.setState({ adata: mockAdata as any, obsColumnNames: ['donor_id'] })
+
+      await useAppStore.getState().registerMappedColumns([
+        { label: 'Sex', sourceColumn: 'donor_id', mapping: { P1: 'Female', P2: 'Male' } },
+      ])
+
+      expect(mockAdata.obsColumn).toHaveBeenCalledWith('donor_id')
+      expect(useAppStore.getState().mappedColumnData.get('Sex')).toEqual(['Female', 'Male', 'Unknown'])
+      expect(useAppStore.getState().obsColumnNames).toEqual(['donor_id', 'Sex'])
+    })
+
+    it('colors by a mapped column without fetching it, leaving continuous coloring', () => {
+      const mockAdata = { obsColumn: vi.fn() }
+      useAppStore.setState({
+        adata: mockAdata as any,
+        embeddingData,
+        colorMode: 'obs-continuous',
+        _obsContinuousData: new Float32Array([1, 2, 3]),
+        obsContinuousRange: [1, 3],
+        mappedColumnData: new Map([['Sex', ['Female', 'Male', 'Unknown']]]),
+      })
+      mockDispatch.mockClear()
+
+      useAppStore.getState().selectObsColumn('Sex')
+
+      const state = useAppStore.getState()
+      expect(mockAdata.obsColumn).not.toHaveBeenCalled()
+      expect(state.selectedObsColumn).toBe('Sex')
+      expect(state.colorMode).toBe('category')
+      expect(state._obsContinuousData).toBeNull()
+      expect(state.categoryMap.map((c) => c.label).sort()).toEqual(['Female', 'Male', 'Unknown'])
+      expect(state.summaryObsColumns).toContain('Sex')
+      expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'buildFromCategories' }))
+    })
+  })
+
   describe('selectObsColumn', () => {
     it('fetches column, encodes categories, and rebuilds buffer', async () => {
       const mockAdata = {

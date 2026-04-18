@@ -10,6 +10,7 @@ import type { FacetDef } from '../utils/facets'
 import { facetValuesFor, facetDefsFrom, type ObsColumn } from '../utils/facetsFromMetadata'
 import { OBS_CONTINUOUS_SCALE_NAME } from '../utils/colors'
 import { encodeCategories, MAX_CATEGORIES, classifyCardinality, CATEGORY_LEGEND_LIST_CAP } from '../utils/categoryEncoding'
+import type { MappedColumnDef } from '../config/schema'
 
 export interface EmbeddingBounds {
   minX: number
@@ -263,6 +264,10 @@ export interface AppState {
   showLeftSidebar: boolean
   showRightSidebar: boolean
   showDatasetDropdown: boolean
+
+  // Mapped columns (injected from host, e.g. clinical attributes)
+  mappedColumnData: Map<string, string[]>
+  registerMappedColumns: (columns: MappedColumnDef[]) => Promise<void>
 
   // Error state
   loadingError: string | null
@@ -695,6 +700,9 @@ const useAppStore = create<AppState>((set, get) => ({
     const zoom = Math.log2(Math.min(800 / (dataWidth * padding), 600 / (dataHeight * padding)))
     get().setViewport({ target: [centerX, centerY], zoom })
   },
+
+  // Mapped columns
+  mappedColumnData: new Map(),
 
   // Error state
   loadingError: null,
@@ -1286,7 +1294,10 @@ const useAppStore = create<AppState>((set, get) => ({
           if (lowerIdx !== -1) { detectedCol = varCols[lowerIdx]; break }
         }
 
-        set({ obsColumnNames, varNames, varColumns: varCols, geneLabelColumn: detectedCol })
+        // Preserve mapped column labels that were registered while we were fetching
+        const mappedLabels = Array.from(get().mappedColumnData.keys())
+        const mergedObsColumns = [...obsColumnNames, ...mappedLabels.filter((l) => !obsColumnNames.includes(l))]
+        set({ obsColumnNames: mergedObsColumns, varNames, varColumns: varCols, geneLabelColumn: detectedCol })
         if (detectedCol) get()._resolveGeneLabels()
       })
     } catch (err) {
@@ -1377,18 +1388,49 @@ const useAppStore = create<AppState>((set, get) => ({
   },
 
   selectObsColumn: (name) => {
-    const { adata, _colorAbort } = get()
+    const { adata, _colorAbort, mappedColumnData } = get()
     if (!adata) return
 
     if (_colorAbort) _colorAbort.abort()
-    const abortController = new AbortController()
     set({
       selectedObsColumn: name,
       colorBufferLoading: true,
       categoryWarning: null,
       highlightedCategories: new Set(),
-      _colorAbort: abortController,
+      _colorAbort: null,
     })
+
+    // Mapped columns (injected from host, e.g. clinical attributes) are categorical and
+    // already in memory, so they skip the zarr fetch.
+    const mappedValues = mappedColumnData.get(name)
+    if (mappedValues) {
+      const { codes, categoryMap, uniqueCount } = encodeCategories(mappedValues)
+      const { colorable, note } = classifyCardinality(uniqueCount)
+      set({
+        colorMode: 'category',
+        _categoryCodes: colorable ? codes : null,
+        categoryMap: colorable ? categoryMap : [],
+        categoryWarning: note,
+        _obsContinuousData: null,
+        obsContinuousRange: null,
+        ...(colorable ? {} : { colorBufferLoading: false }),
+      })
+      get().rebuildColorBuffer()
+
+      if (colorable && uniqueCount <= CATEGORY_LEGEND_LIST_CAP) {
+        const { summaryObsColumns, summaryObsData } = get()
+        if (!summaryObsColumns.includes(name)) {
+          const nextPinned = [...summaryObsColumns, name]
+          const nextData = new Map(summaryObsData)
+          nextData.set(name, { codes, categoryMap })
+          set({ summaryObsColumns: nextPinned, summaryObsData: nextData })
+        }
+      }
+      return
+    }
+
+    const abortController = new AbortController()
+    set({ _colorAbort: abortController })
 
     adata.obsColumn(name, abortController.signal).then((values) => {
       const isTypedArray = ArrayBuffer.isView(values) && !(values instanceof DataView)
@@ -1560,6 +1602,37 @@ const useAppStore = create<AppState>((set, get) => ({
     } catch {
       // Silently fail — labels are a nicety, not critical
     }
+  },
+
+  registerMappedColumns: async (columns) => {
+    const { adata } = get()
+    if (!adata) return
+
+    const nextData = new Map(get().mappedColumnData)
+
+    for (const def of columns) {
+      const sourceValues = await adata.obsColumn(def.sourceColumn)
+      const sourceArray = Array.isArray(sourceValues)
+        ? sourceValues
+        : Array.from(sourceValues as Iterable<unknown>)
+
+      const expanded = new Array<string>(sourceArray.length)
+      for (let i = 0; i < sourceArray.length; i++) {
+        const key = String(sourceArray[i] ?? '')
+        expanded[i] = def.mapping[key] ?? 'Unknown'
+      }
+      nextData.set(def.label, expanded)
+    }
+
+    // Append mapped column labels to obsColumnNames (if not already present)
+    const { obsColumnNames } = get()
+    const newNames = columns
+      .map((c) => c.label)
+      .filter((label) => !obsColumnNames.includes(label))
+    set({
+      mappedColumnData: nextData,
+      obsColumnNames: [...obsColumnNames, ...newNames],
+    })
   },
 }))
 
