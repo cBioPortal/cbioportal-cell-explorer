@@ -5,6 +5,12 @@ const FilterSchema = z.object({
   obsColumn: z.string(),
 })
 
+const MappedColumnSchema = z.object({
+  label: z.string(),
+  sourceColumn: z.string(),
+  mapping: z.record(z.string(), z.string()),
+})
+
 const RawConfigSchema = z.object({
   url: z.string().optional(),
   dataset: z.string().optional(),
@@ -20,6 +26,7 @@ const RawConfigSchema = z.object({
   showLeftSidebar: z.boolean().default(true),
   showRightSidebar: z.boolean().default(true),
   showDatasetDropdown: z.boolean().default(true),
+  mappedColumns: z.array(MappedColumnSchema).optional(),
 }).refine((data) => data.url || data.dataset, {
   message: 'Either "url" or "dataset" must be provided',
 })
@@ -40,6 +47,7 @@ export const AppConfigSchema = RawConfigSchema.transform((data) => {
 })
 
 export type AppConfig = z.output<typeof AppConfigSchema>
+export type MappedColumnDef = z.output<typeof MappedColumnSchema>
 
 export const MessageSchema = z.object({
   type: z.literal('applyConfig'),
