@@ -3,4 +3,4 @@
 "@cbioportal-cell-explorer/highperformer": patch
 ---
 
-Pin React to 18 to align with cBioPortal's React version
+Downgrade React to 18 to be closer to cBioPortal's React version
