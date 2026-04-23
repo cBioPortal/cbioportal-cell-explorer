@@ -793,24 +793,7 @@ describe('useAppStore', () => {
   })
 
   describe('default cell type column auto-selection', () => {
-    it('auto-selects cell_type column on first load when present', async () => {
-      const mockAdata = {
-        obsm: vi.fn().mockResolvedValue({ data: new Float32Array([0, 0, 1, 1]), shape: [2, 2] }),
-        obsColumns: vi.fn().mockResolvedValue(['cell_type', 'batch']),
-        varNames: vi.fn().mockResolvedValue([]),
-        varColumns: vi.fn().mockResolvedValue([]),
-        obsColumn: vi.fn().mockResolvedValue(['T cell', 'B cell']),
-      }
-      useAppStore.setState({ adata: mockAdata as any })
-
-      await useAppStore.getState().fetchEmbedding('X_umap')
-
-      await vi.waitFor(() => {
-        expect(useAppStore.getState().selectedObsColumn).toBe('cell_type')
-      })
-    })
-
-    it('auto-selects author_cell_type when cell_type is absent', async () => {
+    it('auto-selects author_cell_type column on first load when present', async () => {
       const mockAdata = {
         obsm: vi.fn().mockResolvedValue({ data: new Float32Array([0, 0, 1, 1]), shape: [2, 2] }),
         obsColumns: vi.fn().mockResolvedValue(['author_cell_type', 'batch']),
@@ -827,10 +810,10 @@ describe('useAppStore', () => {
       })
     })
 
-    it('prefers cell_type over author_cell_type when both present', async () => {
+    it('falls back to cell_type when author_cell_type is absent', async () => {
       const mockAdata = {
         obsm: vi.fn().mockResolvedValue({ data: new Float32Array([0, 0, 1, 1]), shape: [2, 2] }),
-        obsColumns: vi.fn().mockResolvedValue(['author_cell_type', 'cell_type', 'batch']),
+        obsColumns: vi.fn().mockResolvedValue(['cell_type', 'batch']),
         varNames: vi.fn().mockResolvedValue([]),
         varColumns: vi.fn().mockResolvedValue([]),
         obsColumn: vi.fn().mockResolvedValue(['T cell', 'B cell']),
@@ -841,6 +824,23 @@ describe('useAppStore', () => {
 
       await vi.waitFor(() => {
         expect(useAppStore.getState().selectedObsColumn).toBe('cell_type')
+      })
+    })
+
+    it('prefers author_cell_type over cell_type when both present', async () => {
+      const mockAdata = {
+        obsm: vi.fn().mockResolvedValue({ data: new Float32Array([0, 0, 1, 1]), shape: [2, 2] }),
+        obsColumns: vi.fn().mockResolvedValue(['cell_type', 'author_cell_type', 'batch']),
+        varNames: vi.fn().mockResolvedValue([]),
+        varColumns: vi.fn().mockResolvedValue([]),
+        obsColumn: vi.fn().mockResolvedValue(['T cell', 'B cell']),
+      }
+      useAppStore.setState({ adata: mockAdata as any })
+
+      await useAppStore.getState().fetchEmbedding('X_umap')
+
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().selectedObsColumn).toBe('author_cell_type')
       })
     })
 

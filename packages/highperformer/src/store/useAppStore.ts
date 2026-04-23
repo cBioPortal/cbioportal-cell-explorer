@@ -10,7 +10,7 @@ import { encodeCategories, MAX_CATEGORIES } from '../utils/categoryEncoding'
 
 // Ordered list of obs column names to auto-select as the default color-by on first load.
 // The first match found in the dataset wins.
-export const DEFAULT_CELL_TYPE_COLUMNS = ['cell_type', 'author_cell_type']
+export const DEFAULT_CELL_TYPE_COLUMNS = ['author_cell_type', 'cell_type']
 
 export interface EmbeddingBounds {
   minX: number
