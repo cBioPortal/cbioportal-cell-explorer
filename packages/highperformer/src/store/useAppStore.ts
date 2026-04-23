@@ -8,6 +8,10 @@ import type { ColorBufferResponse } from '../workers/colorBuffer.schemas'
 import type { RGB } from '../utils/colors'
 import { encodeCategories, MAX_CATEGORIES } from '../utils/categoryEncoding'
 
+// Ordered list of obs column names to auto-select as the default color-by on first load.
+// The first match found in the dataset wins.
+export const DEFAULT_CELL_TYPE_COLUMNS = ['cell_type', 'author_cell_type']
+
 export interface EmbeddingBounds {
   minX: number
   maxX: number
@@ -1041,6 +1045,15 @@ const useAppStore = create<AppState>((set, get) => ({
 
         set({ obsColumnNames, varNames, varColumns: varCols, geneLabelColumn: detectedCol })
         if (detectedCol) get()._resolveGeneLabels()
+
+        // Auto-select cell_type or author_cell_type on first load if no column is already selected
+        if (!get().selectedObsColumn) {
+          const defaultCol = DEFAULT_CELL_TYPE_COLUMNS.find((c) => obsColumnNames.includes(c))
+          if (defaultCol) {
+            get().setColorMode('category')
+            get().selectObsColumn(defaultCol)
+          }
+        }
       })
     } catch (err) {
       if (err instanceof Error && err.name !== 'AbortError') {

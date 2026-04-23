@@ -792,6 +792,95 @@ describe('useAppStore', () => {
     })
   })
 
+  describe('default cell type column auto-selection', () => {
+    it('auto-selects cell_type column on first load when present', async () => {
+      const mockAdata = {
+        obsm: vi.fn().mockResolvedValue({ data: new Float32Array([0, 0, 1, 1]), shape: [2, 2] }),
+        obsColumns: vi.fn().mockResolvedValue(['cell_type', 'batch']),
+        varNames: vi.fn().mockResolvedValue([]),
+        varColumns: vi.fn().mockResolvedValue([]),
+        obsColumn: vi.fn().mockResolvedValue(['T cell', 'B cell']),
+      }
+      useAppStore.setState({ adata: mockAdata as any })
+
+      await useAppStore.getState().fetchEmbedding('X_umap')
+
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().selectedObsColumn).toBe('cell_type')
+      })
+    })
+
+    it('auto-selects author_cell_type when cell_type is absent', async () => {
+      const mockAdata = {
+        obsm: vi.fn().mockResolvedValue({ data: new Float32Array([0, 0, 1, 1]), shape: [2, 2] }),
+        obsColumns: vi.fn().mockResolvedValue(['author_cell_type', 'batch']),
+        varNames: vi.fn().mockResolvedValue([]),
+        varColumns: vi.fn().mockResolvedValue([]),
+        obsColumn: vi.fn().mockResolvedValue(['T cell', 'B cell']),
+      }
+      useAppStore.setState({ adata: mockAdata as any })
+
+      await useAppStore.getState().fetchEmbedding('X_umap')
+
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().selectedObsColumn).toBe('author_cell_type')
+      })
+    })
+
+    it('prefers cell_type over author_cell_type when both present', async () => {
+      const mockAdata = {
+        obsm: vi.fn().mockResolvedValue({ data: new Float32Array([0, 0, 1, 1]), shape: [2, 2] }),
+        obsColumns: vi.fn().mockResolvedValue(['author_cell_type', 'cell_type', 'batch']),
+        varNames: vi.fn().mockResolvedValue([]),
+        varColumns: vi.fn().mockResolvedValue([]),
+        obsColumn: vi.fn().mockResolvedValue(['T cell', 'B cell']),
+      }
+      useAppStore.setState({ adata: mockAdata as any })
+
+      await useAppStore.getState().fetchEmbedding('X_umap')
+
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().selectedObsColumn).toBe('cell_type')
+      })
+    })
+
+    it('does not auto-select when neither cell_type nor author_cell_type is present', async () => {
+      const mockAdata = {
+        obsm: vi.fn().mockResolvedValue({ data: new Float32Array([0, 0, 1, 1]), shape: [2, 2] }),
+        obsColumns: vi.fn().mockResolvedValue(['batch', 'donor']),
+        varNames: vi.fn().mockResolvedValue([]),
+        varColumns: vi.fn().mockResolvedValue([]),
+      }
+      useAppStore.setState({ adata: mockAdata as any })
+
+      await useAppStore.getState().fetchEmbedding('X_umap')
+
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().obsColumnNames).toEqual(['batch', 'donor'])
+      })
+      expect(useAppStore.getState().selectedObsColumn).toBeNull()
+    })
+
+    it('does not override an already-selected column', async () => {
+      const mockAdata = {
+        obsm: vi.fn().mockResolvedValue({ data: new Float32Array([0, 0, 1, 1]), shape: [2, 2] }),
+        obsColumns: vi.fn().mockResolvedValue(['cell_type', 'batch']),
+        varNames: vi.fn().mockResolvedValue([]),
+        varColumns: vi.fn().mockResolvedValue([]),
+        obsColumn: vi.fn().mockResolvedValue(['sample_1', 'sample_2']),
+      }
+      useAppStore.setState({ adata: mockAdata as any, selectedObsColumn: 'batch' })
+
+      await useAppStore.getState().fetchEmbedding('X_umap')
+
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().obsColumnNames).toEqual(['cell_type', 'batch'])
+      })
+      expect(useAppStore.getState().selectedObsColumn).toBe('batch')
+    })
+  })
+
+
   describe('summaryCache', () => {
     it('_cacheSummaryResult writes to the cache', () => {
       const counts = new Uint32Array([5, 10, 3])
