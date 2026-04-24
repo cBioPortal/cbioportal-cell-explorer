@@ -13,7 +13,6 @@ export async function applyConfig(config: AppConfig): Promise<void> {
     showDatasetDropdown: config.showDatasetDropdown,
   })
 
-  // Phase 2: Trigger dataset load
   // openDataset early-returns if the URL matches the current dataset.
   // In that case, metadata may already be available — waitForStore
   // handles this by checking the predicate immediately before subscribing.
@@ -30,7 +29,8 @@ export async function applyConfig(config: AppConfig): Promise<void> {
     config.geneLabelColumn ||
     config.filter ||
     config.summaryObsColumns ||
-    config.summaryGenes
+    config.summaryGenes ||
+    config.mappedColumns
 
   if (!hasPostLoadConfig) return
 
@@ -41,7 +41,12 @@ export async function applyConfig(config: AppConfig): Promise<void> {
     return
   }
 
-  // 3a: Gene label column (overrides auto-detection)
+  // 3a: Register mapped columns (must happen before color-by)
+  if (config.mappedColumns && config.mappedColumns.length > 0) {
+    await store.getState().registerMappedColumns(config.mappedColumns)
+  }
+
+  // 3b: Gene label column (overrides auto-detection)
   if (config.geneLabelColumn) {
     const { varColumns } = store.getState()
     if (varColumns.includes(config.geneLabelColumn)) {

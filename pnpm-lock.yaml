@@ -135,6 +135,42 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(jiti@1.21.7)(jsdom@28.1.0)(terser@5.46.0)
 
+  packages/component:
+    devDependencies:
+      '@cbioportal-cell-explorer/api-client':
+        specifier: workspace:^
+        version: link:../api-client
+      '@cbioportal-cell-explorer/highperformer':
+        specifier: workspace:^
+        version: link:../highperformer
+      '@cbioportal-cell-explorer/profiler':
+        specifier: workspace:^
+        version: link:../profiler
+      '@cbioportal-cell-explorer/zarrstore':
+        specifier: workspace:^
+        version: link:../zarrstore
+      '@types/react':
+        specifier: ^18.3.28
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.3.7
+        version: 18.3.7(@types/react@18.3.28)
+      '@vitejs/plugin-react-swc':
+        specifier: ^4.2.2
+        version: 4.2.3(vite@7.3.1(@types/node@25.3.3)(jiti@1.21.7)(terser@5.46.0))
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vite:
+        specifier: ^7.3.1
+        version: 7.3.1(@types/node@25.3.3)(jiti@1.21.7)(terser@5.46.0)
+
   packages/highperformer:
     dependencies:
       '@atlaskit/pragmatic-drag-and-drop':
