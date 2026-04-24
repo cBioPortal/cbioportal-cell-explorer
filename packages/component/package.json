@@ -1,0 +1,41 @@
+{
+  "name": "@cbioportal-cell-explorer/component",
+  "version": "0.0.1",
+  "description": "Stripped-down React component exporting the cBioPortal cell-explorer viewer (Option 4).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./style.css": "./dist/style.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && cp src/index.d.ts dist/index.d.ts",
+    "preview": "vite preview"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@cbioportal-cell-explorer/api-client": "workspace:^",
+    "@cbioportal-cell-explorer/highperformer": "workspace:^",
+    "@cbioportal-cell-explorer/profiler": "workspace:^",
+    "@cbioportal-cell-explorer/zarrstore": "workspace:^",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react-swc": "^4.2.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.8.3",
+    "vite": "^7.3.1"
+  }
+}
