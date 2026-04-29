@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "zarrita": "^0.6.1"
+    "zarrita": "^0.7.2"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",
