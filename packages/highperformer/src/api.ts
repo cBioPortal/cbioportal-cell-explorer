@@ -31,3 +31,39 @@ const authMiddleware: Middleware = {
 
 export const api = createApiClient()
 api.use(authMiddleware)
+
+import { parseNdjson } from "./chat/ndjsonParser";
+import {
+  HttpError,
+  type ChatEvent,
+  type ContextResponse,
+  type WireMessage,
+} from "./chat/types";
+
+export const chat = {
+  async getContext(slug: string, signal?: AbortSignal): Promise<ContextResponse> {
+    const res = await fetch(`/api/chat/${encodeURIComponent(slug)}/context`, {
+      credentials: "include",
+      signal,
+    });
+    if (!res.ok) throw new HttpError(res.status, await res.text());
+    return (await res.json()) as ContextResponse;
+  },
+
+  async *streamTurn(
+    slug: string,
+    messages: WireMessage[],
+    signal: AbortSignal,
+  ): AsyncIterable<ChatEvent> {
+    const res = await fetch(`/api/chat/${encodeURIComponent(slug)}/turns`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ messages }),
+      signal,
+    });
+    if (!res.ok) throw new HttpError(res.status, await res.text());
+    if (!res.body) throw new Error("empty response body");
+    yield* parseNdjson<ChatEvent>(res.body);
+  },
+};
