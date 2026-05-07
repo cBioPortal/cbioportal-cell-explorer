@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
-import { Button, Collapse, InputNumber, Layout, Popover, Switch, Typography, Select, Spin, message } from 'antd'
+import { Button, Collapse, InputNumber, Layout, Popover, Switch, Tabs, Typography, Select, Spin, message } from 'antd'
 import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HolderOutlined, InfoCircleOutlined, LeftOutlined, LinkOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons'
 import { DeckGL } from '@deck.gl/react'
 import { OrthographicView } from '@deck.gl/core'
@@ -20,6 +20,7 @@ import ColorBySection from '../components/ColorBySection'
 import SelectionOverlay from '../components/SelectionOverlay'
 import SelectionToolbar from '../components/SelectionToolbar'
 import SummaryPanel from '../components/SummaryPanel'
+import { ChatPanel } from '../chat/ChatPanel'
 import { loadDatasets, saveDatasets } from '../utils/datasets'
 
 const { Sider, Content } = Layout
@@ -746,6 +747,8 @@ function View() {
   const openCatalogDataset = useAppStore((s) => s.openCatalogDataset)
   const loadingError = useAppStore((s) => s.loadingError)
   const datasetUrl = useAppStore((s) => s.datasetUrl)
+  const datasetSlug = useAppStore((s) => s.datasetSlug)
+  const backendInfo = useAppStore((s) => s.backendInfo)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightWidth, setRightWidth] = useState(RIGHT_SIDEBAR_WIDTH)
   const deckRef = useRef<DeckGL>(null)
@@ -853,7 +856,31 @@ function View() {
               zIndex: 10,
             }}
           />
-          <SummaryPanel collapsed={rightWidth <= SIDEBAR_COLLAPSED_WIDTH} onExpand={() => setRightWidth(RIGHT_SIDEBAR_WIDTH)} />
+          {rightWidth <= SIDEBAR_COLLAPSED_WIDTH ? (
+            <SummaryPanel collapsed onExpand={() => setRightWidth(RIGHT_SIDEBAR_WIDTH)} />
+          ) : (
+            <Tabs
+              size="small"
+              defaultActiveKey="summary"
+              className="chat-tabs"
+              items={[
+                {
+                  key: 'summary',
+                  label: 'Summary',
+                  children: <SummaryPanel collapsed={false} onExpand={() => {}} />,
+                },
+                ...(datasetSlug && backendInfo?.chat_enabled
+                  ? [
+                      {
+                        key: 'chat',
+                        label: 'Chat',
+                        children: <ChatPanel slug={datasetSlug} />,
+                      },
+                    ]
+                  : []),
+              ]}
+            />
+          )}
         </Sider>
       </Layout>
       {ENABLE_PROFILER && <ProfileBarWrapper />}
