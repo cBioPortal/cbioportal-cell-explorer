@@ -1,3 +1,21 @@
 body {
   margin: 0;
 }
+
+/* Make antd Tabs' inner layout fill the parent height so its TabPane can
+   give children (e.g. ChatPanel with a sticky-bottom input) full height. */
+.chat-tabs {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.chat-tabs .ant-tabs-content-holder {
+  flex: 1;
+  min-height: 0;
+}
+.chat-tabs .ant-tabs-content {
+  height: 100%;
+}
+.chat-tabs .ant-tabs-tabpane {
+  height: 100%;
+}

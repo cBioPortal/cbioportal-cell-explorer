@@ -111,59 +111,52 @@ export function ChatPanel({ slug }: { slug: string }) {
           showIcon
         />
       )}
-      {ctxQuery.data && isEmpty && (
-        <div>
-          <p>
-            Ask about {ctxQuery.data.name} — {ctxQuery.data.n_obs.toLocaleString()} cells ×{" "}
-            {ctxQuery.data.n_var.toLocaleString()} genes.
-          </p>
-          {deriveSuggestionChips(ctxQuery.data).map((chip) => (
-            <Button
-              key={chip.label}
-              size="small"
-              style={{ margin: "4px 4px 4px 0" }}
-              onClick={() => setInput(chip.prompt)}
-            >
-              {chip.label}
-            </Button>
-          ))}
-        </div>
-      )}
-      {!isEmpty && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-            marginTop: 12,
-            flex: 1,
-            overflowY: "auto",
-          }}
-        >
-          {state.history.map((m, i) => (
-            <div key={i}>
-              <strong>{m.role === "user" ? "You: " : "Assistant: "}</strong>
-              {m.parts.map((p, j) => (
-                <MessagePartView key={j} part={p} />
-              ))}
-            </div>
-          ))}
-          {state.current && (
-            <div>
-              <strong>Assistant: </strong>
-              {state.current.parts.map((p, j) => (
-                <MessagePartView key={j} part={p} />
-              ))}
-            </div>
-          )}
-          {hasError && (
-            <Button onClick={retry} type="primary" size="small">
-              Retry
-            </Button>
-          )}
-        </div>
-      )}
-      <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+        {ctxQuery.data && isEmpty && (
+          <div>
+            <p>
+              Ask about {ctxQuery.data.name} — {ctxQuery.data.n_obs.toLocaleString()} cells ×{" "}
+              {ctxQuery.data.n_var.toLocaleString()} genes.
+            </p>
+            {deriveSuggestionChips(ctxQuery.data).map((chip) => (
+              <Button
+                key={chip.label}
+                size="small"
+                style={{ margin: "4px 4px 4px 0" }}
+                onClick={() => setInput(chip.prompt)}
+              >
+                {chip.label}
+              </Button>
+            ))}
+          </div>
+        )}
+        {!isEmpty && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {state.history.map((m, i) => (
+              <div key={i}>
+                <strong>{m.role === "user" ? "You: " : "Assistant: "}</strong>
+                {m.parts.map((p, j) => (
+                  <MessagePartView key={j} part={p} />
+                ))}
+              </div>
+            ))}
+            {state.current && (
+              <div>
+                <strong>Assistant: </strong>
+                {state.current.parts.map((p, j) => (
+                  <MessagePartView key={j} part={p} />
+                ))}
+              </div>
+            )}
+            {hasError && (
+              <Button onClick={retry} type="primary" size="small">
+                Retry
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+      <div style={{ marginTop: 12, display: "flex", gap: 8, flexShrink: 0 }}>
         <Input
           placeholder="Ask anything…"
           value={input}

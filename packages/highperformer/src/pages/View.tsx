@@ -861,7 +861,7 @@ function View() {
             <Tabs
               size="small"
               defaultActiveKey="summary"
-              style={{ height: '100%' }}
+              className="chat-tabs"
               items={[
                 {
                   key: 'summary',
