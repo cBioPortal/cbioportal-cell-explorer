@@ -1,5 +1,5 @@
 import { Alert, Button, Input, Spin, Tag } from "antd";
-import { useCallback, useReducer, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { applyConfig as applyConfigFn } from "../config/applyConfig";
 import { initialState, reduce, type State } from "./eventReducer";
 import { deriveSuggestionChips } from "./suggestionChips";
@@ -59,6 +59,23 @@ export function ChatPanel({ slug }: { slug: string }) {
   const ctxQuery = useChatContext(slug);
   const { streaming, start, stop } = useChatTurn();
 
+  // Auto-scroll-to-bottom: stick to the bottom of the message list as content
+  // streams in, but preserve the user's scroll position if they've manually
+  // scrolled up to read earlier output.
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const stickToBottomRef = useRef(true);
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = distanceFromBottom < 24;
+  }, []);
+  useLayoutEffect(() => {
+    if (!stickToBottomRef.current) return;
+    const el = scrollContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [state]);
+
   const submit = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
@@ -116,7 +133,11 @@ export function ChatPanel({ slug }: { slug: string }) {
           showIcon
         />
       )}
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        style={{ flex: 1, minHeight: 0, overflowY: "auto" }}
+      >
         {ctxQuery.data && isEmpty && (
           <div>
             <p>
