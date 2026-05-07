@@ -24,6 +24,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/cli-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cli Login
+         * @description Browser OAuth flow for the CLI.
+         *
+         *     The CLI passes its localhost callback URL. We validate it, sign it into a
+         *     state JWT, and redirect to Keycloak. The existing /callback endpoint will
+         *     detect the CLI flow on the way back.
+         */
+        get: operations["cli_login_api_auth_cli_login_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/callback": {
         parameters: {
             query?: never;
@@ -146,7 +170,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List Datasets Admin */
+        get: operations["list_datasets_admin_api_admin_datasets_get"];
         put?: never;
         /** Create Dataset */
         post: operations["create_dataset_api_admin_datasets_post"];
@@ -268,10 +293,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/chat/{slug}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Chat Context */
+        get: operations["get_chat_context_api_chat__slug__context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/chat/{slug}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Chat Turn */
+        post: operations["post_chat_turn_api_chat__slug__turns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ChatMessage */
+        ChatMessage: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+            /** Content */
+            content: string;
+        };
+        /** ContextResponse */
+        ContextResponse: {
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** N Obs */
+            n_obs: number;
+            /** N Var */
+            n_var: number;
+            /** Obs Columns */
+            obs_columns: components["schemas"]["ObsColumnInfo"][];
+            /** Embedding Keys */
+            embedding_keys: string[];
+            /** Available Tools */
+            available_tools: string[];
+        };
+        /** DatasetAdminListResponse */
+        DatasetAdminListResponse: {
+            /** Datasets */
+            datasets: components["schemas"]["DatasetAdminResponse"][];
+        };
         /** DatasetAdminResponse */
         DatasetAdminResponse: {
             /** Id */
@@ -402,6 +495,27 @@ export interface components {
             git_sha: string | null;
             /** Auth Enabled */
             auth_enabled: boolean;
+            /** Chat Enabled */
+            chat_enabled: boolean;
+        };
+        /** ObsColumnInfo */
+        ObsColumnInfo: {
+            /** Name */
+            name: string;
+            /**
+             * Dtype
+             * @enum {string}
+             */
+            dtype: "categorical" | "numeric" | "string";
+            /** Cardinality */
+            cardinality?: number | null;
+            /** Values */
+            values?: string[] | null;
+        };
+        /** TurnRequest */
+        TurnRequest: {
+            /** Messages */
+            messages: components["schemas"]["ChatMessage"][];
         };
         /**
          * User
@@ -458,6 +572,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    cli_login_api_auth_cli_login_get: {
+        parameters: {
+            query: {
+                redirect_uri: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -638,6 +783,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_datasets_admin_api_admin_datasets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetAdminListResponse"];
                 };
             };
         };
@@ -850,6 +1015,72 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_chat_context_api_chat__slug__context_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_chat_turn_api_chat__slug__turns_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TurnRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

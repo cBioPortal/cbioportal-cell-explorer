@@ -748,6 +748,7 @@ function View() {
   const loadingError = useAppStore((s) => s.loadingError)
   const datasetUrl = useAppStore((s) => s.datasetUrl)
   const datasetSlug = useAppStore((s) => s.datasetSlug)
+  const backendInfo = useAppStore((s) => s.backendInfo)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightWidth, setRightWidth] = useState(RIGHT_SIDEBAR_WIDTH)
   const deckRef = useRef<DeckGL>(null)
@@ -868,7 +869,7 @@ function View() {
                   label: 'Summary',
                   children: <SummaryPanel collapsed={false} onExpand={() => {}} />,
                 },
-                ...(datasetSlug
+                ...(datasetSlug && backendInfo?.chat_enabled
                   ? [
                       {
                         key: 'chat',
