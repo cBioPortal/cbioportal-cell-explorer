@@ -1,5 +1,7 @@
 import { Alert, Button, Input, Spin, Tag } from "antd";
 import { useCallback, useLayoutEffect, useReducer, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { applyConfig as applyConfigFn } from "../config/applyConfig";
 import { initialState, reduce, type State } from "./eventReducer";
 import { deriveSuggestionChips } from "./suggestionChips";
@@ -32,8 +34,42 @@ function toWireMessages(history: ChatMessage[]): WireMessage[] {
   }));
 }
 
+// Components passed to ReactMarkdown — keep tables readable in a narrow sidebar
+// and tighten paragraph margins for chat-density layout.
+const markdownComponents = {
+  table: (props: React.HTMLAttributes<HTMLTableElement>) => (
+    <div style={{ overflowX: "auto", margin: "8px 0" }}>
+      <table {...props} style={{ borderCollapse: "collapse", fontSize: 12 }} />
+    </div>
+  ),
+  th: (props: React.HTMLAttributes<HTMLTableCellElement>) => (
+    <th
+      {...props}
+      style={{ border: "1px solid #ddd", padding: "4px 8px", textAlign: "left", background: "#fafafa" }}
+    />
+  ),
+  td: (props: React.HTMLAttributes<HTMLTableCellElement>) => (
+    <td {...props} style={{ border: "1px solid #ddd", padding: "4px 8px" }} />
+  ),
+  p: (props: React.HTMLAttributes<HTMLParagraphElement>) => (
+    <p {...props} style={{ margin: "4px 0" }} />
+  ),
+  code: (props: React.HTMLAttributes<HTMLElement>) => (
+    <code
+      {...props}
+      style={{ background: "#f6f8fa", padding: "1px 4px", borderRadius: 3, fontSize: "0.9em" }}
+    />
+  ),
+};
+
 function MessagePartView({ part }: { part: MessagePart }) {
-  if (part.kind === "text") return <span>{part.text}</span>;
+  if (part.kind === "text") {
+    return (
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+        {part.text}
+      </ReactMarkdown>
+    );
+  }
   if (part.kind === "tool") {
     const sym = part.status === "started" ? "▶" : part.status === "ok" ? "✓" : "✗";
     const color = part.status === "error" ? "red" : part.status === "ok" ? "green" : "blue";
