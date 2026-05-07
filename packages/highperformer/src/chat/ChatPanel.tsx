@@ -103,7 +103,12 @@ export function ChatPanel({ slug }: { slug: string }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 12 }}>
-      {ctxQuery.loading && <Spin />}
+      {ctxQuery.loading && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 8 }}>
+          <Spin size="small" />
+          <span>Fetching metadata…</span>
+        </div>
+      )}
       {ctxQuery.error && (
         <Alert
           type="error"
