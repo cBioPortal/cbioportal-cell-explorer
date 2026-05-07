@@ -1,6 +1,6 @@
 import { Alert, Button, Input, Spin, Tag } from "antd";
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { useAppStore } from "../store/useAppStore";
+import { useCallback, useReducer, useRef, useState } from "react";
+import { applyConfig as applyConfigFn } from "../config/applyConfig";
 import { initialState, reduce, type State } from "./eventReducer";
 import { deriveSuggestionChips } from "./suggestionChips";
 import type { ChatEvent, ChatMessage, MessagePart, WireMessage } from "./types";
@@ -48,13 +48,9 @@ function MessagePartView({ part }: { part: MessagePart }) {
 }
 
 export function ChatPanel({ slug }: { slug: string }) {
-  const applyConfig = useAppStore(
-    (s) => (s as { applyConfig: (cfg: Record<string, unknown>) => void }).applyConfig,
-  );
-  const applyConfigRef = useRef(applyConfig);
-  useEffect(() => { applyConfigRef.current = applyConfig; }, [applyConfig]);
   const reducerFn = useRef(
-    (state: State, action: Action) => makeReducer(applyConfigRef.current)(state, action),
+    (state: State, action: Action) =>
+      makeReducer((cfg) => void applyConfigFn(cfg as Parameters<typeof applyConfigFn>[0]))(state, action),
   ).current;
   const [state, dispatch] = useReducer(reducerFn, undefined, initialState);
   const [input, setInput] = useState("");
