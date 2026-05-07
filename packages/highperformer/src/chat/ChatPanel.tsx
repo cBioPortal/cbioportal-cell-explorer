@@ -169,7 +169,6 @@ export function ChatPanel({ slug }: { slug: string }) {
           onKeyDown={(e) => {
             if (e.key === "Enter" && !streaming) submit(input);
           }}
-          disabled={streaming}
         />
         {streaming ? (
           <Button onClick={stop}>Stop</Button>
