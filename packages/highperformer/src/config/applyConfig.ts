@@ -60,68 +60,101 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
   // 3a: Gene label column
   if (config.geneLabelColumn) {
     const { varColumns } = store.getState()
-    if (varColumns.includes(config.geneLabelColumn)) {
-      store.getState().setGeneLabelColumn(config.geneLabelColumn)
-    } else {
-      console.warn(`[config] geneLabelColumn "${config.geneLabelColumn}" not found in dataset var columns`)
+    if (!varColumns.includes(config.geneLabelColumn)) {
+      return err({
+        kind: 'field_value_invalid',
+        field: 'geneLabelColumn',
+        value: config.geneLabelColumn,
+        reason: `not found in dataset var columns (available: ${varColumns.join(', ')})`,
+      })
     }
+    store.getState().setGeneLabelColumn(config.geneLabelColumn)
   }
 
   // 3b: Embedding
   if (config.embedding) {
     const { obsmKeys } = store.getState()
-    if (obsmKeys.includes(config.embedding)) {
-      store.getState().setSelectedEmbedding(config.embedding)
-    } else {
-      console.warn(`[config] embedding "${config.embedding}" not found — available: ${obsmKeys.join(', ')}`)
+    if (!obsmKeys.includes(config.embedding)) {
+      return err({
+        kind: 'field_value_invalid',
+        field: 'embedding',
+        value: config.embedding,
+        reason: `not found in dataset (available: ${obsmKeys.join(', ')})`,
+      })
     }
+    store.getState().setSelectedEmbedding(config.embedding)
   }
 
   // 3c: Color mapping (cross-field check moved to Task 5)
   if (config.colorBy === 'gene' && config.gene) {
     const { varNames } = store.getState()
-    if (varNames.includes(config.gene)) {
-      store.getState().setColorMode('gene')
-      store.getState().selectGene(config.gene)
-    } else {
-      console.warn(`[config] gene "${config.gene}" not found in dataset`)
+    if (!varNames.includes(config.gene)) {
+      return err({
+        kind: 'field_value_invalid',
+        field: 'gene',
+        value: config.gene,
+        reason: 'not found in dataset',
+      })
     }
+    store.getState().setColorMode('gene')
+    store.getState().selectGene(config.gene)
   } else if (config.colorBy === 'category' && config.category) {
     const { obsColumnNames } = store.getState()
-    if (obsColumnNames.includes(config.category)) {
-      store.getState().setColorMode('category')
-      store.getState().selectObsColumn(config.category)
-    } else {
-      console.warn(`[config] category column "${config.category}" not found in dataset`)
+    if (!obsColumnNames.includes(config.category)) {
+      return err({
+        kind: 'field_value_invalid',
+        field: 'category',
+        value: config.category,
+        reason: 'not found in dataset',
+      })
     }
+    store.getState().setColorMode('category')
+    store.getState().selectObsColumn(config.category)
   }
 
   // 3d: Summary panel
   if (config.summaryObsColumns) {
     const { obsColumnNames } = store.getState()
     for (const col of config.summaryObsColumns) {
-      if (obsColumnNames.includes(col)) {
-        store.getState().addSummaryObsColumn(col)
-      } else {
-        console.warn(`[config] summary obs column "${col}" not found`)
+      if (!obsColumnNames.includes(col)) {
+        return err({
+          kind: 'field_value_invalid',
+          field: 'summaryObsColumns',
+          value: col,
+          reason: 'not found in dataset',
+        })
       }
+      store.getState().addSummaryObsColumn(col)
     }
   }
   if (config.summaryGenes) {
     const { varNames } = store.getState()
     for (const gene of config.summaryGenes) {
-      if (varNames.includes(gene)) {
-        store.getState().addSummaryGene(gene)
-      } else {
-        console.warn(`[config] summary gene "${gene}" not found`)
+      if (!varNames.includes(gene)) {
+        return err({
+          kind: 'field_value_invalid',
+          field: 'summaryGenes',
+          value: gene,
+          reason: 'not found in dataset',
+        })
       }
+      store.getState().addSummaryGene(gene)
     }
   }
 
   // 3e: Custom group filter (side-effect cleanup in Task 7)
   if (config.filter && config.filter.ids.length > 0) {
+    const { obsColumnNames } = store.getState()
+    if (!obsColumnNames.includes(config.filter.obsColumn)) {
+      return err({
+        kind: 'field_value_invalid',
+        field: 'filter.obsColumn',
+        value: config.filter.obsColumn,
+        reason: 'not found in dataset',
+      })
+    }
     store.getState().selectByIds(config.filter.obsColumn, config.filter.ids)
-    store.setState({ summaryContext: 'selections' })
+    store.setState({ summaryContext: 'selections' }) // ← cleanup in Task 7
   }
 
   return ok()

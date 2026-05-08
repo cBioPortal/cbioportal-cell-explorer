@@ -106,9 +106,7 @@ describe('applyConfig', () => {
     setSelectedEmbedding.mockRestore()
   })
 
-  it('warns and skips invalid embedding', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
+  it('returns field_value_invalid for invalid embedding', async () => {
     const config: AppConfig = {
       url: 'https://example.com/data.zarr',
       embedding: 'X_nonexistent',
@@ -120,10 +118,15 @@ describe('applyConfig', () => {
 
     const promise = applyConfig(config)
     useAppStore.setState({ obsColumnNames: ['cell_type'], obsmKeys: ['X_umap'], varNames: [], varColumns: [] })
-    await promise
+    const result = await promise
 
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('X_nonexistent'))
-    warn.mockRestore()
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('embedding')
+      expect(result.reason.value).toBe('X_nonexistent')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
   })
 
   it('calls selectByIds for filter config', async () => {
@@ -184,6 +187,60 @@ describe('applyConfig — cross-field validation', () => {
       expect(result.reason.field).toBe('category')
     } else {
       throw new Error('expected missing_companion error')
+    }
+  })
+})
+
+describe('applyConfig — apply-time field validation', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      varNames: ['CD3D', 'CD8A', 'GZMK'],
+      varColumns: ['feature_id', 'gene_symbol'],
+      obsmKeys: ['X_umap', 'X_pca'],
+      obsColumnNames: ['cell_type', 'percent_mt'],
+    } as any)
+  })
+
+  it('returns field_value_invalid for unknown gene', async () => {
+    const result = await applyConfig({ colorBy: 'gene', gene: 'NONEXISTENT' })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('gene')
+      expect(result.reason.value).toBe('NONEXISTENT')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
+  })
+
+  it('returns field_value_invalid for unknown embedding', async () => {
+    const result = await applyConfig({ embedding: 'X_imaginary' })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('embedding')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
+  })
+
+  it('returns field_value_invalid for unknown filter.obsColumn', async () => {
+    const result = await applyConfig({
+      filter: { obsColumn: 'no_such_col', ids: ['x'] },
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('filter.obsColumn')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
+  })
+
+  it('returns field_value_invalid for unknown geneLabelColumn', async () => {
+    const result = await applyConfig({ geneLabelColumn: 'not_a_var_col' })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('geneLabelColumn')
+    } else {
+      throw new Error('expected field_value_invalid error')
     }
   })
 })
