@@ -245,7 +245,7 @@ describe('usePostMessage hook', () => {
 
     sendMessage('not an object')
     sendMessage({ type: 'unknownType', payload: {} })
-    sendMessage({ type: 'applyConfig', payload: { missing: 'url' } })
+    // { missing: 'url' } is now valid per the all-optional schema (Task 1 removed .refine())
 
     expect(mockApplyConfig).not.toHaveBeenCalled()
   })

@@ -146,3 +146,22 @@ describe('applyConfig', () => {
     selectByIds.mockRestore()
   })
 })
+
+describe('applyConfig — return type and schema validation', () => {
+  it('returns { ok: true } on a valid empty payload', async () => {
+    const result = await applyConfig({})
+    expect(result.ok).toBe(true)
+  })
+
+  it('returns { ok: false, kind: "schema_validation" } on garbage payload', async () => {
+    const result = await applyConfig({ pointSize: 'huge' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason.kind).toBe('schema_validation')
+  })
+
+  it('returns { ok: false, kind: "schema_validation" } when neither url nor dataset is implied (null payload)', async () => {
+    const result = await applyConfig(null)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason.kind).toBe('schema_validation')
+  })
+})
