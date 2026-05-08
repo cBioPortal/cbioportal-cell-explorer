@@ -67,6 +67,13 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Check AppConfig JSON Schema is up to date
+        run: |
+          pnpm --filter @cbioportal-cell-explorer/highperformer schema
+          if ! git diff --exit-code packages/highperformer/schema/app-config.schema.json; then
+            echo "::error::packages/highperformer/schema/app-config.schema.json is stale. Run 'pnpm --filter @cbioportal-cell-explorer/highperformer schema' and commit the result."
+            exit 1
+          fi
       - run: pnpm --filter @cbioportal-cell-explorer/highperformer test
 
   build:
