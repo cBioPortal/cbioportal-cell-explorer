@@ -275,17 +275,18 @@ describe('applyConfig — metadata_unavailable + summaryContext defaults', () =>
   })
 
   it('respects an explicit summaryContext that overrides the default', async () => {
+    // Schema 'overall' maps to store 'all' (external vs. internal naming)
     useAppStore.setState({
       varNames: [],
       obsmKeys: [],
       obsColumnNames: ['cell_type'],
-      summaryContext: 'overall',
-    } as any)
+      summaryContext: 'all',
+    })
     await applyConfig({
       filter: { obsColumn: 'cell_type', ids: ['T'] },
       summaryContext: 'overall',
     })
-    expect(useAppStore.getState().summaryContext).toBe('overall')
+    expect(useAppStore.getState().summaryContext).toBe('all')
   })
 })
 
