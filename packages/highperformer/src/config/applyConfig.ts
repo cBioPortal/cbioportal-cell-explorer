@@ -35,7 +35,8 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     store.getState().openDataset(config.url)
   }
 
-  // Phase 3: Wait for dataset metadata (kept as-is for this task; restructured in Task 7)
+  // Phase 3: Wait for dataset metadata (or fail). If no dataset is loading
+  // at all, surface that as metadata_unavailable instead of silently dropping.
   const hasPostLoadConfig =
     config.embedding ||
     config.colorBy ||
@@ -50,11 +51,18 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
 
   if (!hasPostLoadConfig) return ok()
 
-  try {
-    await waitForStore(store, (s) => s.obsColumnNames.length > 0)
-  } catch {
-    console.warn('[config] Timed out waiting for dataset metadata — skipping post-load config')
-    return ok() // ← will become metadata_unavailable in Task 7
+  const metadataReady = store.getState().obsColumnNames.length > 0
+  const datasetLoading =
+    !metadataReady && (config.dataset !== undefined || config.url !== undefined || store.getState().loading)
+
+  if (!metadataReady && datasetLoading) {
+    try {
+      await waitForStore(store, (s) => s.obsColumnNames.length > 0)
+    } catch {
+      return err({ kind: 'metadata_unavailable', field: 'post-load' })
+    }
+  } else if (!metadataReady) {
+    return err({ kind: 'metadata_unavailable', field: 'post-load' })
   }
 
   // 3a: Gene label column
@@ -142,7 +150,7 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     }
   }
 
-  // 3e: Custom group filter (side-effect cleanup in Task 7)
+  // 3e: Custom group filter
   if (config.filter && config.filter.ids.length > 0) {
     const { obsColumnNames } = store.getState()
     if (!obsColumnNames.includes(config.filter.obsColumn)) {
@@ -154,7 +162,16 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
       })
     }
     store.getState().selectByIds(config.filter.obsColumn, config.filter.ids)
-    store.setState({ summaryContext: 'selections' }) // ← cleanup in Task 7
+    // Default: when filter is set, switch summary to selections — UNLESS the
+    // caller explicitly specified summaryContext (then their value wins).
+    if (config.summaryContext === undefined) {
+      store.setState({ summaryContext: 'selections' })
+    }
+  }
+
+  // Explicit summaryContext (always wins over implicit default)
+  if (config.summaryContext !== undefined) {
+    store.setState({ summaryContext: config.summaryContext })
   }
 
   return ok()

@@ -244,3 +244,47 @@ describe('applyConfig — apply-time field validation', () => {
     }
   })
 })
+
+describe('applyConfig — metadata_unavailable + summaryContext defaults', () => {
+  it('returns metadata_unavailable when post-load fields are requested before any dataset is loaded', async () => {
+    // Reset store to "no dataset loaded" state
+    useAppStore.setState({
+      varNames: [],
+      varColumns: [],
+      obsmKeys: [],
+      obsColumnNames: [],
+      loading: false,
+    } as any)
+
+    // Test relies on the refactored applyConfig short-circuiting when there's
+    // no dataset load in flight at all.
+    const result = await applyConfig({ embedding: 'X_umap' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason.kind).toBe('metadata_unavailable')
+  })
+
+  it('defaults summaryContext to "selections" when filter is set and summaryContext is not provided', async () => {
+    useAppStore.setState({
+      varNames: [],
+      obsmKeys: [],
+      obsColumnNames: ['cell_type'],
+      summaryContext: 'overall',
+    } as any)
+    await applyConfig({ filter: { obsColumn: 'cell_type', ids: ['T'] } })
+    expect(useAppStore.getState().summaryContext).toBe('selections')
+  })
+
+  it('respects an explicit summaryContext that overrides the default', async () => {
+    useAppStore.setState({
+      varNames: [],
+      obsmKeys: [],
+      obsColumnNames: ['cell_type'],
+      summaryContext: 'overall',
+    } as any)
+    await applyConfig({
+      filter: { obsColumn: 'cell_type', ids: ['T'] },
+      summaryContext: 'overall',
+    })
+    expect(useAppStore.getState().summaryContext).toBe('overall')
+  })
+})
