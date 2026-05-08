@@ -93,7 +93,7 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     store.getState().setSelectedEmbedding(config.embedding)
   }
 
-  // 3c: Color mapping (cross-field check moved to Task 5)
+  // 3c: Color mapping (cross-field check is at the top of applyConfig)
   if (config.colorBy === 'gene' && config.gene) {
     const { varNames } = store.getState()
     if (!varNames.includes(config.gene)) {
@@ -169,8 +169,13 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     }
   }
 
-  // Explicit summaryContext (always wins over implicit default)
-  // Schema uses 'overall' (external API) → store uses 'all' (internal)
+  // Explicit summaryContext (always wins over implicit default).
+  //
+  // Vocabulary note: the AppConfig schema exposes 'overall' | 'selections' as
+  // the external/agent-facing surface. The store internally uses 'all' |
+  // 'selections' | 'compare'. We map 'overall' → 'all' here. The store's
+  // 'compare' value is intentionally NOT exposed in the schema — it's a
+  // UI-driven mode that the agent has no business setting.
   if (config.summaryContext !== undefined) {
     store.setState({
       summaryContext: config.summaryContext === 'overall' ? 'all' : config.summaryContext,
