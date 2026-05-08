@@ -1,4 +1,7 @@
 import { AppConfigSchema, type AppConfig } from './schema'
+import { applyConfig } from './applyConfig'
+import { applyErrorMessage } from './applyResult'
+import useAppStore from '../store/useAppStore'
 
 export function parseConfig(configParam: string | null): AppConfig | null {
   if (!configParam) return null
@@ -30,4 +33,18 @@ export function parseConfig(configParam: string | null): AppConfig | null {
   }
 
   return result.data
+}
+
+/**
+ * Parse a URL ?config= param and apply it, surfacing ApplyResult errors via
+ * the store's loadingError field (same UI path as dataset-load failures).
+ */
+export async function applyParsedConfig(configParam: string | null): Promise<void> {
+  const config = parseConfig(configParam)
+  if (!config) return
+
+  const result = await applyConfig(config)
+  if (!result.ok) {
+    useAppStore.setState({ loadingError: applyErrorMessage(result.reason) })
+  }
 }

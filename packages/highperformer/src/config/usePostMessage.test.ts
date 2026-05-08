@@ -16,7 +16,7 @@ vi.mock('../workers/universal.worker.ts?worker', () => ({
 }))
 
 // Mock applyConfig
-const mockApplyConfig = vi.fn().mockResolvedValue(undefined)
+const mockApplyConfig = vi.fn().mockResolvedValue({ ok: true })
 vi.mock('./applyConfig', () => ({
   applyConfig: (...args: unknown[]) => mockApplyConfig(...args),
 }))
@@ -81,6 +81,7 @@ describe('usePostMessage hook', () => {
   beforeEach(() => {
     useAppStore.setState(useAppStore.getInitialState())
     mockApplyConfig.mockClear()
+    mockApplyConfig.mockResolvedValue({ ok: true })
     mockDispatch.mockClear()
     addSpy = vi.spyOn(window, 'addEventListener')
     removeSpy = vi.spyOn(window, 'removeEventListener')
@@ -245,7 +246,7 @@ describe('usePostMessage hook', () => {
 
     sendMessage('not an object')
     sendMessage({ type: 'unknownType', payload: {} })
-    sendMessage({ type: 'applyConfig', payload: { missing: 'url' } })
+    // { missing: 'url' } is now valid per the all-optional schema (Task 1 removed .refine())
 
     expect(mockApplyConfig).not.toHaveBeenCalled()
   })
@@ -270,5 +271,62 @@ describe('usePostMessage hook', () => {
       'https://evil.com',
     )
     warn.mockRestore()
+  })
+
+  it('replies to parent with applyConfigResult ok:true on success', async () => {
+    vi.stubEnv('VITE_ENABLE_POSTMESSAGE', 'true')
+    vi.stubEnv('VITE_POSTMESSAGE_ORIGIN', '*')
+    mockApplyConfig.mockResolvedValue({ ok: true })
+
+    const postMessageSpy = vi.fn()
+    const fakeSource = { postMessage: postMessageSpy } as unknown as Window
+
+    renderHook(() => usePostMessage())
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'applyConfig', payload: { url: 'https://example.com/data.zarr' } },
+        origin: 'https://example.com',
+        source: fakeSource,
+      }),
+    )
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    expect(postMessageSpy).toHaveBeenCalledWith(
+      { type: 'applyConfigResult', ok: true },
+      'https://example.com',
+    )
+  })
+
+  it('replies to parent with applyConfigResult ok:false and error on failure', async () => {
+    vi.stubEnv('VITE_ENABLE_POSTMESSAGE', 'true')
+    vi.stubEnv('VITE_POSTMESSAGE_ORIGIN', '*')
+    mockApplyConfig.mockResolvedValue({
+      ok: false,
+      reason: { kind: 'missing_companion', field: 'gene' },
+    })
+
+    const postMessageSpy = vi.fn()
+    const fakeSource = { postMessage: postMessageSpy } as unknown as Window
+
+    renderHook(() => usePostMessage())
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'applyConfig', payload: { colorBy: 'gene' } },
+        origin: 'https://example.com',
+        source: fakeSource,
+      }),
+    )
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    expect(postMessageSpy).toHaveBeenCalledWith(
+      {
+        type: 'applyConfigResult',
+        ok: false,
+        error: "Couldn't apply: colorBy is set but gene is missing",
+      },
+      'https://example.com',
+    )
   })
 })

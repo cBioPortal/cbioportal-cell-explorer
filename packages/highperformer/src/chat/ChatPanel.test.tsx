@@ -5,6 +5,12 @@ import * as useChatContextModule from "./useChatContext";
 import * as useChatTurnModule from "./useChatTurn";
 import type { ChatEvent, ContextResponse } from "./types";
 
+// Mock applyConfig so individual tests can control its return value
+const mockApplyConfig = vi.fn()
+vi.mock("../config/applyConfig", () => ({
+  applyConfig: (...args: unknown[]) => mockApplyConfig(...args),
+}))
+
 vi.mock("../store/useAppStore", () => ({
   useAppStore: Object.assign(
     (selector: (s: unknown) => unknown) => selector({ applyConfig: vi.fn() }),
@@ -41,6 +47,9 @@ beforeEach(() => {
   });
   startMock.mockReset();
   stopMock.mockReset();
+  // Default: applyConfig succeeds
+  mockApplyConfig.mockReset()
+  mockApplyConfig.mockResolvedValue({ ok: true })
 });
 
 afterEach(() => {
@@ -73,6 +82,31 @@ describe("ChatPanel", () => {
     const [slug, messages] = startMock.mock.calls[0];
     expect(slug).toBe("spectrum");
     expect(messages).toEqual([{ role: "user", content: "hello" }]);
+  });
+
+  it("renders an error bubble when a ui_action applyConfig returns !ok", async () => {
+    mockApplyConfig.mockResolvedValue({
+      ok: false,
+      reason: { kind: "missing_companion", field: "gene" },
+    })
+
+    let dispatch: ((e: ChatEvent) => void) | null = null;
+    startMock.mockImplementation(async (_s, _m, onEvent) => {
+      dispatch = onEvent;
+    });
+    render(<ChatPanel slug="spectrum" />);
+    const input = screen.getByPlaceholderText(/Ask anything/i) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "color by gene" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(startMock).toHaveBeenCalled());
+
+    // Agent sends a ui_action with colorBy='gene' but no gene — applyConfig will fail
+    dispatch!({ type: "ui_action", payload: { colorBy: "gene" } });
+
+    // The async applyConfig failure should produce an error bubble
+    await waitFor(() =>
+      expect(screen.getByText(/colorBy is set but gene is missing/i)).toBeDefined()
+    );
   });
 
   it("renders an error bubble with Retry when an error event is dispatched", async () => {

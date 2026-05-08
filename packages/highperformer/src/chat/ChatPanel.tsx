@@ -3,6 +3,7 @@ import { useCallback, useLayoutEffect, useReducer, useRef, useState } from "reac
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { applyConfig as applyConfigFn } from "../config/applyConfig";
+import { applyErrorMessage } from "../config/applyResult";
 import { initialState, reduce, type State } from "./eventReducer";
 import { deriveSuggestionChips } from "./suggestionChips";
 import type { ChatEvent, ChatMessage, MessagePart, WireMessage } from "./types";
@@ -84,11 +85,28 @@ function MessagePartView({ part }: { part: MessagePart }) {
 }
 
 export function ChatPanel({ slug }: { slug: string }) {
+  // applyConfigCallbackRef is a stable ref so the frozen reducerFn (created once
+  // via useRef) can always reach the current callback — which itself captures
+  // the stable `dispatch` returned by useReducer.
+  const applyConfigCallbackRef = useRef<(cfg: Record<string, unknown>) => void>(() => {})
   const reducerFn = useRef(
     (state: State, action: Action) =>
-      makeReducer((cfg) => void applyConfigFn(cfg as Parameters<typeof applyConfigFn>[0]))(state, action),
+      makeReducer((cfg) => applyConfigCallbackRef.current(cfg))(state, action),
   ).current;
   const [state, dispatch] = useReducer(reducerFn, undefined, initialState);
+
+  // Wire the callback now that dispatch is available. dispatch is stable
+  // (guaranteed by React), so this assignment runs once and stays valid.
+  applyConfigCallbackRef.current = (cfg) => {
+    applyConfigFn(cfg as Parameters<typeof applyConfigFn>[0]).then((result) => {
+      if (!result.ok) {
+        dispatch({
+          type: "AGENT_EVENT",
+          event: { type: "error", message: applyErrorMessage(result.reason), retryable: false },
+        })
+      }
+    })
+  }
   const [input, setInput] = useState("");
   const [lastSubmittedMessages, setLastSubmittedMessages] = useState<WireMessage[] | null>(null);
 

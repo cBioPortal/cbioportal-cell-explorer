@@ -5,38 +5,43 @@ const FilterSchema = z.object({
   obsColumn: z.string(),
 })
 
-const RawConfigSchema = z.object({
+const ViewportSchema = z.object({
+  target: z.tuple([z.number(), z.number()]),
+  zoom: z.number(),
+})
+
+export const AppConfigSchema = z.object({
+  // dataset source
   url: z.string().optional(),
   dataset: z.string().optional(),
+
+  // data view
   embedding: z.string().optional(),
   colorBy: z.enum(['gene', 'category']).optional(),
   gene: z.string().optional(),
   category: z.string().optional(),
   geneLabelColumn: z.string().optional(),
+
+  // filter (tightly bound — nested)
   filter: FilterSchema.optional(),
+
+  // viewport (tightly bound — nested, NEW)
+  viewport: ViewportSchema.optional(),
+
+  // rendering (flat, NEW)
+  pointSize: z.number().positive().optional(),
+  opacity: z.number().min(0).max(1).optional(),
+
+  // summary panel
   summaryObsColumns: z.array(z.string()).optional(),
   summaryGenes: z.array(z.string()).optional(),
-  showHeader: z.boolean().default(true),
-  showLeftSidebar: z.boolean().default(true),
-  showRightSidebar: z.boolean().default(true),
-  showDatasetDropdown: z.boolean().default(true),
-}).refine((data) => data.url || data.dataset, {
-  message: 'Either "url" or "dataset" must be provided',
-})
+  summaryContext: z.enum(['overall', 'selections']).optional(),
 
-export const AppConfigSchema = RawConfigSchema.transform((data) => {
-  // Strip colorBy if its companion field is missing
-  if (data.colorBy === 'gene' && !data.gene) {
-    console.warn('[config] colorBy "gene" requires a "gene" field — ignoring colorBy')
-    const { colorBy, ...rest } = data
-    return rest
-  }
-  if (data.colorBy === 'category' && !data.category) {
-    console.warn('[config] colorBy "category" requires a "category" field — ignoring colorBy')
-    const { colorBy, ...rest } = data
-    return rest
-  }
-  return data
+  // UI chrome
+  showHeader: z.boolean().optional(),
+  showLeftSidebar: z.boolean().optional(),
+  showRightSidebar: z.boolean().optional(),
+  showDatasetDropdown: z.boolean().optional(),
 })
 
 export type AppConfig = z.output<typeof AppConfigSchema>

@@ -551,9 +551,12 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
   const selectionDisplayMode = useAppStore((s) => s.selectionDisplayMode)
   const selectionGroups = useAppStore((s) => s.selectionGroups)
   const selectionTool = useAppStore((s) => s.selectionTool)
+  const pendingViewport = useAppStore((s) => s.pendingViewport)
+  const setViewport = useAppStore((s) => s.setViewport)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Derive initial view state from data bounds + container size
+  // Derive initial view state from data bounds + container size.
+  // If a pendingViewport was set via applyConfig, override target+zoom with it.
   const initialViewState = useMemo(() => {
     if (!embeddingData?.bounds) return { target: [0, 0, 0] as [number, number, number], zoom: 1 }
 
@@ -577,9 +580,22 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     const minZoom = zoom - 0.25
     const maxZoom = zoom + 4
 
+    if (pendingViewport) {
+      const target: [number, number, number] = [pendingViewport.target[0], pendingViewport.target[1], 0]
+      return { target, zoom: pendingViewport.zoom, minZoom, maxZoom }
+    }
+
     const target: [number, number, number] = [centerX, centerY, 0]
     return { target, zoom, minZoom, maxZoom }
-  }, [embeddingData])
+  }, [embeddingData, pendingViewport])
+
+  // Clear pendingViewport after it has been consumed by the initialViewState useMemo above.
+  // Without this, the override would re-apply on every embedding change.
+  useEffect(() => {
+    if (pendingViewport) {
+      setViewport(null)
+    }
+  }, [pendingViewport, setViewport])
 
   // Memoize layer data object — only recreate when position or color buffer changes
   const layerData = useMemo(() => {

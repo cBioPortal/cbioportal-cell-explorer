@@ -44,6 +44,19 @@ describe("eventReducer.reduce", () => {
     expect(after).toBe(before); // no state mutation
   });
 
+  it("ui_action: applyConfig callback may return a Promise (async-safe contract)", () => {
+    // The reducer forwards the payload to whatever callback is passed in.
+    // Callers (e.g. ChatPanel) are responsible for wiring ApplyResult error handling.
+    // This test verifies the reducer doesn't throw when the callback returns a Promise.
+    const asyncApply = vi.fn().mockResolvedValue({ ok: false, reason: { kind: "internal", message: "test" } });
+    const before = initialState();
+    // Should not throw even though the callback is async
+    expect(() =>
+      reduce(before, { type: "ui_action", payload: { colorBy: "gene" } }, asyncApply)
+    ).not.toThrow();
+    expect(asyncApply).toHaveBeenCalledTimes(1);
+  });
+
   it("error event appends ErrorPart and sets status to error, keeps preceding text", () => {
     let s = initialState();
     s = reduce(s, { type: "text_delta", text: "partial " }, noopApply);

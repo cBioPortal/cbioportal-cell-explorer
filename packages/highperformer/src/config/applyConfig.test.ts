@@ -106,9 +106,7 @@ describe('applyConfig', () => {
     setSelectedEmbedding.mockRestore()
   })
 
-  it('warns and skips invalid embedding', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
+  it('returns field_value_invalid for invalid embedding', async () => {
     const config: AppConfig = {
       url: 'https://example.com/data.zarr',
       embedding: 'X_nonexistent',
@@ -120,10 +118,15 @@ describe('applyConfig', () => {
 
     const promise = applyConfig(config)
     useAppStore.setState({ obsColumnNames: ['cell_type'], obsmKeys: ['X_umap'], varNames: [], varColumns: [] })
-    await promise
+    const result = await promise
 
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('X_nonexistent'))
-    warn.mockRestore()
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('embedding')
+      expect(result.reason.value).toBe('X_nonexistent')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
   })
 
   it('calls selectByIds for filter config', async () => {
@@ -144,5 +147,196 @@ describe('applyConfig', () => {
 
     expect(selectByIds).toHaveBeenCalledWith('sample_id', ['cell1', 'cell2'])
     selectByIds.mockRestore()
+  })
+})
+
+describe('applyConfig — return type and schema validation', () => {
+  it('returns { ok: true } on a valid empty payload', async () => {
+    const result = await applyConfig({})
+    expect(result.ok).toBe(true)
+  })
+
+  it('returns { ok: false, kind: "schema_validation" } on garbage payload', async () => {
+    const result = await applyConfig({ pointSize: 'huge' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason.kind).toBe('schema_validation')
+  })
+
+  it('returns { ok: false, kind: "schema_validation" } when neither url nor dataset is implied (null payload)', async () => {
+    const result = await applyConfig(null)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason.kind).toBe('schema_validation')
+  })
+})
+
+describe('applyConfig — cross-field validation', () => {
+  it('returns missing_companion when colorBy=gene without gene', async () => {
+    const result = await applyConfig({ colorBy: 'gene' })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'missing_companion') {
+      expect(result.reason.field).toBe('gene')
+    } else {
+      throw new Error('expected missing_companion error')
+    }
+  })
+
+  it('returns missing_companion when colorBy=category without category', async () => {
+    const result = await applyConfig({ colorBy: 'category' })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'missing_companion') {
+      expect(result.reason.field).toBe('category')
+    } else {
+      throw new Error('expected missing_companion error')
+    }
+  })
+})
+
+describe('applyConfig — apply-time field validation', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      varNames: ['CD3D', 'CD8A', 'GZMK'],
+      varColumns: ['feature_id', 'gene_symbol'],
+      obsmKeys: ['X_umap', 'X_pca'],
+      obsColumnNames: ['cell_type', 'percent_mt'],
+    } as any)
+  })
+
+  it('returns field_value_invalid for unknown gene', async () => {
+    const result = await applyConfig({ colorBy: 'gene', gene: 'NONEXISTENT' })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('gene')
+      expect(result.reason.value).toBe('NONEXISTENT')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
+  })
+
+  it('returns field_value_invalid for unknown embedding', async () => {
+    const result = await applyConfig({ embedding: 'X_imaginary' })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('embedding')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
+  })
+
+  it('returns field_value_invalid for unknown filter.obsColumn', async () => {
+    const result = await applyConfig({
+      filter: { obsColumn: 'no_such_col', ids: ['x'] },
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('filter.obsColumn')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
+  })
+
+  it('returns field_value_invalid for unknown geneLabelColumn', async () => {
+    const result = await applyConfig({ geneLabelColumn: 'not_a_var_col' })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('geneLabelColumn')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
+  })
+})
+
+describe('applyConfig — metadata_unavailable + summaryContext defaults', () => {
+  it('returns metadata_unavailable when post-load fields are requested before any dataset is loaded', async () => {
+    // Reset store to "no dataset loaded" state
+    useAppStore.setState({
+      varNames: [],
+      varColumns: [],
+      obsmKeys: [],
+      obsColumnNames: [],
+      loading: false,
+    } as any)
+
+    // Test relies on the refactored applyConfig short-circuiting when there's
+    // no dataset load in flight at all.
+    const result = await applyConfig({ embedding: 'X_umap' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason.kind).toBe('metadata_unavailable')
+  })
+
+  it('defaults summaryContext to "selections" when filter is set and summaryContext is not provided', async () => {
+    useAppStore.setState({
+      varNames: [],
+      obsmKeys: [],
+      obsColumnNames: ['cell_type'],
+      summaryContext: 'overall',
+    } as any)
+    await applyConfig({ filter: { obsColumn: 'cell_type', ids: ['T'] } })
+    expect(useAppStore.getState().summaryContext).toBe('selections')
+  })
+
+  it('respects an explicit summaryContext that overrides the default', async () => {
+    // Schema 'overall' maps to store 'all' (external vs. internal naming)
+    useAppStore.setState({
+      varNames: [],
+      obsmKeys: [],
+      obsColumnNames: ['cell_type'],
+      summaryContext: 'all',
+    })
+    await applyConfig({
+      filter: { obsColumn: 'cell_type', ids: ['T'] },
+      summaryContext: 'overall',
+    })
+    expect(useAppStore.getState().summaryContext).toBe('all')
+  })
+})
+
+describe('applyConfig — new schema fields apply to store', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      varNames: [],
+      obsmKeys: ['X_umap'],
+      obsColumnNames: ['cell_type'],
+      loading: false,
+      pointRadius: 1,
+      opacity: 1,
+      summaryContext: 'overall',
+    } as any)
+  })
+
+  it('applies pointSize (maps to pointRadius) and opacity', async () => {
+    const result = await applyConfig({ pointSize: 3, opacity: 0.5 })
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().pointRadius).toBe(3)
+    expect(useAppStore.getState().opacity).toBe(0.5)
+  })
+
+  it('applies summaryContext explicitly', async () => {
+    const result = await applyConfig({ summaryContext: 'selections' })
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().summaryContext).toBe('selections')
+  })
+
+  it('applies viewport target + zoom (calls store action)', async () => {
+    const setViewport = vi.fn()
+    useAppStore.setState({ setViewport } as any)
+    const result = await applyConfig({ viewport: { target: [10, 20], zoom: 2 } })
+    expect(result.ok).toBe(true)
+    expect(setViewport).toHaveBeenCalledWith({ target: [10, 20], zoom: 2 })
+  })
+
+  it('writes viewport to store via setViewport action (real, not mocked)', async () => {
+    // Reset to initial state first to ensure the real setViewport action is in place
+    // (the previous test in this block injects a vi.fn() mock and doesn't restore it).
+    useAppStore.setState(useAppStore.getInitialState())
+    useAppStore.setState({
+      varNames: [],
+      obsmKeys: ['X_umap'],
+      obsColumnNames: ['cell_type'],
+      loading: false,
+      pendingViewport: null,
+    } as any)
+    const result = await applyConfig({ viewport: { target: [10, 20], zoom: 2 } })
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().pendingViewport).toEqual({ target: [10, 20], zoom: 2 })
   })
 })

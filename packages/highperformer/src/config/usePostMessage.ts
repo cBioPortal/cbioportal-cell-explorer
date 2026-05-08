@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { MessageSchema } from './schema'
 import { applyConfig } from './applyConfig'
+import { applyErrorMessage } from './applyResult'
 import { waitForStore } from './waitForStore'
 import useAppStore from '../store/useAppStore'
 
@@ -113,8 +114,15 @@ export function usePostMessage(): void {
       // Different URL or first message: full applyConfig
       if (payload.url !== lastAppliedUrl.current) {
         if (debug) console.log('[postMessage:debug] Applying full config (new URL or first message)')
-        lastAppliedUrl.current = payload.url
-        applyConfig(payload)
+        lastAppliedUrl.current = payload.url ?? null
+        applyConfig(payload).then((result) => {
+          if (event.source) {
+            const reply = result.ok
+              ? { type: 'applyConfigResult', ok: true }
+              : { type: 'applyConfigResult', ok: false, error: applyErrorMessage(result.reason) }
+            ;(event.source as Window).postMessage(reply, event.origin as string)
+          }
+        })
         return
       }
 
