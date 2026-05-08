@@ -165,3 +165,25 @@ describe('applyConfig — return type and schema validation', () => {
     if (!result.ok) expect(result.reason.kind).toBe('schema_validation')
   })
 })
+
+describe('applyConfig — cross-field validation', () => {
+  it('returns missing_companion when colorBy=gene without gene', async () => {
+    const result = await applyConfig({ colorBy: 'gene' })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'missing_companion') {
+      expect(result.reason.field).toBe('gene')
+    } else {
+      throw new Error('expected missing_companion error')
+    }
+  })
+
+  it('returns missing_companion when colorBy=category without category', async () => {
+    const result = await applyConfig({ colorBy: 'category' })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'missing_companion') {
+      expect(result.reason.field).toBe('category')
+    } else {
+      throw new Error('expected missing_companion error')
+    }
+  })
+})

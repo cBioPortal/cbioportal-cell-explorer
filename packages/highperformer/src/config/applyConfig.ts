@@ -10,6 +10,14 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
   }
   const config: AppConfig = parsed.data
 
+  // Cross-field validation: colorBy requires its companion field
+  if (config.colorBy === 'gene' && !config.gene) {
+    return err({ kind: 'missing_companion', field: 'gene' })
+  }
+  if (config.colorBy === 'category' && !config.category) {
+    return err({ kind: 'missing_companion', field: 'category' })
+  }
+
   const store = useAppStore
 
   // Phase 1: Set UI toggles only when the caller supplied them
