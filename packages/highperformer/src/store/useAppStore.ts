@@ -464,7 +464,7 @@ const useAppStore = create<AppState>((set, get) => ({
         if (status === 503) {
           set({ loadingError: 'Dataset temporarily unavailable' })
         } else {
-          set({ loadingError: error?.detail ?? 'Failed to access dataset' })
+          set({ loadingError: typeof error?.detail === 'string' ? error.detail : 'Failed to access dataset' })
         }
         return
       }

@@ -114,7 +114,7 @@ export function usePostMessage(): void {
       // Different URL or first message: full applyConfig
       if (payload.url !== lastAppliedUrl.current) {
         if (debug) console.log('[postMessage:debug] Applying full config (new URL or first message)')
-        lastAppliedUrl.current = payload.url
+        lastAppliedUrl.current = payload.url ?? null
         applyConfig(payload).then((result) => {
           if (event.source) {
             const reply = result.ok

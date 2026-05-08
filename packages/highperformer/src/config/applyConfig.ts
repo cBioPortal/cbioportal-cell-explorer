@@ -170,8 +170,11 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
   }
 
   // Explicit summaryContext (always wins over implicit default)
+  // Schema uses 'overall' (external API) → store uses 'all' (internal)
   if (config.summaryContext !== undefined) {
-    store.setState({ summaryContext: config.summaryContext })
+    store.setState({
+      summaryContext: config.summaryContext === 'overall' ? 'all' : config.summaryContext,
+    })
   }
 
   // Rendering controls — map schema field names to store field names
