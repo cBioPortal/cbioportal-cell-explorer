@@ -174,5 +174,19 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     store.setState({ summaryContext: config.summaryContext })
   }
 
+  // Rendering controls — map schema field names to store field names
+  if (config.pointSize !== undefined) {
+    store.setState({ pointRadius: config.pointSize })
+  }
+  if (config.opacity !== undefined) {
+    store.setState({ opacity: config.opacity })
+  }
+
+  // Viewport — delegate to the store action (talks to deck.gl on next mount)
+  if (config.viewport !== undefined) {
+    const { setViewport } = store.getState()
+    setViewport(config.viewport)
+  }
+
   return ok()
 }

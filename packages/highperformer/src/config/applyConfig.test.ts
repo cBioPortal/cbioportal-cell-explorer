@@ -288,3 +288,54 @@ describe('applyConfig — metadata_unavailable + summaryContext defaults', () =>
     expect(useAppStore.getState().summaryContext).toBe('overall')
   })
 })
+
+describe('applyConfig — new schema fields apply to store', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      varNames: [],
+      obsmKeys: ['X_umap'],
+      obsColumnNames: ['cell_type'],
+      loading: false,
+      pointRadius: 1,
+      opacity: 1,
+      summaryContext: 'overall',
+    } as any)
+  })
+
+  it('applies pointSize (maps to pointRadius) and opacity', async () => {
+    const result = await applyConfig({ pointSize: 3, opacity: 0.5 })
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().pointRadius).toBe(3)
+    expect(useAppStore.getState().opacity).toBe(0.5)
+  })
+
+  it('applies summaryContext explicitly', async () => {
+    const result = await applyConfig({ summaryContext: 'selections' })
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().summaryContext).toBe('selections')
+  })
+
+  it('applies viewport target + zoom (calls store action)', async () => {
+    const setViewport = vi.fn()
+    useAppStore.setState({ setViewport } as any)
+    const result = await applyConfig({ viewport: { target: [10, 20], zoom: 2 } })
+    expect(result.ok).toBe(true)
+    expect(setViewport).toHaveBeenCalledWith({ target: [10, 20], zoom: 2 })
+  })
+
+  it('writes viewport to store via setViewport action (real, not mocked)', async () => {
+    // Reset to initial state first to ensure the real setViewport action is in place
+    // (the previous test in this block injects a vi.fn() mock and doesn't restore it).
+    useAppStore.setState(useAppStore.getInitialState())
+    useAppStore.setState({
+      varNames: [],
+      obsmKeys: ['X_umap'],
+      obsColumnNames: ['cell_type'],
+      loading: false,
+      pendingViewport: null,
+    } as any)
+    const result = await applyConfig({ viewport: { target: [10, 20], zoom: 2 } })
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().pendingViewport).toEqual({ target: [10, 20], zoom: 2 })
+  })
+})

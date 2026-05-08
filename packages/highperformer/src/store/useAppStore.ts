@@ -216,6 +216,10 @@ export interface AppState {
   setColorScaleName: (name: string) => void
   setGeneLabelColumn: (col: string | null) => void
   _resolveGeneLabels: () => Promise<void>
+
+  // Viewport override — applied as initialViewState on next deck.gl mount
+  pendingViewport: { target: [number, number]; zoom: number } | null
+  setViewport: (v: { target: [number, number]; zoom: number } | null) => void
 }
 
 const DEFAULT_RGB: RGB = [200, 200, 200]
@@ -485,6 +489,10 @@ const useAppStore = create<AppState>((set, get) => ({
   showLeftSidebar: true,
   showRightSidebar: true,
   showDatasetDropdown: true,
+
+  // Viewport override
+  pendingViewport: null,
+  setViewport: (v) => set({ pendingViewport: v }),
 
   // Error state
   loadingError: null,
