@@ -20,6 +20,10 @@ export const AppConfigSchema = z.object({
   colorBy: z.enum(['gene', 'category']).optional(),
   gene: z.string().optional(),
   category: z.string().optional(),
+  // Subset of category values to highlight (full-opacity); others render dimmed/gray.
+  // Requires colorBy='category' + category. Labels are matched against the loaded
+  // categoryMap; unknown labels yield a field_value_invalid error.
+  highlightedCategories: z.array(z.string()).optional(),
   geneLabelColumn: z.string().optional(),
 
   // filter (tightly bound — nested)
