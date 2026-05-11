@@ -77,6 +77,7 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     config.colorBy ||
     config.geneLabelColumn ||
     config.filter ||
+    config.filterByExpression ||
     config.summaryObsColumns ||
     config.summaryGenes ||
     config.viewport ||
@@ -247,6 +248,50 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     store.getState().selectByIds(config.filter.obsColumn, config.filter.ids)
     // Default: when filter is set, switch summary to selections — UNLESS the
     // caller explicitly specified summaryContext (then their value wins).
+    if (config.summaryContext === undefined) {
+      store.setState({ summaryContext: 'selections' })
+    }
+  }
+
+  // 3f: Expression-range filter
+  if (config.filterByExpression) {
+    const { gene, min, max } = config.filterByExpression
+    if (min == null && max == null) {
+      return err({
+        kind: 'field_value_invalid',
+        field: 'filterByExpression',
+        value: config.filterByExpression,
+        reason: 'specify at least one of min or max',
+      })
+    }
+    if (min != null && max != null && min > max) {
+      return err({
+        kind: 'field_value_invalid',
+        field: 'filterByExpression',
+        value: { min, max },
+        reason: `min (${min}) > max (${max})`,
+      })
+    }
+    if (store.getState().geneLabelColumn && store.getState().geneLabelMap === null) {
+      try {
+        await waitForStore(store, (s) => s.geneLabelMap !== null)
+      } catch {
+        return err({ kind: 'metadata_unavailable', field: 'filterByExpression.gene' })
+      }
+    }
+    const { varNames, geneLabelMap } = store.getState()
+    const varIndex = resolveGeneToVarIndex(gene, varNames, geneLabelMap)
+    if (!varIndex) {
+      return err({
+        kind: 'field_value_invalid',
+        field: 'filterByExpression.gene',
+        value: gene,
+        reason: 'not found in dataset (checked var index and gene labels)',
+      })
+    }
+    await store.getState().selectByExpression(varIndex, min ?? null, max ?? null)
+    // Same convention as the ID-based filter: default summaryContext to 'selections'
+    // unless the caller specified otherwise.
     if (config.summaryContext === undefined) {
       store.setState({ summaryContext: 'selections' })
     }

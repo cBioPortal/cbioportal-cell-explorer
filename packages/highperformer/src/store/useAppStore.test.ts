@@ -1011,6 +1011,96 @@ describe('useAppStore', () => {
       expect(buf[2]).toBe(1) // in both groups (overlap)
       expect(buf[3]).toBe(0) // in neither
     })
+
+    describe('selectByExpression', () => {
+      it('builds an expression group with cells matching [min, max]', async () => {
+        const mockAdata = {
+          geneExpression: vi.fn().mockResolvedValue(new Float32Array([0.5, 2.0, 3.5, 1.0])),
+        }
+        useAppStore.setState({
+          adata: mockAdata as any,
+          embeddingData: {
+            positions: new Float32Array([0, 0, 1, 1, 2, 2, 3, 3]),
+            numPoints: 4,
+            bounds: { minX: 0, maxX: 3, minY: 0, maxY: 3 },
+          },
+        })
+
+        await useAppStore.getState().selectByExpression('ENSG_CD8A', 1.5, null)
+
+        const groups = useAppStore.getState().selectionGroups
+        const expr = groups.find((g) => g.type === 'expression') as any
+        expect(expr).toBeDefined()
+        expect(expr.gene).toBe('ENSG_CD8A')
+        expect(expr.min).toBe(1.5)
+        expect(expr.max).toBeNull()
+        expect(Array.from(expr.indices)).toEqual([1, 2]) // values 2.0 and 3.5 match
+      })
+
+      it('replaces the prior expression group instead of stacking', async () => {
+        const mockAdata = {
+          geneExpression: vi.fn().mockResolvedValue(new Float32Array([1, 2, 3])),
+        }
+        useAppStore.setState({
+          adata: mockAdata as any,
+          embeddingData: {
+            positions: new Float32Array([0, 0, 1, 1, 2, 2]),
+            numPoints: 3,
+            bounds: { minX: 0, maxX: 2, minY: 0, maxY: 2 },
+          },
+        })
+
+        await useAppStore.getState().selectByExpression('ENSG_A', 0, null)
+        await useAppStore.getState().selectByExpression('ENSG_B', 2, null)
+
+        const exprGroups = useAppStore
+          .getState()
+          .selectionGroups.filter((g) => g.type === 'expression')
+        expect(exprGroups).toHaveLength(1)
+        expect((exprGroups[0] as any).gene).toBe('ENSG_B')
+      })
+
+      it('forces selectionDisplayMode to "hide" (parallels selectByIds)', async () => {
+        const mockAdata = {
+          geneExpression: vi.fn().mockResolvedValue(new Float32Array([1, 2, 3])),
+        }
+        useAppStore.setState({
+          adata: mockAdata as any,
+          embeddingData: {
+            positions: new Float32Array([0, 0, 1, 1, 2, 2]),
+            numPoints: 3,
+            bounds: { minX: 0, maxX: 2, minY: 0, maxY: 2 },
+          },
+          selectionDisplayMode: 'dim',
+        })
+
+        await useAppStore.getState().selectByExpression('ENSG_A', 1.5, null)
+
+        expect(useAppStore.getState().selectionDisplayMode).toBe('hide')
+      })
+
+      it('contributes to selectionFilterBuffer through _mergeFilterBuffer', async () => {
+        const mockAdata = {
+          geneExpression: vi.fn().mockResolvedValue(new Float32Array([0, 5, 0, 5])),
+        }
+        useAppStore.setState({
+          adata: mockAdata as any,
+          embeddingData: {
+            positions: new Float32Array([0, 0, 1, 1, 2, 2, 3, 3]),
+            numPoints: 4,
+            bounds: { minX: 0, maxX: 3, minY: 0, maxY: 3 },
+          },
+        })
+
+        await useAppStore.getState().selectByExpression('ENSG_A', 1, null)
+        const buf = useAppStore.getState().selectionFilterBuffer!
+        expect(buf).toBeInstanceOf(Float32Array)
+        expect(buf[0]).toBe(0)
+        expect(buf[1]).toBe(1)
+        expect(buf[2]).toBe(0)
+        expect(buf[3]).toBe(1)
+      })
+    })
   })
 
   describe('UI toggle fields', () => {
