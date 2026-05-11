@@ -3,6 +3,30 @@ import useAppStore from '../store/useAppStore'
 import { waitForStore } from './waitForStore'
 import { ok, err, type ApplyResult } from './applyResult'
 
+/**
+ * Resolve a user-facing gene identifier (var index or symbol) to the canonical
+ * var index that `adata.geneExpression` requires.
+ *
+ * Datasets like MSK SPECTRUM store Ensembl IDs in `varNames` and HGNC symbols
+ * in a `feature_name` column; `geneLabelMap` maps varIndex → symbol. Both the
+ * agent and the sidebar UI surface symbols (DAPL1) to the user, but the
+ * underlying lookup needs the index (ENSG00000176566). This accepts either
+ * form and returns the index, or null if not found in either direction.
+ */
+function resolveGeneToVarIndex(
+  label: string,
+  varNames: string[],
+  geneLabelMap: Map<string, string> | null,
+): string | null {
+  if (varNames.includes(label)) return label
+  if (geneLabelMap) {
+    for (const [varIndex, symbol] of geneLabelMap) {
+      if (symbol === label) return varIndex
+    }
+  }
+  return null
+}
+
 export async function applyConfig(input: unknown): Promise<ApplyResult> {
   const parsed = AppConfigSchema.safeParse(input)
   if (!parsed.success) {
@@ -106,17 +130,27 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
 
   // 3c: Color mapping (cross-field check is at the top of applyConfig)
   if (config.colorBy === 'gene' && config.gene) {
-    const { varNames } = store.getState()
-    if (!varNames.includes(config.gene)) {
+    // If a gene label column was auto-detected, wait for the symbol→index
+    // map to resolve so we can accept either the var index or the symbol.
+    if (store.getState().geneLabelColumn && store.getState().geneLabelMap === null) {
+      try {
+        await waitForStore(store, (s) => s.geneLabelMap !== null)
+      } catch {
+        return err({ kind: 'metadata_unavailable', field: 'gene' })
+      }
+    }
+    const { varNames, geneLabelMap } = store.getState()
+    const varIndex = resolveGeneToVarIndex(config.gene, varNames, geneLabelMap)
+    if (!varIndex) {
       return err({
         kind: 'field_value_invalid',
         field: 'gene',
         value: config.gene,
-        reason: 'not found in dataset',
+        reason: 'not found in dataset (checked var index and gene labels)',
       })
     }
     store.getState().setColorMode('gene')
-    store.getState().selectGene(config.gene)
+    store.getState().selectGene(varIndex)
   } else if (config.colorBy === 'category' && config.category) {
     const { obsColumnNames } = store.getState()
     if (!obsColumnNames.includes(config.category)) {
@@ -177,17 +211,25 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     }
   }
   if (config.summaryGenes) {
-    const { varNames } = store.getState()
+    if (store.getState().geneLabelColumn && store.getState().geneLabelMap === null) {
+      try {
+        await waitForStore(store, (s) => s.geneLabelMap !== null)
+      } catch {
+        return err({ kind: 'metadata_unavailable', field: 'summaryGenes' })
+      }
+    }
+    const { varNames, geneLabelMap } = store.getState()
     for (const gene of config.summaryGenes) {
-      if (!varNames.includes(gene)) {
+      const varIndex = resolveGeneToVarIndex(gene, varNames, geneLabelMap)
+      if (!varIndex) {
         return err({
           kind: 'field_value_invalid',
           field: 'summaryGenes',
           value: gene,
-          reason: 'not found in dataset',
+          reason: 'not found in dataset (checked var index and gene labels)',
         })
       }
-      store.getState().addSummaryGene(gene)
+      store.getState().addSummaryGene(varIndex)
     }
   }
 
