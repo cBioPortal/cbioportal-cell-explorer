@@ -342,6 +342,77 @@ describe('applyConfig — apply-time field validation', () => {
     }
   })
 
+  it('accepts a gene symbol (resolved via geneLabelMap) and calls selectGene with the var index', async () => {
+    // Spectrum-style: varNames are Ensembl IDs, geneLabelMap resolves them to HGNC symbols.
+    useAppStore.setState({
+      varNames: ['ENSG_DAPL1', 'ENSG_GAPDH'],
+      geneLabelColumn: 'feature_name',
+      geneLabelMap: new Map([
+        ['ENSG_DAPL1', 'DAPL1'],
+        ['ENSG_GAPDH', 'GAPDH'],
+      ]),
+    } as any)
+    const selectGene = vi.spyOn(useAppStore.getState(), 'selectGene').mockImplementation(() => {})
+
+    const result = await applyConfig({ colorBy: 'gene', gene: 'DAPL1' })
+
+    expect(result.ok).toBe(true)
+    expect(selectGene).toHaveBeenCalledWith('ENSG_DAPL1')
+    selectGene.mockRestore()
+  })
+
+  it('still accepts a raw var index when the gene matches varNames directly', async () => {
+    useAppStore.setState({
+      varNames: ['ENSG_DAPL1'],
+      geneLabelColumn: 'feature_name',
+      geneLabelMap: new Map([['ENSG_DAPL1', 'DAPL1']]),
+    } as any)
+    const selectGene = vi.spyOn(useAppStore.getState(), 'selectGene').mockImplementation(() => {})
+
+    const result = await applyConfig({ colorBy: 'gene', gene: 'ENSG_DAPL1' })
+
+    expect(result.ok).toBe(true)
+    expect(selectGene).toHaveBeenCalledWith('ENSG_DAPL1')
+    selectGene.mockRestore()
+  })
+
+  it('returns field_value_invalid when a gene is in neither varNames nor geneLabelMap', async () => {
+    useAppStore.setState({
+      varNames: ['ENSG_DAPL1'],
+      geneLabelColumn: 'feature_name',
+      geneLabelMap: new Map([['ENSG_DAPL1', 'DAPL1']]),
+    } as any)
+    const result = await applyConfig({ colorBy: 'gene', gene: 'NOT_A_GENE' })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('gene')
+      expect(result.reason.value).toBe('NOT_A_GENE')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
+  })
+
+  it('summaryGenes accepts symbols and resolves to var indices', async () => {
+    useAppStore.setState({
+      varNames: ['ENSG_DAPL1', 'ENSG_GAPDH'],
+      geneLabelColumn: 'feature_name',
+      geneLabelMap: new Map([
+        ['ENSG_DAPL1', 'DAPL1'],
+        ['ENSG_GAPDH', 'GAPDH'],
+      ]),
+    } as any)
+    const addSummaryGene = vi
+      .spyOn(useAppStore.getState(), 'addSummaryGene')
+      .mockImplementation(() => {})
+
+    const result = await applyConfig({ summaryGenes: ['DAPL1', 'GAPDH'] })
+
+    expect(result.ok).toBe(true)
+    expect(addSummaryGene).toHaveBeenCalledWith('ENSG_DAPL1')
+    expect(addSummaryGene).toHaveBeenCalledWith('ENSG_GAPDH')
+    addSummaryGene.mockRestore()
+  })
+
   it('returns field_value_invalid for unknown geneLabelColumn', async () => {
     const result = await applyConfig({ geneLabelColumn: 'not_a_var_col' })
     expect(result.ok).toBe(false)
