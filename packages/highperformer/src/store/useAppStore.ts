@@ -782,7 +782,6 @@ const useAppStore = create<AppState>((set, get) => ({
             customGroupIndexMap: response.indexMap,
             customGroupEnabledIds: enabledIds,
             customGroupCommittedCount: committedCount,
-            selectionDisplayMode: 'hide',
           })
 
           if (!get().summaryPanelOpen) set({ summaryPanelOpen: true })
@@ -850,7 +849,7 @@ const useAppStore = create<AppState>((set, get) => ({
         indices: new Uint32Array(0), // indices read from customGroupIndexMap instead
         color: GROUP_COLORS[3],
       }
-      set({ selectionGroups: [...withoutCustom, customGroup], customGroupRecomputing: false, customGroupPreviousEnabledIds: null, customGroupCommittedCount: totalLen, selectionDisplayMode: 'hide' })
+      set({ selectionGroups: [...withoutCustom, customGroup], customGroupRecomputing: false, customGroupPreviousEnabledIds: null, customGroupCommittedCount: totalLen })
       get()._mergeFilterBuffer()
     }, 0)
   },

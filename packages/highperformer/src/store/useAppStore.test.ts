@@ -1011,6 +1011,112 @@ describe('useAppStore', () => {
       expect(buf[2]).toBe(1) // in both groups (overlap)
       expect(buf[3]).toBe(0) // in neither
     })
+
+    // Regression: selectByIds and commitCustomGroupToggle previously hardcoded
+    // selectionDisplayMode to 'hide', which made follow-up "color by gene/category"
+    // requests look broken (rest of canvas culled by DataFilterExtension).
+    // They must now preserve the user's chosen mode.
+    it('selectByIds preserves "dim" display mode (does not force hide)', async () => {
+      const mockAdata = {
+        obsColumn: vi.fn().mockResolvedValue(['T_cell', 'B_cell', 'T_cell']),
+      }
+      useAppStore.setState({
+        adata: mockAdata as any,
+        embeddingData: {
+          positions: new Float32Array([0, 0, 1, 1, 2, 2]),
+          numPoints: 3,
+          bounds: { minX: 0, maxX: 2, minY: 0, maxY: 2 },
+        },
+        selectionDisplayMode: 'dim',
+      })
+      mockDispatch.mockResolvedValueOnce({
+        type: 'matchByIds',
+        indices: new Uint32Array([0, 2]),
+        matchedIds: ['T_cell'],
+        unmatchedIds: [],
+        indexMap: { T_cell: [0, 2], B_cell: [1] },
+        isContinuous: false,
+        version: 1,
+      })
+
+      useAppStore.getState().selectByIds('cell_type', ['T_cell'])
+
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().customGroupLoading).toBe(false)
+      })
+
+      expect(useAppStore.getState().selectionDisplayMode).toBe('dim')
+    })
+
+    it('selectByIds preserves "hide" display mode if user has it set', async () => {
+      const mockAdata = {
+        obsColumn: vi.fn().mockResolvedValue(['T_cell', 'B_cell']),
+      }
+      useAppStore.setState({
+        adata: mockAdata as any,
+        embeddingData: {
+          positions: new Float32Array([0, 0, 1, 1]),
+          numPoints: 2,
+          bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
+        },
+        selectionDisplayMode: 'hide',
+      })
+      mockDispatch.mockResolvedValueOnce({
+        type: 'matchByIds',
+        indices: new Uint32Array([0]),
+        matchedIds: ['T_cell'],
+        unmatchedIds: [],
+        indexMap: { T_cell: [0], B_cell: [1] },
+        isContinuous: false,
+        version: 1,
+      })
+
+      useAppStore.getState().selectByIds('cell_type', ['T_cell'])
+
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().customGroupLoading).toBe(false)
+      })
+
+      expect(useAppStore.getState().selectionDisplayMode).toBe('hide')
+    })
+
+    it('commitCustomGroupToggle preserves "dim" display mode', () => {
+      useAppStore.setState({
+        embeddingData: {
+          positions: new Float32Array([0, 0, 1, 1]),
+          numPoints: 2,
+          bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
+        },
+        customGroupEnabledIds: new Set(['T_cell']),
+        customGroupIndexMap: { T_cell: [0], B_cell: [1] },
+        selectionGroups: [],
+        selectionDisplayMode: 'dim',
+      })
+
+      useAppStore.getState().commitCustomGroupToggle()
+      vi.runAllTimers()
+
+      expect(useAppStore.getState().selectionDisplayMode).toBe('dim')
+    })
+
+    it('commitCustomGroupToggle preserves "hide" display mode if user has it set', () => {
+      useAppStore.setState({
+        embeddingData: {
+          positions: new Float32Array([0, 0, 1, 1]),
+          numPoints: 2,
+          bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
+        },
+        customGroupEnabledIds: new Set(['T_cell']),
+        customGroupIndexMap: { T_cell: [0], B_cell: [1] },
+        selectionGroups: [],
+        selectionDisplayMode: 'hide',
+      })
+
+      useAppStore.getState().commitCustomGroupToggle()
+      vi.runAllTimers()
+
+      expect(useAppStore.getState().selectionDisplayMode).toBe('hide')
+    })
   })
 
   describe('UI toggle fields', () => {
