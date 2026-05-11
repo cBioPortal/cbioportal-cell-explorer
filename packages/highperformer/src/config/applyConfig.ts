@@ -17,6 +17,17 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
   if (config.colorBy === 'category' && !config.category) {
     return err({ kind: 'missing_companion', field: 'category' })
   }
+  // highlightedCategories is only meaningful when coloring by category.
+  // Require colorBy='category' in the same payload to keep the contract explicit
+  // (no implicit state-merge against current store).
+  if (config.highlightedCategories !== undefined && config.colorBy !== 'category') {
+    return err({
+      kind: 'field_value_invalid',
+      field: 'highlightedCategories',
+      value: config.highlightedCategories,
+      reason: "requires colorBy='category' and category to be set in the same payload",
+    })
+  }
 
   const store = useAppStore
 
@@ -118,6 +129,36 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     }
     store.getState().setColorMode('category')
     store.getState().selectObsColumn(config.category)
+
+    // Apply optional highlight subset. We need the categoryMap to be populated
+    // (it's only ready after selectObsColumn's async fetch resolves) so we wait
+    // on the store before translating labels → codes.
+    if (config.highlightedCategories !== undefined) {
+      try {
+        await waitForStore(
+          store,
+          (s) => s.selectedObsColumn === config.category && s.categoryMap.length > 0,
+        )
+      } catch {
+        return err({ kind: 'metadata_unavailable', field: 'highlightedCategories' })
+      }
+      const { categoryMap } = store.getState()
+      const codes: number[] = []
+      for (const label of config.highlightedCategories) {
+        const idx = categoryMap.findIndex((c) => c.label === label)
+        if (idx === -1) {
+          return err({
+            kind: 'field_value_invalid',
+            field: 'highlightedCategories',
+            value: label,
+            reason: `not a value of category '${config.category}' (available: ${categoryMap.map((c) => c.label).join(', ')})`,
+          })
+        }
+        codes.push(idx)
+      }
+      store.setState({ highlightedCategories: new Set(codes) })
+      store.getState().rebuildColorBuffer()
+    }
   }
 
   // 3d: Summary panel

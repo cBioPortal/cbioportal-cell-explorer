@@ -189,6 +189,114 @@ describe('applyConfig — cross-field validation', () => {
       throw new Error('expected missing_companion error')
     }
   })
+
+  it('returns field_value_invalid when highlightedCategories is provided without colorBy=category', async () => {
+    const result = await applyConfig({ highlightedCategories: ['T cell'] })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('highlightedCategories')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
+  })
+})
+
+describe('applyConfig — highlightedCategories', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      varNames: ['CD8A'],
+      obsmKeys: ['X_umap'],
+      obsColumnNames: ['cell_type'],
+      loading: false,
+    } as any)
+  })
+
+  it('translates labels → codes and writes to store when category load completes', async () => {
+    // Stub selectObsColumn to populate categoryMap synchronously so waitForStore
+    // resolves without needing a real worker dispatch.
+    const selectObsColumn = vi
+      .spyOn(useAppStore.getState(), 'selectObsColumn')
+      .mockImplementation((name: string) => {
+        useAppStore.setState({
+          selectedObsColumn: name,
+          categoryMap: [
+            { label: 'T cell', color: [255, 0, 0] },
+            { label: 'B cell', color: [0, 255, 0] },
+            { label: 'Monocyte', color: [0, 0, 255] },
+          ],
+        } as any)
+      })
+    const rebuildColorBuffer = vi
+      .spyOn(useAppStore.getState(), 'rebuildColorBuffer')
+      .mockImplementation(() => {})
+
+    const result = await applyConfig({
+      colorBy: 'category',
+      category: 'cell_type',
+      highlightedCategories: ['T cell', 'Monocyte'],
+    })
+
+    expect(result.ok).toBe(true)
+    const codes = useAppStore.getState().highlightedCategories
+    expect(codes.size).toBe(2)
+    expect(codes.has(0)).toBe(true) // T cell
+    expect(codes.has(2)).toBe(true) // Monocyte
+    expect(rebuildColorBuffer).toHaveBeenCalled()
+
+    selectObsColumn.mockRestore()
+    rebuildColorBuffer.mockRestore()
+  })
+
+  it('returns field_value_invalid when a label does not exist in categoryMap', async () => {
+    const selectObsColumn = vi
+      .spyOn(useAppStore.getState(), 'selectObsColumn')
+      .mockImplementation((name: string) => {
+        useAppStore.setState({
+          selectedObsColumn: name,
+          categoryMap: [{ label: 'T cell', color: [255, 0, 0] }],
+        } as any)
+      })
+
+    const result = await applyConfig({
+      colorBy: 'category',
+      category: 'cell_type',
+      highlightedCategories: ['Imaginary cell'],
+    })
+
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('highlightedCategories')
+      expect(result.reason.value).toBe('Imaginary cell')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
+
+    selectObsColumn.mockRestore()
+  })
+
+  it('empty highlightedCategories array clears highlights (no-op set)', async () => {
+    const selectObsColumn = vi
+      .spyOn(useAppStore.getState(), 'selectObsColumn')
+      .mockImplementation((name: string) => {
+        useAppStore.setState({
+          selectedObsColumn: name,
+          categoryMap: [{ label: 'T cell', color: [255, 0, 0] }],
+        } as any)
+      })
+
+    useAppStore.setState({ highlightedCategories: new Set([0]) } as any)
+
+    const result = await applyConfig({
+      colorBy: 'category',
+      category: 'cell_type',
+      highlightedCategories: [],
+    })
+
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().highlightedCategories.size).toBe(0)
+
+    selectObsColumn.mockRestore()
+  })
 })
 
 describe('applyConfig — apply-time field validation', () => {
