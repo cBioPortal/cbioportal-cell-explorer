@@ -519,3 +519,77 @@ describe('applyConfig — new schema fields apply to store', () => {
     expect(useAppStore.getState().pendingViewport).toEqual({ target: [10, 20], zoom: 2 })
   })
 })
+
+describe('applyConfig — filterByExpression', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      varNames: ['ENSG_CD8A'],
+      obsmKeys: ['X_umap'],
+      obsColumnNames: ['cell_type'],
+      loading: false,
+      geneLabelColumn: 'feature_name',
+      geneLabelMap: new Map([['ENSG_CD8A', 'CD8A']]),
+    } as any)
+  })
+
+  it('resolves a gene symbol to a var index and calls selectByExpression', async () => {
+    const selectByExpression = vi
+      .spyOn(useAppStore.getState(), 'selectByExpression')
+      .mockResolvedValue()
+
+    const result = await applyConfig({
+      filterByExpression: { gene: 'CD8A', min: 2 },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(selectByExpression).toHaveBeenCalledWith('ENSG_CD8A', 2, null)
+    selectByExpression.mockRestore()
+  })
+
+  it('returns field_value_invalid when neither min nor max is set', async () => {
+    const result = await applyConfig({ filterByExpression: { gene: 'CD8A' } })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('filterByExpression')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
+  })
+
+  it('returns field_value_invalid when min > max', async () => {
+    const result = await applyConfig({
+      filterByExpression: { gene: 'CD8A', min: 5, max: 1 },
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('filterByExpression')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
+  })
+
+  it('returns field_value_invalid for unknown gene', async () => {
+    const result = await applyConfig({
+      filterByExpression: { gene: 'NOT_A_GENE', min: 0 },
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('filterByExpression.gene')
+      expect(result.reason.value).toBe('NOT_A_GENE')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
+  })
+
+  it('defaults summaryContext to "selections" when filterByExpression is set', async () => {
+    const selectByExpression = vi
+      .spyOn(useAppStore.getState(), 'selectByExpression')
+      .mockResolvedValue()
+    useAppStore.setState({ summaryContext: 'all' } as any)
+
+    await applyConfig({ filterByExpression: { gene: 'CD8A', min: 2 } })
+
+    expect(useAppStore.getState().summaryContext).toBe('selections')
+    selectByExpression.mockRestore()
+  })
+})

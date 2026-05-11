@@ -653,7 +653,9 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
       }),
     })
 
-    const spatialGroups = selectionGroups.filter((g): g is SpatialSelectionGroup => g.type !== 'custom')
+    const spatialGroups = selectionGroups.filter(
+      (g): g is SpatialSelectionGroup => g.type === 'rectangle' || g.type === 'lasso',
+    )
     const polygonLayer = spatialGroups.length > 0
       ? new PolygonLayer({
           id: 'selection-polygons',

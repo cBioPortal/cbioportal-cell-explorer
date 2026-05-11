@@ -9,7 +9,20 @@ import {
   ClearOutlined,
   CloseOutlined,
 } from '@ant-design/icons'
-import useAppStore, { CUSTOM_GROUP_ID } from '../store/useAppStore'
+import useAppStore, { CUSTOM_GROUP_ID, EXPRESSION_GROUP_ID } from '../store/useAppStore'
+
+function formatExpressionLabel(
+  gene: string,
+  min: number | null,
+  max: number | null,
+  geneLabelMap: Map<string, string> | null,
+): string {
+  const display = geneLabelMap?.get(gene) ?? gene
+  if (min != null && max != null) return `${display} ∈ [${min}, ${max}]`
+  if (min != null) return `${display} ≥ ${min}`
+  if (max != null) return `${display} ≤ ${max}`
+  return display
+}
 
 function useCustomGroupCount() {
   return useAppStore((s) => s.customGroupCommittedCount)
@@ -24,6 +37,7 @@ export default function SelectionToolbar() {
   const clearGroup = useAppStore((s) => s.clearGroup)
   const clearAllSelections = useAppStore((s) => s.clearAllSelections)
   const customGroupCount = useCustomGroupCount()
+  const geneLabelMap = useAppStore((s) => s.geneLabelMap)
   const summaryPanelOpen = useAppStore((s) => s.summaryPanelOpen)
   const setSummaryPanelOpen = useAppStore((s) => s.setSummaryPanelOpen)
 
@@ -114,10 +128,16 @@ export default function SelectionToolbar() {
                 borderRadius: '50%',
                 backgroundColor: `rgb(${group.color[0]}, ${group.color[1]}, ${group.color[2]})`,
               }} />
-              <span>{group.id === CUSTOM_GROUP_ID ? (() => {
-                const { customGroupEnabledIds, customGroupIndexMap, customGroupColumn } = useAppStore.getState()
-                return `Custom${customGroupColumn ? ` (${customGroupColumn})` : ''}: ${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`
-              })() : `Group ${group.id}`}</span>
+              <span>{(() => {
+                if (group.id === CUSTOM_GROUP_ID) {
+                  const { customGroupEnabledIds, customGroupIndexMap, customGroupColumn } = useAppStore.getState()
+                  return `Custom${customGroupColumn ? ` (${customGroupColumn})` : ''}: ${customGroupEnabledIds.size}/${Object.keys(customGroupIndexMap).length}`
+                }
+                if (group.type === 'expression') {
+                  return formatExpressionLabel(group.gene, group.min, group.max, geneLabelMap)
+                }
+                return `Group ${group.id}`
+              })()}</span>
               <span style={{ fontSize: 10, color: '#999' }}>
                 {(() => {
                   const count = group.id === CUSTOM_GROUP_ID ? customGroupCount : group.indices.length

@@ -29,6 +29,15 @@ export const AppConfigSchema = z.object({
   // filter (tightly bound — nested)
   filter: FilterSchema.optional(),
 
+  // Expression-range filter: select cells where `gene` expression is in [min, max].
+  // null bounds mean -∞ / +∞. At least one bound must be set. Requires that `gene`
+  // resolve to a known var index (symbol or raw index — same as `gene` field).
+  filterByExpression: z.object({
+    gene: z.string(),
+    min: z.number().nullable().optional(),
+    max: z.number().nullable().optional(),
+  }).optional(),
+
   // viewport (tightly bound — nested, NEW)
   viewport: ViewportSchema.optional(),
 

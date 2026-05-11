@@ -50,7 +50,20 @@ export interface CustomSelectionGroup {
   color: [number, number, number]
 }
 
-export type SelectionGroup = SpatialSelectionGroup | CustomSelectionGroup
+export interface ExpressionSelectionGroup {
+  id: number
+  type: 'expression'
+  gene: string  // canonical var index (Ensembl ID or whatever varNames uses)
+  min: number | null
+  max: number | null
+  indices: Uint32Array
+  color: [number, number, number]
+}
+
+export type SelectionGroup =
+  | SpatialSelectionGroup
+  | CustomSelectionGroup
+  | ExpressionSelectionGroup
 
 export interface AppState {
   // Dataset
@@ -141,6 +154,7 @@ export interface AppState {
   clearAllSelections: () => void
   loadCustomGroupColumn: (column: string) => void
   selectByIds: (column: string, ids: string[]) => void
+  selectByExpression: (geneVarIndex: string, min: number | null, max: number | null) => Promise<void>
   clearCustomGroup: () => void
   toggleCustomGroupId: (id: string) => void
   setAllCustomGroupIds: (enabled: boolean) => void
@@ -256,9 +270,11 @@ const GROUP_COLORS: [number, number, number][] = [
   [0, 122, 255],   // blue
   [52, 199, 89],   // green
   [255, 149, 0],   // orange — custom group
+  [175, 82, 222],  // purple — expression filter
 ]
 
 export const CUSTOM_GROUP_ID = 4
+export const EXPRESSION_GROUP_ID = 5
 
 let selectionVersion = 0
 export function getSelectionVersion(): number { return selectionVersion }
@@ -789,6 +805,41 @@ const useAppStore = create<AppState>((set, get) => ({
           get()._mergeFilterBuffer()
         })
     })
+  },
+
+  selectByExpression: async (geneVarIndex, min, max) => {
+    const { adata, embeddingData, selectionGroups } = get()
+    if (!adata || !embeddingData) return
+
+    const expression = await adata.geneExpression(geneVarIndex)
+    const data = expression instanceof Float32Array
+      ? expression
+      : new Float32Array(expression as ArrayLike<number>)
+
+    const lo = min ?? -Infinity
+    const hi = max ?? Infinity
+    const matched: number[] = []
+    for (let i = 0; i < data.length; i++) {
+      if (data[i] >= lo && data[i] <= hi) matched.push(i)
+    }
+    const indices = new Uint32Array(matched)
+
+    const withoutExpr = selectionGroups.filter((g) => g.id !== EXPRESSION_GROUP_ID)
+    const group: ExpressionSelectionGroup = {
+      id: EXPRESSION_GROUP_ID,
+      type: 'expression',
+      gene: geneVarIndex,
+      min,
+      max,
+      indices,
+      color: GROUP_COLORS[4],
+    }
+    set({
+      selectionGroups: [...withoutExpr, group],
+      selectionDisplayMode: 'hide',
+    })
+    if (!get().summaryPanelOpen) set({ summaryPanelOpen: true })
+    get()._mergeFilterBuffer()
   },
 
   clearCustomGroup: () => {
