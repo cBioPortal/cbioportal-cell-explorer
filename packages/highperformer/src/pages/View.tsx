@@ -835,6 +835,9 @@ function View() {
   const loadingError = useAppStore((s) => s.loadingError)
   const datasetUrl = useAppStore((s) => s.datasetUrl)
   const datasetSlug = useAppStore((s) => s.datasetSlug)
+  const dataset = useAppStore((s) =>
+    s.catalogDatasets.find((d) => d.slug === datasetSlug),
+  )
   const backendInfo = useAppStore((s) => s.backendInfo)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightWidth, setRightWidth] = useState(RIGHT_SIDEBAR_WIDTH)
@@ -956,7 +959,7 @@ function View() {
                   label: 'Summary',
                   children: <SummaryPanel collapsed={false} onExpand={() => {}} />,
                 },
-                ...(datasetSlug && backendInfo?.chat_enabled
+                ...(datasetSlug && backendInfo?.chat_enabled && dataset?.chat_enabled
                   ? [
                       {
                         key: 'chat',
