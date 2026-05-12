@@ -667,6 +667,35 @@ describe('applyConfig — filterByExpression', () => {
   })
 })
 
+describe('applyConfig — colorScaleName', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      varNames: ['CD8A'],
+      obsmKeys: ['X_umap'],
+      obsColumnNames: ['cell_type'],
+      loading: false,
+    } as any)
+  })
+
+  it('calls setColorScaleName with the chosen scale', async () => {
+    const setColorScaleName = vi
+      .spyOn(useAppStore.getState(), 'setColorScaleName')
+      .mockImplementation(() => {})
+
+    const result = await applyConfig({ colorScaleName: 'plasma' })
+
+    expect(result.ok).toBe(true)
+    expect(setColorScaleName).toHaveBeenCalledWith('plasma')
+    setColorScaleName.mockRestore()
+  })
+
+  it('rejects unknown scale via schema validation', async () => {
+    const result = await applyConfig({ colorScaleName: 'rainbow' as any })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason.kind).toBe('schema_validation')
+  })
+})
+
 describe('applyConfig — clear semantics (null)', () => {
   beforeEach(() => {
     useAppStore.setState({

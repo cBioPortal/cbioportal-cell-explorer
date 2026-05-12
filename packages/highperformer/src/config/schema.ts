@@ -22,6 +22,9 @@ export const AppConfigSchema = z.object({
   colorBy: z.enum(['gene', 'category']).nullable().optional(),
   gene: z.string().nullable().optional(),
   category: z.string().nullable().optional(),
+  // Continuous color scale for gene coloring. Categorical colors are
+  // independent (palette built into the worker).
+  colorScaleName: z.enum(['viridis', 'magma', 'plasma', 'inferno']).optional(),
   // Subset of category values to highlight (full-opacity); others render dimmed/gray.
   // Requires colorBy='category' + category. Labels are matched against the loaded
   // categoryMap; unknown labels yield a field_value_invalid error.

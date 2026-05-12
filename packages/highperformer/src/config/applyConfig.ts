@@ -75,6 +75,7 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
   const hasPostLoadConfig =
     config.embedding ||
     config.colorBy !== undefined ||  // null is a valid clear sentinel
+    config.colorScaleName ||
     config.geneLabelColumn ||
     config.filter ||
     config.filterByExpression ||
@@ -203,6 +204,13 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
       store.setState({ highlightedCategories: new Set(codes) })
       store.getState().rebuildColorBuffer()
     }
+  }
+
+  // Color scale for gene-mode coloring. Applied after colorBy so the new
+  // scale takes effect on the just-set gene; the store action rebuilds the
+  // color buffer only if currently in gene mode (no-op otherwise).
+  if (config.colorScaleName) {
+    store.getState().setColorScaleName(config.colorScaleName)
   }
 
   // 3d: Summary panel.
