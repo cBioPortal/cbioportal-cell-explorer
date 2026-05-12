@@ -40,10 +40,8 @@ export const AppConfigSchema = z.object({
     max: z.number().nullable().optional(),
   }).optional(),
 
-  // viewport (tightly bound — nested, NEW).
-  // `null` = reset to fit-to-view (forces a deck.gl remount via viewportEpoch);
-  // object = explicit override; absent = no change.
-  viewport: ViewportSchema.nullable().optional(),
+  // viewport (tightly bound — nested, NEW)
+  viewport: ViewportSchema.optional(),
 
   // rendering (flat, NEW).
   // `null` = reset to the store defaults (0.5 for both); number = override;

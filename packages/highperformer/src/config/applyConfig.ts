@@ -82,7 +82,7 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     config.summaryGenes !== undefined ||  // null = clear
     config.removeSummaryObsColumns ||
     config.removeSummaryGenes ||
-    config.viewport !== undefined ||  // null = reset to fit-to-view
+    config.viewport ||
     config.pointSize !== undefined ||  // null is a valid clear sentinel
     config.opacity !== undefined ||  // null is a valid clear sentinel
     config.summaryContext ||
@@ -360,10 +360,7 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     store.setState({ opacity: config.opacity ?? 0.5 })
   }
 
-  // Viewport — delegate to the store action. `null` is the reset sentinel:
-  // setViewport(null) bumps viewportEpoch and triggers a deck.gl remount,
-  // which re-reads initialViewState (falling back to fit-to-view since
-  // pendingViewport is null).
+  // Viewport — delegate to the store action (talks to deck.gl on next mount)
   if (config.viewport !== undefined) {
     const { setViewport } = store.getState()
     setViewport(config.viewport)
