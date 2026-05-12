@@ -36,6 +36,7 @@ export type WireMessage = {
 
 export type TurnRequest = {
   messages: WireMessage[];
+  view_state?: import("./viewStateSnapshot").ViewStateSnapshot;
 };
 
 // ---------- /turns wire events ----------

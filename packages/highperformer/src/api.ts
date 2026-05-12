@@ -53,13 +53,14 @@ export const chat = {
   async *streamTurn(
     slug: string,
     messages: WireMessage[],
+    viewState: import("./chat/viewStateSnapshot").ViewStateSnapshot,
     signal: AbortSignal,
   ): AsyncIterable<ChatEvent> {
     const res = await fetch(`/api/chat/${encodeURIComponent(slug)}/turns`, {
       method: "POST",
       credentials: "include",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({ messages, view_state: viewState }),
       signal,
     });
     if (!res.ok) throw new HttpError(res.status, await res.text());
