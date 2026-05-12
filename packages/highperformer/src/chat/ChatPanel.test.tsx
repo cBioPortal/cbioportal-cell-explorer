@@ -149,7 +149,7 @@ describe("ChatPanel", () => {
         },
       });
       render(<ChatPanel slug="demo" />);
-      expect(screen.getByPlaceholderText(/ask anything/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/ask anything/i)).toBeDefined();
     });
 
     it("renders banner instead of input when can_chat is false (missing_role)", () => {
@@ -170,7 +170,7 @@ describe("ChatPanel", () => {
       });
       render(<ChatPanel slug="demo" />);
       expect(screen.queryByPlaceholderText(/ask anything/i)).toBeNull();
-      expect(screen.getByText(/cell-explorer-chat/)).toBeInTheDocument();
+      expect(screen.getByText(/cell-explorer-chat/)).toBeDefined();
     });
 
     it("renders sign-in banner when reason is requires_auth", () => {
@@ -191,7 +191,7 @@ describe("ChatPanel", () => {
       });
       render(<ChatPanel slug="demo" />);
       expect(screen.queryByPlaceholderText(/ask anything/i)).toBeNull();
-      expect(screen.getByText(/sign in to use chat/i)).toBeInTheDocument();
+      expect(screen.getByText(/sign in to use chat/i)).toBeDefined();
     });
   });
 });
