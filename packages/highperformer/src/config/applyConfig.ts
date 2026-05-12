@@ -83,7 +83,8 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     config.viewport ||
     config.pointSize !== undefined ||
     config.opacity !== undefined ||
-    config.summaryContext
+    config.summaryContext ||
+    config.selectionDisplayMode
 
   if (!hasPostLoadConfig) return ok()
 
@@ -308,6 +309,13 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     store.setState({
       summaryContext: config.summaryContext === 'overall' ? 'all' : config.summaryContext,
     })
+  }
+
+  // Selection display mode (applied AFTER filter phases so explicit value
+  // overrides the 'hide' default that selectByIds / selectByExpression set
+  // internally). Standalone field — does not require any filter to be set.
+  if (config.selectionDisplayMode !== undefined) {
+    store.getState().setSelectionDisplayMode(config.selectionDisplayMode)
   }
 
   // Rendering controls — map schema field names to store field names
