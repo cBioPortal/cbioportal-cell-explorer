@@ -82,7 +82,7 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     config.summaryGenes !== undefined ||  // null = clear
     config.removeSummaryObsColumns ||
     config.removeSummaryGenes ||
-    config.viewport ||
+    config.viewport !== undefined ||  // null = reset to fit-to-view
     config.pointSize !== undefined ||  // null is a valid clear sentinel
     config.opacity !== undefined ||  // null is a valid clear sentinel
     config.summaryContext ||
@@ -360,7 +360,10 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     store.setState({ opacity: config.opacity ?? 0.5 })
   }
 
-  // Viewport — delegate to the store action (talks to deck.gl on next mount)
+  // Viewport — delegate to the store action.
+  // setViewport(viewport) sets pendingViewport and bumps viewportEpoch.
+  // setViewport(null) bumps too; View.tsx's epoch-watching effect computes a
+  // fit-to-view target from the embedding bounds and applies via setProps.
   if (config.viewport !== undefined) {
     const { setViewport } = store.getState()
     setViewport(config.viewport)

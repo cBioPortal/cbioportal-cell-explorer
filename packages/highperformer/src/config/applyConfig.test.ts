@@ -518,6 +518,33 @@ describe('applyConfig — new schema fields apply to store', () => {
     expect(result.ok).toBe(true)
     expect(useAppStore.getState().pendingViewport).toEqual({ target: [10, 20], zoom: 2 })
   })
+
+  it('setViewport bumps viewportEpoch on every call (signals View.tsx to apply imperatively)', () => {
+    useAppStore.setState(useAppStore.getInitialState())
+    const before = useAppStore.getState().viewportEpoch
+    useAppStore.getState().setViewport({ target: [1, 2], zoom: 3 })
+    expect(useAppStore.getState().viewportEpoch).toBe(before + 1)
+    useAppStore.getState().setViewport({ target: [4, 5], zoom: 6 })
+    expect(useAppStore.getState().viewportEpoch).toBe(before + 2)
+    useAppStore.getState().setViewport(null)
+    expect(useAppStore.getState().viewportEpoch).toBe(before + 3)
+  })
+
+  it("viewport: null is the reset sentinel — clears pendingViewport and bumps epoch", async () => {
+    useAppStore.setState(useAppStore.getInitialState())
+    useAppStore.setState({
+      varNames: [],
+      obsmKeys: ['X_umap'],
+      obsColumnNames: ['cell_type'],
+      loading: false,
+      pendingViewport: { target: [10, 20], zoom: 2 },
+    } as any)
+    const beforeEpoch = useAppStore.getState().viewportEpoch
+    const result = await applyConfig({ viewport: null })
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().pendingViewport).toBeNull()
+    expect(useAppStore.getState().viewportEpoch).toBe(beforeEpoch + 1)
+  })
 })
 
 describe('applyConfig — filterByExpression', () => {
