@@ -136,6 +136,9 @@
         }
       ]
     },
+    "fitViewportToSelection": {
+      "type": "boolean"
+    },
     "pointSize": {
       "anyOf": [
         {

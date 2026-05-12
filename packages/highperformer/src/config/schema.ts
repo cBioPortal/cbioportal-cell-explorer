@@ -45,6 +45,13 @@ export const AppConfigSchema = z.object({
   // deckRef.setProps); object = explicit override; absent = no change.
   viewport: ViewportSchema.nullable().optional(),
 
+  // Compute viewport from the current selection's bbox (positions of cells
+  // where selectionFilterBuffer === 1) and apply. No-op if no selection is
+  // active. Useful for "zoom into my filter" agent tool calls — the agent
+  // doesn't have access to embedding coordinates, so it can't compute the
+  // bbox itself.
+  fitViewportToSelection: z.boolean().optional(),
+
   // rendering (flat, NEW).
   // `null` = reset to the store defaults (0.5 for both); number = override;
   // absent = no change.
