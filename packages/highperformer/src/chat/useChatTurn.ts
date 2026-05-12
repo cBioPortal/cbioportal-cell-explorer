@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { chat } from "../api";
 import type { ChatEvent, WireMessage } from "./types";
+import { buildViewStateSnapshot } from "./viewStateSnapshot";
 
 export function useChatTurn() {
   const [streaming, setStreaming] = useState(false);
@@ -17,7 +18,11 @@ export function useChatTurn() {
       abortRef.current = controller;
       setStreaming(true);
       try {
-        for await (const ev of chat.streamTurn(slug, messages, controller.signal)) {
+        // Capture state snapshot at send time. Only non-default fields are
+        // included; agent uses this to answer relative queries ("zoom in
+        // more", "change to a different gene") without a tool round-trip.
+        const viewState = buildViewStateSnapshot();
+        for await (const ev of chat.streamTurn(slug, messages, viewState, controller.signal)) {
           onEvent(ev);
         }
       } finally {
