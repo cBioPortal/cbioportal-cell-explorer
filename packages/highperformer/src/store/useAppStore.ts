@@ -231,8 +231,19 @@ export interface AppState {
   setGeneLabelColumn: (col: string | null) => void
   _resolveGeneLabels: () => Promise<void>
 
-  // Viewport override — applied as initialViewState on next deck.gl mount
+  // Viewport override.
+  //
+  // `pendingViewport` is the requested target (null = fit-to-view reset).
+  // `viewportEpoch` is a monotonic counter that bumps on every setViewport call.
+  // View.tsx's effect watches the epoch (not the value) so we can request a
+  // viewport change to the same coordinates twice in a row and still trigger
+  // an imperative deck.gl update.
+  //
+  // Runtime updates apply via deckRef.current.setProps({viewState}) — the
+  // deck.gl prescribed pattern per the perf rule. Once applied, deck.gl is
+  // in controlled mode; an onViewStateChange handler keeps it in sync on pan.
   pendingViewport: { target: [number, number]; zoom: number } | null
+  viewportEpoch: number
   setViewport: (v: { target: [number, number]; zoom: number } | null) => void
 }
 
@@ -508,7 +519,12 @@ const useAppStore = create<AppState>((set, get) => ({
 
   // Viewport override
   pendingViewport: null,
-  setViewport: (v) => set({ pendingViewport: v }),
+  viewportEpoch: 0,
+  setViewport: (v) =>
+    set((state) => ({
+      pendingViewport: v,
+      viewportEpoch: state.viewportEpoch + 1,
+    })),
 
   // Error state
   loadingError: null,

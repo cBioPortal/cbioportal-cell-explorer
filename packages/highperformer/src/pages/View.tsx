@@ -553,6 +553,7 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
   const selectionTool = useAppStore((s) => s.selectionTool)
   const pendingViewport = useAppStore((s) => s.pendingViewport)
   const setViewport = useAppStore((s) => s.setViewport)
+  const viewportEpoch = useAppStore((s) => s.viewportEpoch)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Derive initial view state from data bounds + container size.
@@ -589,13 +590,73 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     return { target, zoom, minZoom, maxZoom }
   }, [embeddingData, pendingViewport])
 
-  // Clear pendingViewport after it has been consumed by the initialViewState useMemo above.
-  // Without this, the override would re-apply on every embedding change.
+  // Imperative viewport reset for runtime updates.
+  //
+  // deck.gl's `initialViewState` is only consumed at first mount; after that,
+  // the controller manages viewState internally. To apply a programmatic
+  // viewport change at runtime (e.g. agent calls set_viewport after the canvas
+  // is already drawn), we use the prescribed pattern: deckRef.current.setProps
+  // with a `viewState` object. This switches deck.gl to controlled mode; an
+  // onViewStateChange handler below keeps it in sync as the user pans/zooms.
+  //
+  // The didMount + viewportEpoch idiom skips the first effect run (the
+  // initial mount, which initialViewState handles) and fires only on
+  // subsequent setViewport calls.
+  const isControlledRef = useRef(false)
+  const didMountRef = useRef(false)
   useEffect(() => {
-    if (pendingViewport) {
-      setViewport(null)
+    if (!didMountRef.current) {
+      didMountRef.current = true
+      return
     }
-  }, [pendingViewport, setViewport])
+    // @deck.gl/react v9 exposes the underlying Deck instance on the ref as
+    // `.deck`. The React component itself doesn't have setProps — calling it
+    // directly errors with "setProps is not a function".
+    const deck = deckRef.current?.deck
+    if (!deck || !embeddingData?.bounds) return
+
+    // Compute target viewState. If pendingViewport is null (reset request),
+    // fall back to fit-to-view from bounds + container size.
+    let target: [number, number, number]
+    let zoom: number
+    if (pendingViewport) {
+      target = [pendingViewport.target[0], pendingViewport.target[1], 0]
+      zoom = pendingViewport.zoom
+    } else {
+      const { minX, maxX, minY, maxY } = embeddingData.bounds
+      const centerX = (minX + maxX) / 2
+      const centerY = (minY + maxY) / 2
+      const dataWidth = maxX - minX || 1
+      const dataHeight = maxY - minY || 1
+      const el = containerRef.current
+      const viewWidth = el?.clientWidth || 800
+      const viewHeight = el?.clientHeight || 600
+      const padding = 1.1
+      target = [centerX, centerY, 0]
+      zoom = Math.log2(Math.min(
+        viewWidth / (dataWidth * padding),
+        viewHeight / (dataHeight * padding),
+      ))
+    }
+    isControlledRef.current = true
+    deck.setProps({ viewState: { target, zoom } })
+    // Clear pendingViewport without bumping epoch (use setState bypass).
+    if (pendingViewport) {
+      useAppStore.setState({ pendingViewport: null })
+    }
+  }, [viewportEpoch, embeddingData, pendingViewport])
+
+  // Pan/zoom handler — only matters once deck.gl is in controlled mode.
+  // Uses ref-based tracking (no React state) per the perf rule.
+  const onViewStateChange = useCallback(
+    ({ viewState }: { viewState: Record<string, unknown> }) => {
+      const deck = deckRef.current?.deck
+      if (isControlledRef.current && deck) {
+        deck.setProps({ viewState })
+      }
+    },
+    [deckRef],
+  )
 
   // Memoize layer data object — only recreate when position or color buffer changes
   const layerData = useMemo(() => {
@@ -680,6 +741,13 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     [embeddingData],
   )
 
+  // Reset controlled mode on embedding switch — the new deck.gl mount starts
+  // uncontrolled and consumes the new initialViewState fresh.
+  useEffect(() => {
+    isControlledRef.current = false
+    didMountRef.current = false
+  }, [deckKey])
+
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
       <DeckGL
@@ -688,6 +756,7 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
         views={new OrthographicView()}
         initialViewState={initialViewState}
         controller={selectionTool === 'pan'}
+        onViewStateChange={onViewStateChange}
         layers={layers}
         widgets={WIDGETS}
       />
