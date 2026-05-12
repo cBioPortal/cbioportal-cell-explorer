@@ -50,6 +50,12 @@ export const AppConfigSchema = z.object({
   summaryGenes: z.array(z.string()).optional(),
   summaryContext: z.enum(['overall', 'selections']).optional(),
 
+  // Selection display: 'dim' keeps non-selected cells visible at low alpha,
+  // 'hide' culls them entirely via deck.gl's DataFilterExtension. Applies AFTER
+  // filter / filterByExpression so the explicit value wins over the 'hide'
+  // default that ID-based filters set internally.
+  selectionDisplayMode: z.enum(['dim', 'hide']).optional(),
+
   // UI chrome
   showHeader: z.boolean().optional(),
   showLeftSidebar: z.boolean().optional(),

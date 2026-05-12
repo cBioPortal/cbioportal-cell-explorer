@@ -593,3 +593,46 @@ describe('applyConfig — filterByExpression', () => {
     selectByExpression.mockRestore()
   })
 })
+
+describe('applyConfig — selectionDisplayMode', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      varNames: [],
+      obsmKeys: [],
+      obsColumnNames: ['cell_type'],
+      loading: false,
+    } as any)
+  })
+
+  it("applies selectionDisplayMode='dim'", async () => {
+    useAppStore.setState({ selectionDisplayMode: 'hide' } as any)
+    const result = await applyConfig({ selectionDisplayMode: 'dim' })
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().selectionDisplayMode).toBe('dim')
+  })
+
+  it("applies selectionDisplayMode='hide'", async () => {
+    useAppStore.setState({ selectionDisplayMode: 'dim' } as any)
+    const result = await applyConfig({ selectionDisplayMode: 'hide' })
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().selectionDisplayMode).toBe('hide')
+  })
+
+  it('overrides the hide default set internally by selectByIds', async () => {
+    const selectByIds = vi
+      .spyOn(useAppStore.getState(), 'selectByIds')
+      .mockImplementation(() => {
+        // Mimic selectByIds's internal side effect
+        useAppStore.setState({ selectionDisplayMode: 'hide' } as any)
+      })
+
+    const result = await applyConfig({
+      filter: { obsColumn: 'cell_type', ids: ['T'] },
+      selectionDisplayMode: 'dim',
+    })
+
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().selectionDisplayMode).toBe('dim')
+    selectByIds.mockRestore()
+  })
+})
