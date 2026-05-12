@@ -545,6 +545,52 @@ describe('applyConfig — new schema fields apply to store', () => {
     expect(useAppStore.getState().pendingViewport).toBeNull()
     expect(useAppStore.getState().viewportEpoch).toBe(beforeEpoch + 1)
   })
+
+  it("fitViewportToSelection computes bbox from selection and sets viewport", async () => {
+    // Set up: 4 cells at (0,0), (10,0), (0,10), (100,100). Selection includes
+    // first 3 only. Expected center = (5, 5).
+    useAppStore.setState(useAppStore.getInitialState())
+    useAppStore.setState({
+      varNames: [],
+      obsmKeys: ['X_umap'],
+      obsColumnNames: ['cell_type'],
+      loading: false,
+      embeddingData: {
+        positions: new Float32Array([0, 0, 10, 0, 0, 10, 100, 100]),
+        numPoints: 4,
+        bounds: { minX: 0, maxX: 100, minY: 0, maxY: 100 },
+      },
+      selectionFilterBuffer: new Float32Array([1, 1, 1, 0]),
+    } as any)
+    const result = await applyConfig({ fitViewportToSelection: true })
+    expect(result.ok).toBe(true)
+    const pv = useAppStore.getState().pendingViewport
+    expect(pv).not.toBeNull()
+    expect(pv!.target[0]).toBe(5)  // (0 + 10) / 2
+    expect(pv!.target[1]).toBe(5)  // (0 + 10) / 2
+  })
+
+  it("fitViewportToSelection is a no-op when no selection is active", async () => {
+    useAppStore.setState(useAppStore.getInitialState())
+    useAppStore.setState({
+      varNames: [],
+      obsmKeys: ['X_umap'],
+      obsColumnNames: ['cell_type'],
+      loading: false,
+      embeddingData: {
+        positions: new Float32Array([0, 0, 10, 10]),
+        numPoints: 2,
+        bounds: { minX: 0, maxX: 10, minY: 0, maxY: 10 },
+      },
+      selectionFilterBuffer: null,
+      pendingViewport: null,
+    } as any)
+    const beforeEpoch = useAppStore.getState().viewportEpoch
+    const result = await applyConfig({ fitViewportToSelection: true })
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().pendingViewport).toBeNull()
+    expect(useAppStore.getState().viewportEpoch).toBe(beforeEpoch)  // no bump
+  })
 })
 
 describe('applyConfig — filterByExpression', () => {

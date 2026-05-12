@@ -245,6 +245,9 @@ export interface AppState {
   pendingViewport: { target: [number, number]; zoom: number } | null
   viewportEpoch: number
   setViewport: (v: { target: [number, number]; zoom: number } | null) => void
+  // Compute target+zoom from the current selectionFilterBuffer bbox and apply.
+  // No-op if no selection is active.
+  fitViewportToSelection: () => void
 }
 
 const DEFAULT_RGB: RGB = [200, 200, 200]
@@ -525,6 +528,36 @@ const useAppStore = create<AppState>((set, get) => ({
       pendingViewport: v,
       viewportEpoch: state.viewportEpoch + 1,
     })),
+  fitViewportToSelection: () => {
+    const { embeddingData, selectionFilterBuffer } = get()
+    if (!embeddingData || !selectionFilterBuffer) return
+    const positions = embeddingData.positions
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+    let count = 0
+    for (let i = 0; i < selectionFilterBuffer.length; i++) {
+      if (selectionFilterBuffer[i] !== 1) continue
+      const x = positions[i * 2]
+      const y = positions[i * 2 + 1]
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (y < minY) minY = y
+      if (y > maxY) maxY = y
+      count++
+    }
+    if (count === 0) return
+    const centerX = (minX + maxX) / 2
+    const centerY = (minY + maxY) / 2
+    // Zoom: log2 of the ratio between (assumed) container size and the bbox
+    // span, with padding. Mirrors the fit-to-view computation in View.tsx but
+    // uses the selection bbox instead of the full dataset bounds. The store
+    // doesn't know the real container size, so 800x600 is a reasonable
+    // default; View.tsx's effect will apply via setProps at runtime.
+    const dataWidth = maxX - minX || 1
+    const dataHeight = maxY - minY || 1
+    const padding = 1.1
+    const zoom = Math.log2(Math.min(800 / (dataWidth * padding), 600 / (dataHeight * padding)))
+    get().setViewport({ target: [centerX, centerY], zoom })
+  },
 
   // Error state
   loadingError: null,

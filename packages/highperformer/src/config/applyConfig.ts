@@ -83,6 +83,7 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     config.removeSummaryObsColumns ||
     config.removeSummaryGenes ||
     config.viewport !== undefined ||  // null = reset to fit-to-view
+    config.fitViewportToSelection ||
     config.pointSize !== undefined ||  // null is a valid clear sentinel
     config.opacity !== undefined ||  // null is a valid clear sentinel
     config.summaryContext ||
@@ -367,6 +368,12 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
   if (config.viewport !== undefined) {
     const { setViewport } = store.getState()
     setViewport(config.viewport)
+  }
+
+  // Fit-to-selection: compute bbox of currently selected cells and apply.
+  // No-op if no selection is active (the store action checks).
+  if (config.fitViewportToSelection) {
+    store.getState().fitViewportToSelection()
   }
 
   return ok()
