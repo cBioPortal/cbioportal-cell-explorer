@@ -553,6 +553,7 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
   const selectionTool = useAppStore((s) => s.selectionTool)
   const pendingViewport = useAppStore((s) => s.pendingViewport)
   const setViewport = useAppStore((s) => s.setViewport)
+  const viewportEpoch = useAppStore((s) => s.viewportEpoch)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Derive initial view state from data bounds + container size.
@@ -591,11 +592,14 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
 
   // Clear pendingViewport after it has been consumed by the initialViewState useMemo above.
   // Without this, the override would re-apply on every embedding change.
+  // Bypasses setViewport because that bumps viewportEpoch (which would force
+  // another remount and revert to fit-to-view); the cleanup just needs to
+  // null out the field after consumption.
   useEffect(() => {
     if (pendingViewport) {
-      setViewport(null)
+      useAppStore.setState({ pendingViewport: null })
     }
-  }, [pendingViewport, setViewport])
+  }, [pendingViewport])
 
   // Memoize layer data object — only recreate when position or color buffer changes
   const layerData = useMemo(() => {
@@ -675,9 +679,16 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
   }, [layerData, colorBuffer, radiusBuffer, pointRadius, antialiasing, collisionEnabled, collisionRadiusScale, selectionFilterBuffer, selectionDisplayMode, selectionGroups])
 
   // Key forces deck.gl to re-initialize when view state changes (new embedding)
+  // or when a programmatic viewport reset is requested (viewportEpoch bump).
+  // The remount re-reads initialViewState, which is the only way to override
+  // deck.gl's internal viewState after it's been initialized (pan/zoom is
+  // otherwise managed entirely by the controller on the GPU side per the
+  // perf rules).
   const deckKey = useMemo(
-    () => embeddingData ? `${embeddingData.bounds.minX}-${embeddingData.bounds.maxX}` : 'empty',
-    [embeddingData],
+    () => embeddingData
+      ? `${embeddingData.bounds.minX}-${embeddingData.bounds.maxX}-${viewportEpoch}`
+      : 'empty',
+    [embeddingData, viewportEpoch],
   )
 
   return (

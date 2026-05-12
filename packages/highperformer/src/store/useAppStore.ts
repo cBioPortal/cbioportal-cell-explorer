@@ -231,8 +231,12 @@ export interface AppState {
   setGeneLabelColumn: (col: string | null) => void
   _resolveGeneLabels: () => Promise<void>
 
-  // Viewport override — applied as initialViewState on next deck.gl mount
+  // Viewport override — applied as initialViewState on next deck.gl mount.
+  // `viewportEpoch` is part of the deck.gl `key` prop; bumping it forces a
+  // remount so a programmatic viewport change actually takes effect at
+  // runtime (deck.gl ignores initialViewState changes after the initial mount).
   pendingViewport: { target: [number, number]; zoom: number } | null
+  viewportEpoch: number
   setViewport: (v: { target: [number, number]; zoom: number } | null) => void
 }
 
@@ -508,7 +512,12 @@ const useAppStore = create<AppState>((set, get) => ({
 
   // Viewport override
   pendingViewport: null,
-  setViewport: (v) => set({ pendingViewport: v }),
+  viewportEpoch: 0,
+  setViewport: (v) =>
+    set((state) => ({
+      pendingViewport: v,
+      viewportEpoch: state.viewportEpoch + 1,
+    })),
 
   // Error state
   loadingError: null,
