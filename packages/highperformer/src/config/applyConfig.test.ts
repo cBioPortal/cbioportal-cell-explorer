@@ -642,6 +642,97 @@ describe('applyConfig — clear semantics (null)', () => {
   })
 })
 
+describe('applyConfig — summary panel removal', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      varNames: ['ENSG_CD8A'],
+      obsmKeys: ['X_umap'],
+      obsColumnNames: ['cell_type', 'cluster'],
+      loading: false,
+      geneLabelColumn: 'feature_name',
+      geneLabelMap: new Map([['ENSG_CD8A', 'CD8A']]),
+    } as any)
+  })
+
+  it('removeSummaryObsColumns calls the store removal action per name', async () => {
+    const removeSummaryObsColumn = vi
+      .spyOn(useAppStore.getState(), 'removeSummaryObsColumn')
+      .mockImplementation(() => {})
+
+    const result = await applyConfig({
+      removeSummaryObsColumns: ['cell_type', 'cluster'],
+    })
+
+    expect(result.ok).toBe(true)
+    expect(removeSummaryObsColumn).toHaveBeenCalledWith('cell_type')
+    expect(removeSummaryObsColumn).toHaveBeenCalledWith('cluster')
+    removeSummaryObsColumn.mockRestore()
+  })
+
+  it('removeSummaryGenes resolves symbol → var index before removing', async () => {
+    const removeSummaryGene = vi
+      .spyOn(useAppStore.getState(), 'removeSummaryGene')
+      .mockImplementation(() => {})
+
+    const result = await applyConfig({ removeSummaryGenes: ['CD8A'] })
+
+    expect(result.ok).toBe(true)
+    expect(removeSummaryGene).toHaveBeenCalledWith('ENSG_CD8A')
+    removeSummaryGene.mockRestore()
+  })
+
+  it("summaryObsColumns: null clears all pinned obs columns", async () => {
+    useAppStore.setState({ summaryObsColumns: ['cell_type', 'cluster'] } as any)
+    const removeSummaryObsColumn = vi
+      .spyOn(useAppStore.getState(), 'removeSummaryObsColumn')
+      .mockImplementation(() => {})
+
+    const result = await applyConfig({ summaryObsColumns: null })
+
+    expect(result.ok).toBe(true)
+    expect(removeSummaryObsColumn).toHaveBeenCalledWith('cell_type')
+    expect(removeSummaryObsColumn).toHaveBeenCalledWith('cluster')
+    removeSummaryObsColumn.mockRestore()
+  })
+
+  it("summaryGenes: null clears all pinned genes", async () => {
+    useAppStore.setState({ summaryGenes: ['ENSG_CD8A'] } as any)
+    const removeSummaryGene = vi
+      .spyOn(useAppStore.getState(), 'removeSummaryGene')
+      .mockImplementation(() => {})
+
+    const result = await applyConfig({ summaryGenes: null })
+
+    expect(result.ok).toBe(true)
+    expect(removeSummaryGene).toHaveBeenCalledWith('ENSG_CD8A')
+    removeSummaryGene.mockRestore()
+  })
+
+  it("clear_summary-style payload (both nulls) clears both lists in one call", async () => {
+    useAppStore.setState({
+      summaryObsColumns: ['cell_type'],
+      summaryGenes: ['ENSG_CD8A'],
+    } as any)
+    const removeObs = vi
+      .spyOn(useAppStore.getState(), 'removeSummaryObsColumn')
+      .mockImplementation(() => {})
+    const removeGene = vi
+      .spyOn(useAppStore.getState(), 'removeSummaryGene')
+      .mockImplementation(() => {})
+
+    const result = await applyConfig({
+      summaryObsColumns: null,
+      summaryGenes: null,
+    })
+
+    expect(result.ok).toBe(true)
+    expect(removeObs).toHaveBeenCalledWith('cell_type')
+    expect(removeGene).toHaveBeenCalledWith('ENSG_CD8A')
+    removeObs.mockRestore()
+    removeGene.mockRestore()
+  })
+})
+
 describe('applyConfig — selectionDisplayMode', () => {
   beforeEach(() => {
     useAppStore.setState({

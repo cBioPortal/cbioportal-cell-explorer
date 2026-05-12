@@ -49,9 +49,14 @@ export const AppConfigSchema = z.object({
   pointSize: z.number().positive().nullable().optional(),
   opacity: z.number().min(0).max(1).nullable().optional(),
 
-  // summary panel
-  summaryObsColumns: z.array(z.string()).optional(),
-  summaryGenes: z.array(z.string()).optional(),
+  // summary panel.
+  // summaryObsColumns / summaryGenes: array adds each name (additive);
+  // `null` clears the entire pinned list. removeSummaryObsColumns /
+  // removeSummaryGenes remove each named entry without touching the rest.
+  summaryObsColumns: z.array(z.string()).nullable().optional(),
+  summaryGenes: z.array(z.string()).nullable().optional(),
+  removeSummaryObsColumns: z.array(z.string()).optional(),
+  removeSummaryGenes: z.array(z.string()).optional(),
   summaryContext: z.enum(['overall', 'selections']).optional(),
 
   // Selection display: 'dim' keeps non-selected cells visible at low alpha,

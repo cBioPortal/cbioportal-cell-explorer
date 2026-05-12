@@ -78,8 +78,10 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     config.geneLabelColumn ||
     config.filter ||
     config.filterByExpression ||
-    config.summaryObsColumns ||
-    config.summaryGenes ||
+    config.summaryObsColumns !== undefined ||  // null = clear
+    config.summaryGenes !== undefined ||  // null = clear
+    config.removeSummaryObsColumns ||
+    config.removeSummaryGenes ||
     config.viewport ||
     config.pointSize !== undefined ||  // null is a valid clear sentinel
     config.opacity !== undefined ||  // null is a valid clear sentinel
@@ -202,8 +204,14 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     }
   }
 
-  // 3d: Summary panel
-  if (config.summaryObsColumns) {
+  // 3d: Summary panel.
+  // `null` on summaryObsColumns / summaryGenes clears the pinned list;
+  // array adds each name (additive — current behavior).
+  if (config.summaryObsColumns === null) {
+    for (const col of [...store.getState().summaryObsColumns]) {
+      store.getState().removeSummaryObsColumn(col)
+    }
+  } else if (config.summaryObsColumns) {
     const { obsColumnNames } = store.getState()
     for (const col of config.summaryObsColumns) {
       if (!obsColumnNames.includes(col)) {
@@ -217,7 +225,17 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
       store.getState().addSummaryObsColumn(col)
     }
   }
-  if (config.summaryGenes) {
+  // Per-name removal — independent of the add/clear path above.
+  if (config.removeSummaryObsColumns) {
+    for (const col of config.removeSummaryObsColumns) {
+      store.getState().removeSummaryObsColumn(col)
+    }
+  }
+  if (config.summaryGenes === null) {
+    for (const gene of [...store.getState().summaryGenes]) {
+      store.getState().removeSummaryGene(gene)
+    }
+  } else if (config.summaryGenes) {
     if (store.getState().geneLabelColumn && store.getState().geneLabelMap === null) {
       try {
         await waitForStore(store, (s) => s.geneLabelMap !== null)
@@ -237,6 +255,16 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
         })
       }
       store.getState().addSummaryGene(varIndex)
+    }
+  }
+  // Per-name removal for summary genes. Resolve symbol → var index if possible
+  // (matches how addSummaryGene stores the canonical key); falls back to the
+  // raw name otherwise. Unknown names are a silent no-op in the store.
+  if (config.removeSummaryGenes) {
+    const { varNames, geneLabelMap } = store.getState()
+    for (const gene of config.removeSummaryGenes) {
+      const varIndex = resolveGeneToVarIndex(gene, varNames, geneLabelMap)
+      store.getState().removeSummaryGene(varIndex ?? gene)
     }
   }
 
