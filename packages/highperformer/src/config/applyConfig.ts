@@ -74,15 +74,15 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
   // at all, surface that as metadata_unavailable instead of silently dropping.
   const hasPostLoadConfig =
     config.embedding ||
-    config.colorBy ||
+    config.colorBy !== undefined ||  // null is a valid clear sentinel
     config.geneLabelColumn ||
     config.filter ||
     config.filterByExpression ||
     config.summaryObsColumns ||
     config.summaryGenes ||
     config.viewport ||
-    config.pointSize !== undefined ||
-    config.opacity !== undefined ||
+    config.pointSize !== undefined ||  // null is a valid clear sentinel
+    config.opacity !== undefined ||  // null is a valid clear sentinel
     config.summaryContext ||
     config.selectionDisplayMode
 
@@ -130,8 +130,13 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     store.getState().setSelectedEmbedding(config.embedding)
   }
 
-  // 3c: Color mapping (cross-field check is at the top of applyConfig)
-  if (config.colorBy === 'gene' && config.gene) {
+  // 3c: Color mapping (cross-field check is at the top of applyConfig).
+  // Treat `colorBy: null` as an explicit reset — clear both color paths and
+  // fall back to the default gray rendering.
+  if (config.colorBy === null) {
+    store.getState().clearGene()
+    store.getState().clearObsColumn()
+  } else if (config.colorBy === 'gene' && config.gene) {
     // If a gene label column was auto-detected, wait for the symbol→index
     // map to resolve so we can accept either the var index or the symbol.
     if (store.getState().geneLabelColumn && store.getState().geneLabelMap === null) {
@@ -318,12 +323,13 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     store.getState().setSelectionDisplayMode(config.selectionDisplayMode)
   }
 
-  // Rendering controls — map schema field names to store field names
+  // Rendering controls — map schema field names to store field names.
+  // `null` is the reset sentinel: restore the store defaults (0.5 / 0.5).
   if (config.pointSize !== undefined) {
-    store.setState({ pointRadius: config.pointSize })
+    store.setState({ pointRadius: config.pointSize ?? 0.5 })
   }
   if (config.opacity !== undefined) {
-    store.setState({ opacity: config.opacity })
+    store.setState({ opacity: config.opacity ?? 0.5 })
   }
 
   // Viewport — delegate to the store action (talks to deck.gl on next mount)

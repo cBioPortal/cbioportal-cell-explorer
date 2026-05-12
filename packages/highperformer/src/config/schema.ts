@@ -17,9 +17,11 @@ export const AppConfigSchema = z.object({
 
   // data view
   embedding: z.string().optional(),
-  colorBy: z.enum(['gene', 'category']).optional(),
-  gene: z.string().optional(),
-  category: z.string().optional(),
+  // colorBy/gene/category: `null` is a reset sentinel ("clear coloring"); a
+  // string sets the mode/value normally; absent = no change.
+  colorBy: z.enum(['gene', 'category']).nullable().optional(),
+  gene: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
   // Subset of category values to highlight (full-opacity); others render dimmed/gray.
   // Requires colorBy='category' + category. Labels are matched against the loaded
   // categoryMap; unknown labels yield a field_value_invalid error.
@@ -41,9 +43,11 @@ export const AppConfigSchema = z.object({
   // viewport (tightly bound — nested, NEW)
   viewport: ViewportSchema.optional(),
 
-  // rendering (flat, NEW)
-  pointSize: z.number().positive().optional(),
-  opacity: z.number().min(0).max(1).optional(),
+  // rendering (flat, NEW).
+  // `null` = reset to the store defaults (0.5 for both); number = override;
+  // absent = no change.
+  pointSize: z.number().positive().nullable().optional(),
+  opacity: z.number().min(0).max(1).nullable().optional(),
 
   // summary panel
   summaryObsColumns: z.array(z.string()).optional(),
