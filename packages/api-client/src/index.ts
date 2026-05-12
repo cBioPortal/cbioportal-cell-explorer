@@ -341,6 +341,13 @@ export interface components {
             /** Content */
             content: string;
         };
+        /** ChatPermissionResponse */
+        ChatPermissionResponse: {
+            /** Can Chat */
+            can_chat: boolean;
+            /** Reason */
+            reason?: string | null;
+        };
         /** ContextResponse */
         ContextResponse: {
             /** Slug */
@@ -359,6 +366,7 @@ export interface components {
             embedding_keys: string[];
             /** Available Tools */
             available_tools: string[];
+            permission: components["schemas"]["ChatPermissionResponse"];
         };
         /** DatasetAdminListResponse */
         DatasetAdminListResponse: {
@@ -383,6 +391,8 @@ export interface components {
             is_public: boolean;
             /** Required Roles */
             required_roles: string[];
+            /** Chat Enabled */
+            chat_enabled: boolean;
         };
         /** DatasetCreate */
         DatasetCreate: {
@@ -406,6 +416,11 @@ export interface components {
              * @default []
              */
             required_roles: string[];
+            /**
+             * Chat Enabled
+             * @default false
+             */
+            chat_enabled: boolean;
         };
         /** DatasetListResponse */
         DatasetListResponse: {
@@ -424,6 +439,8 @@ export interface components {
             is_public: boolean;
             /** Url */
             url: string | null;
+            /** Chat Enabled */
+            chat_enabled: boolean;
         };
         /** DatasetUpdate */
         DatasetUpdate: {
@@ -437,6 +454,8 @@ export interface components {
             is_public?: boolean | null;
             /** Required Roles */
             required_roles?: string[] | null;
+            /** Chat Enabled */
+            chat_enabled?: boolean | null;
         };
         /** DatasourceCreate */
         DatasourceCreate: {
@@ -445,6 +464,8 @@ export interface components {
             type: components["schemas"]["DatasourceType"];
             /** Base Url */
             base_url: string;
+            /** Internal Base Url */
+            internal_base_url?: string | null;
             /** Credential Ref */
             credential_ref?: string | null;
         };
@@ -462,6 +483,8 @@ export interface components {
             type: components["schemas"]["DatasourceType"];
             /** Base Url */
             base_url: string;
+            /** Internal Base Url */
+            internal_base_url: string | null;
             /** Credential Ref */
             credential_ref: string | null;
         };
@@ -477,6 +500,8 @@ export interface components {
             name?: string | null;
             /** Base Url */
             base_url?: string | null;
+            /** Internal Base Url */
+            internal_base_url?: string | null;
             /** Credential Ref */
             credential_ref?: string | null;
         };
@@ -516,6 +541,10 @@ export interface components {
         TurnRequest: {
             /** Messages */
             messages: components["schemas"]["ChatMessage"][];
+            /** View State */
+            view_state?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * User

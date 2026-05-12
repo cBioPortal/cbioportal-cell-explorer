@@ -16,6 +16,11 @@ export type ObsColumnInfo = {
   values: string[] | null; // populated for categorical with cardinality <= 50
 };
 
+export type ChatPermission = {
+  can_chat: boolean;
+  reason: string | null;
+};
+
 export type ContextResponse = {
   slug: string;
   name: string;
@@ -25,6 +30,7 @@ export type ContextResponse = {
   obs_columns: ObsColumnInfo[];
   embedding_keys: string[];
   available_tools: string[];
+  permission: ChatPermission;
 };
 
 // ---------- /turns wire request ----------

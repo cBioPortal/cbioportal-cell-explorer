@@ -1227,8 +1227,8 @@ describe('useAppStore', () => {
 
     it('fetchCatalog stores datasets from API', async () => {
       const mockDatasets = [
-        { slug: 'brca-demo', name: 'BRCA Demo', description: 'Test', is_public: true, url: 'https://cdn.example.com/brca.zarr' },
-        { slug: 'private-study', name: 'Private Study', description: null, is_public: false, url: null },
+        { slug: 'brca-demo', name: 'BRCA Demo', description: 'Test', is_public: true, url: 'https://cdn.example.com/brca.zarr', chat_enabled: false },
+        { slug: 'private-study', name: 'Private Study', description: null, is_public: false, url: null, chat_enabled: false },
       ]
       mockGET.mockResolvedValueOnce({ data: { datasets: mockDatasets } })
 
@@ -1246,7 +1246,7 @@ describe('useAppStore', () => {
     it('openCatalogDataset opens a public dataset directly', async () => {
       useAppStore.setState({
         catalogDatasets: [
-          { slug: 'public-ds', name: 'Public', description: null, is_public: true, url: 'https://cdn.example.com/test.zarr' },
+          { slug: 'public-ds', name: 'Public', description: null, is_public: true, url: 'https://cdn.example.com/test.zarr', chat_enabled: false },
         ],
       })
 
@@ -1263,7 +1263,7 @@ describe('useAppStore', () => {
     it('openCatalogDataset calls /access for private datasets', async () => {
       useAppStore.setState({
         catalogDatasets: [
-          { slug: 'private-ds', name: 'Private', description: null, is_public: false, url: null },
+          { slug: 'private-ds', name: 'Private', description: null, is_public: false, url: null, chat_enabled: false },
         ],
       })
 
@@ -1293,7 +1293,7 @@ describe('useAppStore', () => {
     it('openCatalogDataset sets error on 503', async () => {
       useAppStore.setState({
         catalogDatasets: [
-          { slug: 'broken-ds', name: 'Broken', description: null, is_public: false, url: null },
+          { slug: 'broken-ds', name: 'Broken', description: null, is_public: false, url: null, chat_enabled: false },
         ],
       })
 

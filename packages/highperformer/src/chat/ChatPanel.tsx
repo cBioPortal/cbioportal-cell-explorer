@@ -7,6 +7,7 @@ import { applyErrorMessage } from "../config/applyResult";
 import { initialState, reduce, type State } from "./eventReducer";
 import { deriveSuggestionChips } from "./suggestionChips";
 import type { ChatEvent, ChatMessage, MessagePart, WireMessage } from "./types";
+import { ChatPermissionBanner } from "./ChatPermissionBanner";
 import { useChatContext } from "./useChatContext";
 import { useChatTurn } from "./useChatTurn";
 
@@ -171,6 +172,16 @@ export function ChatPanel({ slug }: { slug: string }) {
 
   const isEmpty = state.history.length === 0 && state.current === null && !streaming;
   const hasError = state.status === "error";
+
+  // Permission gate — short-circuit before rendering input.
+  const permission = ctxQuery.data?.permission;
+  if (permission && !permission.can_chat) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 12 }}>
+        <ChatPermissionBanner reason={permission.reason ?? "unknown"} />
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 12 }}>
