@@ -29,6 +29,7 @@ const sampleCtx: ContextResponse = {
   ],
   embedding_keys: ["X_umap"],
   available_tools: ["top_expressed_genes"],
+  permission: { can_chat: true, reason: null },
 };
 
 const startMock = vi.fn();
@@ -128,5 +129,69 @@ describe("ChatPanel", () => {
     await waitFor(() => expect(startMock).toHaveBeenCalledTimes(2));
     const [, messages] = startMock.mock.calls[1];
     expect(messages).toEqual([{ role: "user", content: "hi" }]);
+  });
+
+  describe("ChatPanel permission-aware rendering", () => {
+    it("renders chat input when permission.can_chat is true", () => {
+      vi.spyOn(useChatContextModule, "useChatContext").mockReturnValue({
+        loading: false,
+        error: undefined,
+        data: {
+          slug: "demo",
+          name: "Demo",
+          description: "",
+          n_obs: 100,
+          n_var: 50,
+          obs_columns: [],
+          embedding_keys: ["X_umap"],
+          available_tools: [],
+          permission: { can_chat: true, reason: null },
+        },
+      });
+      render(<ChatPanel slug="demo" />);
+      expect(screen.getByPlaceholderText(/ask anything/i)).toBeInTheDocument();
+    });
+
+    it("renders banner instead of input when can_chat is false (missing_role)", () => {
+      vi.spyOn(useChatContextModule, "useChatContext").mockReturnValue({
+        loading: false,
+        error: undefined,
+        data: {
+          slug: "demo",
+          name: "Demo",
+          description: "",
+          n_obs: 100,
+          n_var: 50,
+          obs_columns: [],
+          embedding_keys: ["X_umap"],
+          available_tools: [],
+          permission: { can_chat: false, reason: "missing_role:cell-explorer-chat" },
+        },
+      });
+      render(<ChatPanel slug="demo" />);
+      expect(screen.queryByPlaceholderText(/ask anything/i)).toBeNull();
+      expect(screen.getByText(/cell-explorer-chat/)).toBeInTheDocument();
+    });
+
+    it("renders sign-in banner when reason is requires_auth", () => {
+      vi.spyOn(useChatContextModule, "useChatContext").mockReturnValue({
+        loading: false,
+        error: undefined,
+        data: {
+          slug: "demo",
+          name: "Demo",
+          description: "",
+          n_obs: 100,
+          n_var: 50,
+          obs_columns: [],
+          embedding_keys: ["X_umap"],
+          available_tools: [],
+          permission: { can_chat: false, reason: "requires_auth" },
+        },
+      });
+      render(<ChatPanel slug="demo" />);
+      expect(screen.queryByPlaceholderText(/ask anything/i)).toBeNull();
+      expect(screen.getByText(/sign in to use chat/i)).toBeInTheDocument();
+    });
   });
 });
