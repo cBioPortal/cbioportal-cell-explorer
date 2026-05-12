@@ -594,6 +594,54 @@ describe('applyConfig — filterByExpression', () => {
   })
 })
 
+describe('applyConfig — clear semantics (null)', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      varNames: ['CD8A'],
+      obsmKeys: ['X_umap'],
+      obsColumnNames: ['cell_type'],
+      loading: false,
+    } as any)
+  })
+
+  it("colorBy: null clears both gene and obs column", async () => {
+    const clearGene = vi.spyOn(useAppStore.getState(), 'clearGene').mockImplementation(() => {})
+    const clearObsColumn = vi
+      .spyOn(useAppStore.getState(), 'clearObsColumn')
+      .mockImplementation(() => {})
+
+    const result = await applyConfig({ colorBy: null })
+
+    expect(result.ok).toBe(true)
+    expect(clearGene).toHaveBeenCalled()
+    expect(clearObsColumn).toHaveBeenCalled()
+    clearGene.mockRestore()
+    clearObsColumn.mockRestore()
+  })
+
+  it("pointSize: null resets to default (0.5)", async () => {
+    useAppStore.setState({ pointRadius: 5 } as any)
+    const result = await applyConfig({ pointSize: null })
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().pointRadius).toBe(0.5)
+  })
+
+  it("opacity: null resets to default (0.5)", async () => {
+    useAppStore.setState({ opacity: 0.1 } as any)
+    const result = await applyConfig({ opacity: null })
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().opacity).toBe(0.5)
+  })
+
+  it("pointSize and opacity together reset both", async () => {
+    useAppStore.setState({ pointRadius: 5, opacity: 0.1 } as any)
+    const result = await applyConfig({ pointSize: null, opacity: null })
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().pointRadius).toBe(0.5)
+    expect(useAppStore.getState().opacity).toBe(0.5)
+  })
+})
+
 describe('applyConfig — selectionDisplayMode', () => {
   beforeEach(() => {
     useAppStore.setState({
