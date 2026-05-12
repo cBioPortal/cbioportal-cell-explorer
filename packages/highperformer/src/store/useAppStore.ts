@@ -202,6 +202,7 @@ export interface AppState {
     description: string | null
     is_public: boolean
     url: string | null
+    chat_enabled: boolean
   }>
   fetchCatalog: () => Promise<void>
   openCatalogDataset: (slug: string) => Promise<void>
