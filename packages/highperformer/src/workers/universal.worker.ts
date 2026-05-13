@@ -2,13 +2,15 @@ import { WorkerMessageSchema } from './colorBuffer.schemas'
 import { SelectionMessageSchema } from './selection.schemas'
 import { SummaryMessageSchema } from './summary.schemas'
 import { IdMatchMessageSchema } from './idMatch.schemas'
+import { CategoryCentroidsMessageSchema } from './categoryCentroids.schemas'
 import { handleColorBufferMessage } from './colorBuffer.handler'
 import { handleSelectionMessage } from './selection.handler'
 import { handleSummaryMessage } from './summary.handler'
 import { handleIdMatchMessage } from './idMatch.handler'
+import { computeCategoryCentroids } from './categoryCentroids.handler'
 import { z } from 'zod'
 
-const UnifiedMessageSchema = z.union([WorkerMessageSchema, SelectionMessageSchema, SummaryMessageSchema, IdMatchMessageSchema])
+const UnifiedMessageSchema = z.union([WorkerMessageSchema, SelectionMessageSchema, SummaryMessageSchema, IdMatchMessageSchema, CategoryCentroidsMessageSchema])
 
 const workerSelf = self as unknown as {
   onmessage: ((e: MessageEvent) => void) | null
@@ -69,6 +71,15 @@ workerSelf.onmessage = (e: MessageEvent) => {
       response.type === 'expressionByCategorySummary'
         ? [response.meanExpression.buffer, response.fractionExpressing.buffer] as Transferable[]
         : [],
+    )
+    return
+  }
+
+  if (msg.type === 'categoryCentroids') {
+    const response = computeCategoryCentroids(msg.positions, msg.codes, msg.numCategories)
+    workerSelf.postMessage(
+      { ...response, _poolTaskId },
+      [response.positions.buffer, response.counts.buffer] as Transferable[],
     )
     return
   }
