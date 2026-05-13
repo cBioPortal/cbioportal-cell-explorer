@@ -122,7 +122,11 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
   };
 
   useEffect(() => {
-    if (initialHistory) {
+    // Guard on length: every /turns stream re-emits thread_open, and ChatPanel
+    // responds by setMode-ing with a fresh `initialHistory: []`. Without this
+    // guard, the empty array would HYDRATE and wipe the in-memory history
+    // every time the user sends a follow-up.
+    if (initialHistory && initialHistory.length > 0) {
       dispatch({ type: "HYDRATE", history: initialHistory });
     }
   }, [initialHistory]);
