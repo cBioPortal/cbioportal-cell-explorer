@@ -87,13 +87,16 @@ describe("ChatPanel", () => {
     expect(screen.getByPlaceholderText(/Ask anything/i)).toBeDefined();
   });
 
-  it("clicking a chip fills the input", async () => {
+  it("clicking a chip auto-submits the chip's prompt", async () => {
     render(<ChatPanel slug="spectrum" />);
     await enterNewMode();
     const chip = screen.getByText(/Top genes in T/);
     fireEvent.click(chip);
-    const input = screen.getByPlaceholderText(/Ask anything/i) as HTMLInputElement;
-    expect(input.value).toMatch(/Top genes in T/i);
+    await waitFor(() => expect(startMock).toHaveBeenCalledTimes(1));
+    const [, messages] = startMock.mock.calls[0];
+    expect(messages).toHaveLength(1);
+    expect(messages[0].role).toBe("user");
+    expect(messages[0].content).toMatch(/Top genes in T/i);
   });
 
   it("submitting calls useChatTurn.start with the user message appended", async () => {
