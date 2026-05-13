@@ -6,7 +6,15 @@ const mockClearQueue = vi.fn()
 vi.mock('../pool/WorkerPool', () => {
   return {
     WorkerPool: class MockPool {
-      dispatch = mockDispatch
+      dispatch = async (msg: any) => {
+        if (msg.type === 'categoryCentroids') {
+          const { computeCategoryCentroids } = await import(
+            '../workers/categoryCentroids.handler'
+          )
+          return computeCategoryCentroids(msg.positions, msg.codes, msg.numCategories)
+        }
+        return mockDispatch(msg)
+      }
       clearQueue = mockClearQueue
       dispose() {}
     },
@@ -1303,4 +1311,48 @@ describe('useAppStore', () => {
       expect(useAppStore.getState().loadingError).toContain('temporarily unavailable')
     })
   })
+
+  describe("category labels", () => {
+    it("starts with showCategoryLabels=false and an empty centroid cache", () => {
+      const s = useAppStore.getState();
+      expect(s.showCategoryLabels).toBe(false);
+      expect(s.categoryCentroids.size).toBe(0);
+    });
+
+    it("setShowCategoryLabels flips the field", () => {
+      useAppStore.getState().setShowCategoryLabels(true);
+      expect(useAppStore.getState().showCategoryLabels).toBe(true);
+      useAppStore.getState().setShowCategoryLabels(false);
+      expect(useAppStore.getState().showCategoryLabels).toBe(false);
+    });
+
+    it("ensureCategoryCentroids is idempotent — second call with same key is a no-op", async () => {
+      // Seed embeddingData and category codes so the action has something to dispatch.
+      useAppStore.setState({
+        embeddingData: {
+          positions: new Float32Array([0, 0, 2, 0, 10, 10, 20, 20]),
+          numPoints: 4,
+        } as any,
+        summaryObsData: new Map([
+          ["cell_type", {
+            codes: new Uint8Array([0, 0, 1, 1]),
+            categoryMap: [
+              { label: "T", color: [255, 0, 0] as [number, number, number] },
+              { label: "B", color: [0, 255, 0] as [number, number, number] },
+            ],
+          }],
+        ]),
+      } as any);
+
+      await useAppStore.getState().ensureCategoryCentroids("X_umap", "cell_type");
+      const firstCache = useAppStore.getState().categoryCentroids.get("X_umap::cell_type");
+      expect(firstCache).toBeDefined();
+      expect(firstCache!.counts[0]).toBe(2);
+      expect(firstCache!.counts[1]).toBe(2);
+
+      // Second call should NOT replace the cache entry.
+      await useAppStore.getState().ensureCategoryCentroids("X_umap", "cell_type");
+      expect(useAppStore.getState().categoryCentroids.get("X_umap::cell_type")).toBe(firstCache);
+    });
+  });
 })
