@@ -205,7 +205,7 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
   const hasError = state.status === "error";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 12 }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: 12 }}>
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
