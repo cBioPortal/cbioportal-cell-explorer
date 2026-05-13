@@ -36,6 +36,10 @@ interface ProfileBarProps {
   profiler?: ProfileCollector;
   onSave?: (entries: ProfileEntry[]) => void;
   renderLink?: RenderLink;
+  /** Called when the user clicks the close (X) button. The parent should
+   *  unmount ProfileBar and remove any reserved layout space so content
+   *  reflows into the freed area. */
+  onHide?: () => void;
 }
 
 function WaterfallTimeline({ entries, width }: { entries: ProfileEntry[]; width: number }) {
@@ -325,11 +329,8 @@ const pulseStyle = `
 }
 `;
 
-export default function ProfileBar({ profiler, onSave, renderLink }: ProfileBarProps) {
+export default function ProfileBar({ profiler, onSave, renderLink, onHide }: ProfileBarProps) {
   const [expanded, setExpanded] = useState(false);
-  // Hide the bar during this session. Resets on page reload — intentional, so
-  // the bar reappears next time without a separate "show profiler" affordance.
-  const [hidden, setHidden] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [barWidth, setBarWidth] = useState(0);
 
@@ -387,8 +388,6 @@ export default function ProfileBar({ profiler, onSave, renderLink }: ProfileBarP
 
   const currentHeight = expanded ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT;
   const waterfallWidth = Math.max(barWidth - 48, 200);
-
-  if (hidden) return null;
 
   return (
     <div
@@ -477,14 +476,16 @@ export default function ProfileBar({ profiler, onSave, renderLink }: ProfileBarP
             Clear
           </Button>
           {expanded ? <DownOutlined /> : <UpOutlined />}
-          <Button
-            icon={<CloseOutlined />}
-            size="small"
-            type="text"
-            aria-label="Hide profiler"
-            title="Hide until next reload"
-            onClick={(e) => { e.stopPropagation(); setHidden(true); }}
-          />
+          {onHide && (
+            <Button
+              icon={<CloseOutlined />}
+              size="small"
+              type="text"
+              aria-label="Hide profiler"
+              title="Hide until next reload"
+              onClick={(e) => { e.stopPropagation(); onHide(); }}
+            />
+          )}
         </Space>
       </div>
 
