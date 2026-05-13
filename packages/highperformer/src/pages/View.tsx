@@ -26,10 +26,10 @@ import { loadDatasets, saveDatasets } from '../utils/datasets'
 const { Sider, Content } = Layout
 
 const LEFT_SIDEBAR_WIDTH = 300
-const RIGHT_SIDEBAR_WIDTH = 300
+const RIGHT_SIDEBAR_WIDTH = 400
 const SIDEBAR_COLLAPSED_WIDTH = 60
 // Snap breakpoints for the right sidebar — drag releases snap to nearest
-const RIGHT_SNAP_POINTS = [SIDEBAR_COLLAPSED_WIDTH, RIGHT_SIDEBAR_WIDTH, 400, 550]
+const RIGHT_SNAP_POINTS = [SIDEBAR_COLLAPSED_WIDTH, 300, RIGHT_SIDEBAR_WIDTH, 550, 700, 800]
 
 function snapToNearest(value: number): number {
   let closest = RIGHT_SNAP_POINTS[0]
