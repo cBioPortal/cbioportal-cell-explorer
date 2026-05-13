@@ -31,17 +31,17 @@ describe("eventReducer.reduce", () => {
     expect(tools.map((t) => (t as { tool: string }).tool)).toEqual(["a", "b"]);
   });
 
-  it("ui_action calls applyConfig once with the payload, doesn't mutate state", () => {
+  it("ui_action calls applyConfig once with the payload and records a trace entry", () => {
     const apply = vi.fn();
     const before = initialState();
-    const after = reduce(
-      before,
-      { type: "ui_action", payload: { colorBy: "category", category: "T cells" } },
-      apply,
-    );
+    const payload = { colorBy: "category", category: "T cells" };
+    const after = reduce(before, { type: "ui_action", payload }, apply);
     expect(apply).toHaveBeenCalledTimes(1);
-    expect(apply).toHaveBeenCalledWith({ colorBy: "category", category: "T cells" });
-    expect(after).toBe(before); // no state mutation
+    expect(apply).toHaveBeenCalledWith(payload);
+    // Trace entry recorded for the Why panel; history/parts otherwise unchanged.
+    expect(after.history).toEqual(before.history);
+    expect(after.current?.parts ?? []).toEqual([]);
+    expect(after.current?.trace).toEqual([{ kind: "ui_action", payload }]);
   });
 
   it("ui_action: applyConfig callback may return a Promise (async-safe contract)", () => {
