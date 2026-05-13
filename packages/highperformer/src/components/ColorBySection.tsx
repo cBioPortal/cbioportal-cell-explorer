@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Segmented, Select, Tag, Alert, Button, Popover, Space } from 'antd'
+import { Segmented, Select, Tag, Alert, Button, Popover, Space, Switch } from 'antd'
 import { SettingOutlined } from '@ant-design/icons'
 import useAppStore from '../store/useAppStore'
 import type { ColorMode } from '../store/useAppStore'
@@ -70,6 +70,8 @@ export default function ColorBySection() {
   const clearGene = useAppStore((s) => s.clearGene)
   const categoryWarning = useAppStore((s) => s.categoryWarning)
   const geneLabelMap = useAppStore((s) => s.geneLabelMap)
+  const showCategoryLabels = useAppStore((s) => s.showCategoryLabels)
+  const setShowCategoryLabels = useAppStore((s) => s.setShowCategoryLabels)
 
   const [categoryOpen, setCategoryOpen] = useState(false)
   const [geneSearchText, setGeneSearchText] = useState('')
@@ -140,6 +142,15 @@ export default function ColorBySection() {
             style={{ width: '100%' }}
             size="small"
           />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            <Switch
+              size="small"
+              checked={showCategoryLabels}
+              onChange={setShowCategoryLabels}
+              disabled={!selectedObsColumn}
+            />
+            <span style={{ fontSize: 12, color: '#666' }}>Show cluster labels</span>
+          </div>
           {categoryWarning && (
             <Alert
               title={categoryWarning}
