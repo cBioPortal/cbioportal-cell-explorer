@@ -32,6 +32,7 @@ describe('applyConfig', () => {
       showLeftSidebar: true,
       showRightSidebar: false,
       showDatasetDropdown: false,
+      showCategoryLabels: true,
     }
 
     applyConfig(config)
@@ -41,6 +42,7 @@ describe('applyConfig', () => {
     expect(state.showLeftSidebar).toBe(true)
     expect(state.showRightSidebar).toBe(false)
     expect(state.showDatasetDropdown).toBe(false)
+    expect(state.showCategoryLabels).toBe(true)
   })
 
   it('calls openDataset with config url', () => {

@@ -77,6 +77,12 @@ export const AppConfigSchema = z.object({
   // default that ID-based filters set internally.
   selectionDisplayMode: z.enum(['dim', 'hide']).optional(),
 
+  // Cluster label overlay on the scatterplot. Affects render only when
+  // colorMode === 'category' and a category column is selected. Setting
+  // true while in gene mode is allowed but has no visible effect until
+  // the user switches to category mode.
+  showCategoryLabels: z.boolean().optional(),
+
   // UI chrome
   showHeader: z.boolean().optional(),
   showLeftSidebar: z.boolean().optional(),
