@@ -75,6 +75,10 @@ export type ToolProgress = {
   tool: string;
   status: "started" | "ok" | "error";
   summary?: string;
+  /** Populated on the 'started' event — the tool's input arguments. */
+  args?: Record<string, unknown> | null;
+  /** Populated on the 'ok' / 'error' events — wall-clock since 'started'. */
+  duration_ms?: number | null;
 };
 export type UIAction     = { type: "ui_action"; payload: Record<string, unknown> };
 export type ErrorEvent   = { type: "error"; message: string; retryable: boolean };
@@ -104,13 +108,39 @@ export type ToolPart  = {
   tool: string;
   status: "started" | "ok" | "error";
   summary?: string;
+  args?: Record<string, unknown> | null;
+  duration_ms?: number | null;
 };
 export type ErrorPart = { kind: "error"; message: string };
 export type MessagePart = TextPart | ToolPart | ErrorPart;
 
+/**
+ * Per-turn event log used by the "Why" panel. Captures everything the agent
+ * did in chronological order (tool starts, tool ends, UI actions, errors).
+ * Distinct from `parts` — which holds only what renders inline in the chat
+ * bubble (text + tool widgets + errors).
+ */
+export type TraceEntry =
+  | { kind: "tool_start"; tool: string; args?: Record<string, unknown> | null }
+  | {
+      kind: "tool_end";
+      tool: string;
+      status: "ok" | "error";
+      summary?: string;
+      duration_ms?: number | null;
+    }
+  | { kind: "ui_action"; payload: Record<string, unknown> }
+  | { kind: "error"; message: string };
+
 export type ChatMessage = {
   role: "user" | "assistant";
   parts: MessagePart[];
+  /** Why-panel data — populated on assistant messages from the stream. */
+  trace?: TraceEntry[];
+  usage?: { input_tokens: number; output_tokens: number };
+  /** ms timestamps for computing total turn duration. */
+  startedAt?: number;
+  endedAt?: number;
 };
 
 // ---------- chip definitions ----------

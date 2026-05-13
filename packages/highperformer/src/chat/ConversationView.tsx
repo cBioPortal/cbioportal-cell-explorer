@@ -8,6 +8,7 @@ import { initialState, reduce, type State } from "./eventReducer";
 import { deriveSuggestionChips } from "./suggestionChips";
 import type { ChatEvent, ChatMessage, ContextResponse, MessagePart, WireMessage } from "./types";
 import { useChatTurn } from "./useChatTurn";
+import { WhyPanel } from "./WhyPanel";
 
 type Action =
   | { type: "AGENT_EVENT"; event: ChatEvent }
@@ -238,6 +239,7 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
                 {m.parts.map((p, j) => (
                   <MessagePartView key={j} part={p} />
                 ))}
+                {m.role === "assistant" && <WhyPanel message={m} />}
               </div>
             ))}
             {state.current && (
@@ -246,6 +248,7 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
                 {state.current.parts.map((p, j) => (
                   <MessagePartView key={j} part={p} />
                 ))}
+                <WhyPanel message={state.current} />
               </div>
             )}
             {hasError && (

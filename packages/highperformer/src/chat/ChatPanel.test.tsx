@@ -150,7 +150,9 @@ describe("ChatPanel", () => {
     await waitFor(() => expect(startMock).toHaveBeenCalled());
     dispatch!({ type: "text_delta", text: "partial " });
     dispatch!({ type: "error", message: "boom", retryable: false });
-    await waitFor(() => expect(screen.getByText(/boom/)).toBeDefined());
+    // The error appears both as the inline ErrorPart bubble and inside the
+    // WhyPanel trace (auto-expanded for errors), hence getAllByText.
+    await waitFor(() => expect(screen.getAllByText(/boom/).length).toBeGreaterThan(0));
     expect(screen.getByRole("button", { name: /retry/i })).toBeDefined();
 
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));
