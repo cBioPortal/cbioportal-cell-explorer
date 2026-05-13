@@ -810,7 +810,7 @@ function EdgeTab({ onClick, onMouseDown, side, icon, cursor }: {
   )
 }
 
-function ProfileBarWrapper() {
+function ProfileBarWrapper({ onHide }: { onHide: () => void }) {
   const adata = useAppStore((s) => s.adata)
   const datasetUrl = useAppStore((s) => s.datasetUrl)
 
@@ -821,6 +821,7 @@ function ProfileBarWrapper() {
         if (adata) saveProfileSession(datasetUrl, adata.nObs, adata.nVar, entries)
       }}
       renderLink={(children) => <Link to="/profile">{children}</Link>}
+      onHide={onHide}
     />
   )
 }
@@ -830,6 +831,11 @@ function View() {
   const configParam = searchParams.get('config')
   const urlParam = searchParams.get('url')
   const datasetParam = searchParams.get('dataset')
+  // Profile bar visibility — session-only, resets on reload. The bar reserves
+  // bottom padding for content; when hidden we remove that padding so layout
+  // reflows into the freed area.
+  const [profilerHidden, setProfilerHidden] = useState(false)
+  const profilerVisible = ENABLE_PROFILER && !profilerHidden
   const openDataset = useAppStore((s) => s.openDataset)
   const openCatalogDataset = useAppStore((s) => s.openCatalogDataset)
   const loadingError = useAppStore((s) => s.loadingError)
@@ -898,7 +904,7 @@ function View() {
 
   return (
     <Layout style={{ height: '100vh', background: '#fff' }}>
-      <Layout style={{ flex: 1, overflow: 'hidden', paddingBottom: ENABLE_PROFILER ? PROFILE_BAR_HEIGHT : 0 }}>
+      <Layout style={{ flex: 1, overflow: 'hidden', paddingBottom: profilerVisible ? PROFILE_BAR_HEIGHT : 0 }}>
         <Sider
           width={LEFT_SIDEBAR_WIDTH}
           collapsible
@@ -973,7 +979,7 @@ function View() {
           )}
         </Sider>
       </Layout>
-      {ENABLE_PROFILER && <ProfileBarWrapper />}
+      {profilerVisible && <ProfileBarWrapper onHide={() => setProfilerHidden(true)} />}
     </Layout>
   )
 }
