@@ -79,6 +79,8 @@ export type ToolProgress = {
   args?: Record<string, unknown> | null;
   /** Populated on the 'ok' / 'error' events — wall-clock since 'started'. */
   duration_ms?: number | null;
+  /** LLM-generated tool_use_id. Citation markers [t:<id>] reference this. */
+  tool_call_id?: string | null;
 };
 export type UIAction     = { type: "ui_action"; payload: Record<string, unknown> };
 export type ErrorEvent   = { type: "error"; message: string; retryable: boolean };
@@ -121,10 +123,16 @@ export type MessagePart = TextPart | ToolPart | ErrorPart;
  * bubble (text + tool widgets + errors).
  */
 export type TraceEntry =
-  | { kind: "tool_start"; tool: string; args?: Record<string, unknown> | null }
+  | {
+      kind: "tool_start";
+      tool: string;
+      tool_call_id?: string | null;
+      args?: Record<string, unknown> | null;
+    }
   | {
       kind: "tool_end";
       tool: string;
+      tool_call_id?: string | null;
       status: "ok" | "error";
       summary?: string;
       duration_ms?: number | null;

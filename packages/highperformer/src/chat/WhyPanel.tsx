@@ -7,7 +7,7 @@
  * error, "Why" label, B+D chip variants. Reasoning text is not yet on the
  * wire so no 💬 rows in v1.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CaretDownOutlined, CaretRightOutlined, WarningOutlined } from "@ant-design/icons";
 import type { ChatMessage, TraceEntry } from "./types";
 
@@ -57,15 +57,48 @@ function previewJson(value: unknown, max = 160): string {
   return s.length <= max ? s : s.slice(0, max) + "…";
 }
 
-export function WhyPanel({ message }: { message: ChatMessage }) {
+export type WhyPanelProps = {
+  message: ChatMessage;
+  /** Controlled-open flag. When undefined the component manages its own state. */
+  open?: boolean;
+  onOpenChange?: (next: boolean) => void;
+  /**
+   * When set, the row with matching tool_call_id renders with a flash effect
+   * (used to draw the eye after a citation click). Set back to null after
+   * a few seconds in the parent.
+   */
+  flashToolId?: string | null;
+};
+
+export function WhyPanel({ message, open: openProp, onOpenChange, flashToolId }: WhyPanelProps) {
   const stats = useMemo(() => computeStats(message), [message]);
   const hasError = stats.errorCount > 0;
-  const [open, setOpen] = useState(hasError);
+  const [openSelf, setOpenSelf] = useState(hasError);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp! : openSelf;
+  const setOpen = (next: boolean) => {
+    if (!isControlled) setOpenSelf(next);
+    onOpenChange?.(next);
+  };
 
   // Auto-expand the first time an error appears mid-stream.
   useEffect(() => {
     if (hasError) setOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasError]);
+
+  // Scroll the flashed tool row into view when a citation is clicked.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open || !flashToolId || !containerRef.current) return;
+    const row = containerRef.current.querySelector(
+      `[data-tool-id="${flashToolId}"]`,
+    );
+    if (row && row instanceof HTMLElement) {
+      // jsdom and some embedded webviews lack scrollIntoView — flash still works.
+      row.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+    }
+  }, [open, flashToolId]);
 
   if (!stats.hasContent) return null;
 
@@ -104,6 +137,7 @@ export function WhyPanel({ message }: { message: ChatMessage }) {
       </button>
       {open && (
         <div
+          ref={containerRef}
           style={{
             marginTop: 6,
             paddingLeft: 12,
@@ -114,7 +148,7 @@ export function WhyPanel({ message }: { message: ChatMessage }) {
           }}
         >
           {(message.trace ?? []).map((entry, i) => (
-            <TraceRow key={i} entry={entry} />
+            <TraceRow key={i} entry={entry} flash={isFlashed(entry, flashToolId)} />
           ))}
           {message.usage && (
             <div style={{ color: "#999", marginTop: 4 }}>
@@ -128,11 +162,33 @@ export function WhyPanel({ message }: { message: ChatMessage }) {
   );
 }
 
-function TraceRow({ entry }: { entry: TraceEntry }) {
+function isFlashed(entry: TraceEntry, flashToolId?: string | null): boolean {
+  if (!flashToolId) return false;
+  return (
+    (entry.kind === "tool_start" || entry.kind === "tool_end") &&
+    entry.tool_call_id === flashToolId
+  );
+}
+
+function TraceRow({ entry, flash }: { entry: TraceEntry; flash: boolean }) {
+  const flashStyle: React.CSSProperties = flash
+    ? {
+        background: "#fff3bf",
+        transition: "background 1.2s ease-out",
+        borderRadius: 3,
+        padding: "1px 4px",
+        margin: "-1px -4px",
+      }
+    : {};
+
   switch (entry.kind) {
     case "tool_start":
       return (
-        <div>
+        <div
+          id={entry.tool_call_id ? `tool-${entry.tool_call_id}` : undefined}
+          data-tool-id={entry.tool_call_id ?? undefined}
+          style={flashStyle}
+        >
           🛠 <code>{entry.tool}{fmtArgs(entry.args)}</code>
         </div>
       );
@@ -140,7 +196,10 @@ function TraceRow({ entry }: { entry: TraceEntry }) {
       const icon = entry.status === "error" ? "❌" : "✓";
       const color = entry.status === "error" ? "#cf1322" : "#52c41a";
       return (
-        <div style={{ color, paddingLeft: 14 }}>
+        <div
+          data-tool-id={entry.tool_call_id ?? undefined}
+          style={{ color, paddingLeft: 14, ...flashStyle }}
+        >
           {icon} {fmtDuration(entry.duration_ms)}
           {entry.summary && <span style={{ color: "#cf1322" }}> · {entry.summary}</span>}
         </div>
