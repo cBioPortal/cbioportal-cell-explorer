@@ -126,6 +126,15 @@ export interface AppState {
   highlightedCategories: Set<number>
   radiusBuffer: Float32Array | null
 
+  // Cluster label overlay (see docs/superpowers/specs/2026-05-13-category-label-layer-design.md)
+  showCategoryLabels: boolean
+  categoryCentroids: Map<string, {
+    positions: Float32Array
+    counts: Uint32Array
+  }>
+  setShowCategoryLabels: (value: boolean) => void
+  ensureCategoryCentroids: (embeddingKey: string, obsColumn: string) => Promise<void>
+
   // Selection
   selectionTool: SelectionTool
   selectionDisplayMode: SelectionDisplayMode
@@ -355,6 +364,36 @@ const useAppStore = create<AppState>((set, get) => ({
     get().rebuildColorBuffer()
   },
 
+  setShowCategoryLabels: (value) => set({ showCategoryLabels: value }),
+
+  ensureCategoryCentroids: async (embeddingKey, obsColumn) => {
+    const cacheKey = `${embeddingKey}::${obsColumn}`
+    const state = get()
+    if (state.categoryCentroids.has(cacheKey)) return  // idempotent
+
+    const embeddingData = state.embeddingData
+    const obsData = state.summaryObsData.get(obsColumn)
+    if (!embeddingData || !obsData) return  // not enough state to compute
+
+    const result = await getPool().dispatch<{
+      type: "categoryCentroidsResult"
+      positions: Float32Array
+      counts: Uint32Array
+    }>({
+      type: "categoryCentroids",
+      positions: embeddingData.positions,
+      codes: obsData.codes,
+      numCategories: obsData.categoryMap.length,
+    })
+
+    // Re-check cache: another concurrent call may have populated it while we awaited.
+    const fresh = get().categoryCentroids
+    if (fresh.has(cacheKey)) return
+    const next = new Map(fresh)
+    next.set(cacheKey, { positions: result.positions, counts: result.counts })
+    set({ categoryCentroids: next })
+  },
+
   // Embedding data — typed arrays for direct GPU upload
   embeddingData: null,
   embeddingLoading: false,
@@ -367,6 +406,10 @@ const useAppStore = create<AppState>((set, get) => ({
   // Legend highlight
   highlightedCategories: new Set(),
   radiusBuffer: null,
+
+  // Cluster label overlay
+  showCategoryLabels: false,
+  categoryCentroids: new Map(),
 
   // Color By state
   colorMode: 'category',
@@ -1081,6 +1124,7 @@ const useAppStore = create<AppState>((set, get) => ({
       summaryObsData: new Map(), summaryObsContinuousData: new Map(),
       summaryGeneData: new Map(), summaryGeneRanges: new Map(),
       summaryCache: new Map(),
+      categoryCentroids: new Map(),
     })
     try {
       const adata = await AnnDataStore.open(url, overrides)

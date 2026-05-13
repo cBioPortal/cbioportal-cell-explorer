@@ -4,7 +4,7 @@ import { Button, Collapse, InputNumber, Layout, Popover, Switch, Tabs, Typograph
 import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HolderOutlined, InfoCircleOutlined, LeftOutlined, LinkOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons'
 import { DeckGL } from '@deck.gl/react'
 import { OrthographicView } from '@deck.gl/core'
-import { PolygonLayer, ScatterplotLayer } from '@deck.gl/layers'
+import { PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
 import { CollisionFilterExtension, DataFilterExtension } from '@deck.gl/extensions'
 import { _StatsWidget as StatsWidget } from '@deck.gl/widgets'
 import { ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from '@cbioportal-cell-explorer/profiler'
@@ -554,6 +554,14 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
   const pendingViewport = useAppStore((s) => s.pendingViewport)
   const setViewport = useAppStore((s) => s.setViewport)
   const viewportEpoch = useAppStore((s) => s.viewportEpoch)
+  const showCategoryLabels = useAppStore((s) => s.showCategoryLabels)
+  const categoryCentroids = useAppStore((s) => s.categoryCentroids)
+  const ensureCategoryCentroids = useAppStore((s) => s.ensureCategoryCentroids)
+  const categoryMap = useAppStore((s) => s.categoryMap)
+  const highlightedCategories = useAppStore((s) => s.highlightedCategories)
+  const selectedEmbedding = useAppStore((s) => s.selectedEmbedding)
+  const colorMode = useAppStore((s) => s.colorMode)
+  const selectedObsColumn = useAppStore((s) => s.selectedObsColumn)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Derive initial view state from data bounds + container size.
@@ -681,6 +689,53 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     return { length: embeddingData.numPoints, attributes }
   }, [embeddingData, colorBuffer, radiusBuffer, selectionFilterBuffer, selectionDisplayMode])
 
+  const categoryLabelLayer = useMemo(() => {
+    if (!showCategoryLabels || colorMode !== 'category' || !selectedObsColumn) return null
+    const cache = categoryCentroids.get(`${selectedEmbedding}::${selectedObsColumn}`)
+    if (!cache) return null
+
+    // Highlight-aware: when the highlight set is non-empty, only render labels
+    // for those codes; otherwise render labels for all categories with data.
+    const visibleCodes = highlightedCategories.size > 0
+      ? Array.from(highlightedCategories)
+      : categoryMap.map((_, i) => i)
+
+    const labels = visibleCodes
+      .filter((code) => cache.counts[code] > 0)
+      .map((code) => ({
+        text: categoryMap[code]?.label ?? '',
+        position: [cache.positions[2 * code], cache.positions[2 * code + 1]] as [number, number],
+        color: categoryMap[code]?.color ?? ([255, 255, 255] as [number, number, number]),
+      }))
+
+    if (labels.length === 0) return null
+
+    return new TextLayer({
+      id: 'category-labels',
+      data: labels,
+      getPosition: (d: { position: [number, number] }) => d.position,
+      getText: (d: { text: string }) => d.text,
+      getColor: (d: { color: [number, number, number] }) =>
+        [...d.color, 230] as [number, number, number, number],
+      getSize: 14,
+      sizeUnits: 'pixels' as const,
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      fontWeight: 600,
+      background: true,
+      backgroundPadding: [4, 2],
+      getBackgroundColor: [0, 0, 0, 180],
+      outlineWidth: 0,
+    })
+  }, [
+    showCategoryLabels,
+    colorMode,
+    selectedObsColumn,
+    selectedEmbedding,
+    categoryCentroids,
+    highlightedCategories,
+    categoryMap,
+  ])
+
   const layers = useMemo(() => {
     if (!layerData) return []
 
@@ -732,8 +787,9 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
 
     const layers = [scatterplot] as unknown[]
     if (polygonLayer) layers.push(polygonLayer)
+    if (categoryLabelLayer) layers.push(categoryLabelLayer)
     return layers
-  }, [layerData, colorBuffer, radiusBuffer, pointRadius, antialiasing, collisionEnabled, collisionRadiusScale, selectionFilterBuffer, selectionDisplayMode, selectionGroups])
+  }, [layerData, colorBuffer, radiusBuffer, pointRadius, antialiasing, collisionEnabled, collisionRadiusScale, selectionFilterBuffer, selectionDisplayMode, selectionGroups, categoryLabelLayer])
 
   // Key forces deck.gl to re-initialize when view state changes (new embedding)
   const deckKey = useMemo(
@@ -747,6 +803,34 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     isControlledRef.current = false
     didMountRef.current = false
   }, [deckKey])
+
+  // Subscribe to the active column's obs data so the effect below re-fires
+  // once it lands (selectObsColumn populates summaryObsData async; without
+  // this dep, the centroid dispatch misses the first-load window for a new
+  // column and the user has to toggle off+on to recover).
+  const currentObsData = useAppStore((s) =>
+    s.selectedObsColumn ? s.summaryObsData.get(s.selectedObsColumn) : undefined,
+  )
+
+  useEffect(() => {
+    if (
+      showCategoryLabels &&
+      colorMode === 'category' &&
+      selectedObsColumn &&
+      embeddingData &&
+      currentObsData
+    ) {
+      ensureCategoryCentroids(selectedEmbedding, selectedObsColumn)
+    }
+  }, [
+    showCategoryLabels,
+    colorMode,
+    selectedObsColumn,
+    selectedEmbedding,
+    embeddingData,
+    currentObsData,
+    ensureCategoryCentroids,
+  ])
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
