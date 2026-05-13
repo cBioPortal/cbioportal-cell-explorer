@@ -1,5 +1,5 @@
 import { Alert, Button, Input, Tag } from "antd";
-import { useCallback, useLayoutEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { applyConfig as applyConfigFn } from "../config/applyConfig";
@@ -11,7 +11,8 @@ import { useChatTurn } from "./useChatTurn";
 
 type Action =
   | { type: "AGENT_EVENT"; event: ChatEvent }
-  | { type: "USER_SUBMIT"; content: string };
+  | { type: "USER_SUBMIT"; content: string }
+  | { type: "HYDRATE"; history: ChatMessage[] };
 
 function makeReducer(applyConfig: (cfg: Record<string, unknown>) => void) {
   return (state: State, action: Action): State => {
@@ -21,6 +22,9 @@ function makeReducer(applyConfig: (cfg: Record<string, unknown>) => void) {
         parts: [{ kind: "text", text: action.content }],
       };
       return { ...state, history: [...state.history, userMsg] };
+    }
+    if (action.type === "HYDRATE") {
+      return { history: action.history, current: null, status: "idle" };
     }
     return reduce(state, action.event, applyConfig);
   };
@@ -89,10 +93,11 @@ export type ConversationViewProps = {
   slug: string;
   ctxData: ContextResponse;
   threadId: string | null;
+  initialHistory?: ChatMessage[];
   onThreadOpen: (threadId: string, title: string) => void;
 };
 
-export function ConversationView({ slug, ctxData, threadId, onThreadOpen }: ConversationViewProps) {
+export function ConversationView({ slug, ctxData, threadId, initialHistory, onThreadOpen }: ConversationViewProps) {
   // applyConfigCallbackRef is a stable ref so the frozen reducerFn (created once
   // via useRef) can always reach the current callback — which itself captures
   // the stable `dispatch` returned by useReducer.
@@ -115,6 +120,12 @@ export function ConversationView({ slug, ctxData, threadId, onThreadOpen }: Conv
       }
     });
   };
+
+  useEffect(() => {
+    if (initialHistory) {
+      dispatch({ type: "HYDRATE", history: initialHistory });
+    }
+  }, [initialHistory]);
 
   const [input, setInput] = useState("");
   const [lastSubmittedMessages, setLastSubmittedMessages] = useState<WireMessage[] | null>(null);
