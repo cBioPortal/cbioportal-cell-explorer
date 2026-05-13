@@ -959,6 +959,11 @@ function View() {
               size="small"
               defaultActiveKey="summary"
               className="chat-tabs"
+              // Inset the tab labels from the Sider's left border + drag
+              // handle so "Summary" / "Chat" don't sit flush against the
+              // edge. See cbioportal-cell-explorer issue for the broader
+              // sidebar-gutter refactor.
+              tabBarStyle={{ paddingLeft: 12, paddingRight: 8 }}
               items={[
                 {
                   key: 'summary',
