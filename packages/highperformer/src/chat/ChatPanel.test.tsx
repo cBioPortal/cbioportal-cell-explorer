@@ -92,7 +92,7 @@ describe("ChatPanel", () => {
     })
 
     let dispatch: ((e: ChatEvent) => void) | null = null;
-    startMock.mockImplementation(async (_s, _m, onEvent) => {
+    startMock.mockImplementation(async (_s, _m, _threadId, onEvent) => {
       dispatch = onEvent;
     });
     render(<ChatPanel slug="spectrum" />);
@@ -112,7 +112,7 @@ describe("ChatPanel", () => {
 
   it("renders an error bubble with Retry when an error event is dispatched", async () => {
     let dispatch: ((e: ChatEvent) => void) | null = null;
-    startMock.mockImplementation(async (_s, _m, onEvent) => {
+    startMock.mockImplementation(async (_s, _m, _threadId, onEvent) => {
       dispatch = onEvent;
     });
     render(<ChatPanel slug="spectrum" />);

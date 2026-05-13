@@ -11,6 +11,7 @@ export function useChatTurn() {
     async (
       slug: string,
       messages: WireMessage[],
+      threadId: string | null,
       onEvent: (e: ChatEvent) => void,
     ): Promise<void> => {
       abortRef.current?.abort();
@@ -22,7 +23,7 @@ export function useChatTurn() {
         // included; agent uses this to answer relative queries ("zoom in
         // more", "change to a different gene") without a tool round-trip.
         const viewState = buildViewStateSnapshot();
-        for await (const ev of chat.streamTurn(slug, messages, viewState, controller.signal)) {
+        for await (const ev of chat.streamTurn(slug, messages, viewState, threadId, controller.signal)) {
           onEvent(ev);
         }
       } finally {
