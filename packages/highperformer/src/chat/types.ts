@@ -33,6 +33,28 @@ export type ContextResponse = {
   permission: ChatPermission;
 };
 
+// ---------- /threads wire responses ----------
+
+export type ThreadSummary = {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+};
+
+export type ThreadListResponse = { threads: ThreadSummary[] };
+
+export type ThreadDetailResponse = {
+  id: string;
+  title: string;
+  messages: {
+    role: "user" | "assistant";
+    content: string;
+    created_at: string;
+  }[];
+};
+
 // ---------- /turns wire request ----------
 
 export type WireMessage = {
@@ -60,13 +82,19 @@ export type DoneEvent    = {
   type: "done";
   usage: { input_tokens: number; output_tokens: number };
 };
+export type ThreadOpenEvent = {
+  type: "thread_open";
+  thread_id: string;
+  title: string;
+};
 
 export type ChatEvent =
   | TextDelta
   | ToolProgress
   | UIAction
   | ErrorEvent
-  | DoneEvent;
+  | DoneEvent
+  | ThreadOpenEvent;
 
 // ---------- in-memory chat state (component-local) ----------
 
