@@ -1,6 +1,6 @@
 import { useSyncExternalStore, useCallback, useRef, useEffect, useState, useMemo } from "react";
 import { Table, Tag, Space, Button, Typography, message, Collapse, Input } from "antd";
-import { DeleteOutlined, SaveOutlined, UpOutlined, DownOutlined, SearchOutlined, HistoryOutlined } from "@ant-design/icons";
+import { CloseOutlined, DeleteOutlined, SaveOutlined, UpOutlined, DownOutlined, SearchOutlined, HistoryOutlined } from "@ant-design/icons";
 import { Group } from "@visx/group";
 import { scaleLinear } from "@visx/scale";
 import { AxisBottom } from "@visx/axis";
@@ -327,6 +327,9 @@ const pulseStyle = `
 
 export default function ProfileBar({ profiler, onSave, renderLink }: ProfileBarProps) {
   const [expanded, setExpanded] = useState(false);
+  // Hide the bar during this session. Resets on page reload — intentional, so
+  // the bar reappears next time without a separate "show profiler" affordance.
+  const [hidden, setHidden] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [barWidth, setBarWidth] = useState(0);
 
@@ -384,6 +387,8 @@ export default function ProfileBar({ profiler, onSave, renderLink }: ProfileBarP
 
   const currentHeight = expanded ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT;
   const waterfallWidth = Math.max(barWidth - 48, 200);
+
+  if (hidden) return null;
 
   return (
     <div
@@ -472,6 +477,14 @@ export default function ProfileBar({ profiler, onSave, renderLink }: ProfileBarP
             Clear
           </Button>
           {expanded ? <DownOutlined /> : <UpOutlined />}
+          <Button
+            icon={<CloseOutlined />}
+            size="small"
+            type="text"
+            aria-label="Hide profiler"
+            title="Hide until next reload"
+            onClick={(e) => { e.stopPropagation(); setHidden(true); }}
+          />
         </Space>
       </div>
 
