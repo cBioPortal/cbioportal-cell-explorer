@@ -804,12 +804,21 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     didMountRef.current = false
   }, [deckKey])
 
+  // Subscribe to the active column's obs data so the effect below re-fires
+  // once it lands (selectObsColumn populates summaryObsData async; without
+  // this dep, the centroid dispatch misses the first-load window for a new
+  // column and the user has to toggle off+on to recover).
+  const currentObsData = useAppStore((s) =>
+    s.selectedObsColumn ? s.summaryObsData.get(s.selectedObsColumn) : undefined,
+  )
+
   useEffect(() => {
     if (
       showCategoryLabels &&
       colorMode === 'category' &&
       selectedObsColumn &&
-      embeddingData
+      embeddingData &&
+      currentObsData
     ) {
       ensureCategoryCentroids(selectedEmbedding, selectedObsColumn)
     }
@@ -819,6 +828,7 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     selectedObsColumn,
     selectedEmbedding,
     embeddingData,
+    currentObsData,
     ensureCategoryCentroids,
   ])
 
