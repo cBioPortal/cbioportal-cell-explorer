@@ -222,7 +222,8 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
                 key={chip.label}
                 size="small"
                 style={{ margin: "4px 4px 4px 0" }}
-                onClick={() => setInput(chip.prompt)}
+                disabled={streaming}
+                onClick={() => submit(chip.prompt)}
               >
                 {chip.label}
               </Button>
