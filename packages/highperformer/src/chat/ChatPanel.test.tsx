@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatPanel } from "./ChatPanel";
 import * as useChatContextModule from "./useChatContext";
 import * as useChatTurnModule from "./useChatTurn";
+import { chat } from "../api";
 import type { ChatEvent, ContextResponse } from "./types";
 
 // Mock applyConfig so individual tests can control its return value
@@ -16,6 +17,16 @@ vi.mock("../store/useAppStore", () => ({
     (selector: (s: unknown) => unknown) => selector({ applyConfig: vi.fn() }),
     { getState: () => ({ applyConfig: vi.fn() }) },
   ),
+}));
+
+vi.mock("../api", () => ({
+  chat: {
+    streamTurn: vi.fn(),
+    getContext: vi.fn(),
+    listThreads: vi.fn().mockResolvedValue({ threads: [] }),
+    getThread: vi.fn(),
+    deleteThread: vi.fn(),
+  },
 }));
 
 const sampleCtx: ContextResponse = {
@@ -51,6 +62,8 @@ beforeEach(() => {
   // Default: applyConfig succeeds
   mockApplyConfig.mockReset()
   mockApplyConfig.mockResolvedValue({ ok: true })
+  // Default: empty thread list
+  ;(chat.listThreads as any).mockResolvedValue({ threads: [] });
 });
 
 afterEach(() => {
@@ -58,16 +71,25 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// Helper: from list mode, click "+ New chat" to reach the conversation input
+async function enterNewMode() {
+  await waitFor(() => screen.getByText(/no conversations yet/i));
+  fireEvent.click(screen.getByRole("button", { name: /\+ new chat/i }));
+  await waitFor(() => screen.getByPlaceholderText(/ask anything/i));
+}
+
 describe("ChatPanel", () => {
-  it("renders empty state with chips when history is empty", () => {
+  it("renders empty state with chips when history is empty", async () => {
     render(<ChatPanel slug="spectrum" />);
+    await enterNewMode();
     expect(screen.getByText(/Spectrum/)).toBeDefined();
     expect(screen.getByText(/Top genes in T/)).toBeDefined();
     expect(screen.getByPlaceholderText(/Ask anything/i)).toBeDefined();
   });
 
-  it("clicking a chip fills the input", () => {
+  it("clicking a chip fills the input", async () => {
     render(<ChatPanel slug="spectrum" />);
+    await enterNewMode();
     const chip = screen.getByText(/Top genes in T/);
     fireEvent.click(chip);
     const input = screen.getByPlaceholderText(/Ask anything/i) as HTMLInputElement;
@@ -76,6 +98,7 @@ describe("ChatPanel", () => {
 
   it("submitting calls useChatTurn.start with the user message appended", async () => {
     render(<ChatPanel slug="spectrum" />);
+    await enterNewMode();
     const input = screen.getByPlaceholderText(/Ask anything/i) as HTMLInputElement;
     fireEvent.change(input, { target: { value: "hello" } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -92,10 +115,11 @@ describe("ChatPanel", () => {
     })
 
     let dispatch: ((e: ChatEvent) => void) | null = null;
-    startMock.mockImplementation(async (_s, _m, onEvent) => {
+    startMock.mockImplementation(async (_s, _m, _threadId, onEvent) => {
       dispatch = onEvent;
     });
     render(<ChatPanel slug="spectrum" />);
+    await enterNewMode();
     const input = screen.getByPlaceholderText(/Ask anything/i) as HTMLInputElement;
     fireEvent.change(input, { target: { value: "color by gene" } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -112,10 +136,11 @@ describe("ChatPanel", () => {
 
   it("renders an error bubble with Retry when an error event is dispatched", async () => {
     let dispatch: ((e: ChatEvent) => void) | null = null;
-    startMock.mockImplementation(async (_s, _m, onEvent) => {
+    startMock.mockImplementation(async (_s, _m, _threadId, onEvent) => {
       dispatch = onEvent;
     });
     render(<ChatPanel slug="spectrum" />);
+    await enterNewMode();
     const input = screen.getByPlaceholderText(/Ask anything/i) as HTMLInputElement;
     fireEvent.change(input, { target: { value: "hi" } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -132,7 +157,7 @@ describe("ChatPanel", () => {
   });
 
   describe("ChatPanel permission-aware rendering", () => {
-    it("renders chat input when permission.can_chat is true", () => {
+    it("renders chat input when permission.can_chat is true", async () => {
       vi.spyOn(useChatContextModule, "useChatContext").mockReturnValue({
         loading: false,
         error: undefined,
@@ -149,6 +174,7 @@ describe("ChatPanel", () => {
         },
       });
       render(<ChatPanel slug="demo" />);
+      await enterNewMode();
       expect(screen.getByPlaceholderText(/ask anything/i)).toBeDefined();
     });
 
@@ -193,5 +219,69 @@ describe("ChatPanel", () => {
       expect(screen.queryByPlaceholderText(/ask anything/i)).toBeNull();
       expect(screen.getByText(/sign in to use chat/i)).toBeDefined();
     });
+  });
+
+  it("starts in list mode and switches to new mode on + New chat", async () => {
+    vi.spyOn(useChatContextModule, "useChatContext").mockReturnValue({
+      loading: false, error: undefined,
+      data: {
+        slug: "demo", name: "Demo", description: "",
+        n_obs: 100, n_var: 50, obs_columns: [], embedding_keys: [], available_tools: [],
+        permission: { can_chat: true, reason: null },
+      },
+    });
+    (chat.listThreads as any).mockResolvedValue({ threads: [] });
+
+    render(<ChatPanel slug="demo" />);
+    await waitFor(() => screen.getByText(/no conversations yet/i));
+    fireEvent.click(screen.getByRole("button", { name: /\+ new chat/i }));
+    // ChatThreadHeader's back button is now visible (only renders in new/active mode)
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /back/i })).toBeDefined(),
+    );
+  });
+
+  it("switches to active mode after fetching thread detail when a row is clicked", async () => {
+    vi.spyOn(useChatContextModule, "useChatContext").mockReturnValue({
+      loading: false, error: undefined,
+      data: {
+        slug: "demo", name: "Demo", description: "",
+        n_obs: 100, n_var: 50, obs_columns: [], embedding_keys: [], available_tools: [],
+        permission: { can_chat: true, reason: null },
+      },
+    });
+    (chat.listThreads as any).mockResolvedValue({
+      threads: [{ id: "t1", title: "Existing", created_at: "2026-05-11T10:00:00Z",
+                   updated_at: "2026-05-11T10:00:00Z", message_count: 2 }],
+    });
+    (chat.getThread as any).mockResolvedValue({
+      id: "t1", title: "Existing",
+      messages: [
+        { role: "user", content: "Q", created_at: "..." },
+        { role: "assistant", content: "A", created_at: "..." },
+      ],
+    });
+    render(<ChatPanel slug="demo" />);
+    await waitFor(() => screen.getByText("Existing"));
+    fireEvent.click(screen.getByText("Existing"));
+    await waitFor(() => expect(chat.getThread).toHaveBeenCalledWith("demo", "t1"));
+  });
+
+  it("back arrow returns to list mode from active", async () => {
+    vi.spyOn(useChatContextModule, "useChatContext").mockReturnValue({
+      loading: false, error: undefined,
+      data: {
+        slug: "demo", name: "Demo", description: "",
+        n_obs: 100, n_var: 50, obs_columns: [], embedding_keys: [], available_tools: [],
+        permission: { can_chat: true, reason: null },
+      },
+    });
+    (chat.listThreads as any).mockResolvedValue({ threads: [] });
+    render(<ChatPanel slug="demo" />);
+    await waitFor(() => screen.getByText(/no conversations yet/i));
+    fireEvent.click(screen.getByRole("button", { name: /\+ new chat/i }));
+    await waitFor(() => screen.getByRole("button", { name: /back/i }));
+    fireEvent.click(screen.getByRole("button", { name: /back/i }));
+    await waitFor(() => expect(screen.getByText(/no conversations yet/i)).toBeDefined());
   });
 });

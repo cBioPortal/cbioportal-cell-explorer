@@ -41,7 +41,7 @@ describe("useChatTurn", () => {
 
     const events: ChatEvent[] = [];
     await act(async () => {
-      await result.current.start("spectrum", [{ role: "user", content: "hi" }], (e) =>
+      await result.current.start("spectrum", [{ role: "user", content: "hi" }], null, (e) =>
         events.push(e),
       );
     });
@@ -59,7 +59,7 @@ describe("useChatTurn", () => {
     let caught: unknown;
     await act(async () => {
       try {
-        await result.current.start("nope", [{ role: "user", content: "hi" }], () => {});
+        await result.current.start("nope", [{ role: "user", content: "hi" }], null, () => {});
       } catch (e) {
         caught = e;
       }
@@ -84,7 +84,7 @@ describe("useChatTurn", () => {
     let caught: unknown;
     const startPromise = act(async () => {
       try {
-        await result.current.start("s", [{ role: "user", content: "hi" }], () => {});
+        await result.current.start("s", [{ role: "user", content: "hi" }], null, () => {});
       } catch (e) {
         caught = e;
       }
@@ -102,7 +102,7 @@ describe("useChatTurn", () => {
     let caught: unknown;
     await act(async () => {
       try {
-        await result.current.start("s", [{ role: "user", content: "hi" }], () => {});
+        await result.current.start("s", [{ role: "user", content: "hi" }], null, () => {});
       } catch (e) {
         caught = e;
       }
