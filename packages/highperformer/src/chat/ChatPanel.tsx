@@ -41,6 +41,30 @@ export function ChatPanel({ slug }: { slug: string }) {
     setMode({ kind: "active", threadId, title, initialHistory: [] });
   }, []);
 
+  const data = ctxQuery.data;
+
+  // Hard permission gate: when /context has actually returned with
+  // can_chat=false, show the banner regardless of mode. Anonymous users
+  // would 401 on /threads anyway; users with missing_role should see why
+  // before clicking into a useless input.
+  if (data && !data.permission.can_chat) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 12 }}>
+        <ChatPermissionBanner reason={data.permission.reason ?? "unknown"} />
+      </div>
+    );
+  }
+
+  // List mode: render immediately even while /context is still loading. The
+  // list is a server-filtered view of the user's own threads; it does not
+  // need dataset_ctx. New/active modes still wait for /context below.
+  if (mode.kind === "list") {
+    return (
+      <ChatThreadList slug={slug} onSelect={enterActive} onNew={enterNew} />
+    );
+  }
+
+  // new/active mode needs /context for the welcome chips.
   if (ctxQuery.loading) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 8 }}>
@@ -58,22 +82,7 @@ export function ChatPanel({ slug }: { slug: string }) {
       />
     );
   }
-  const data = ctxQuery.data;
   if (!data) return null;
-
-  if (!data.permission.can_chat) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 12 }}>
-        <ChatPermissionBanner reason={data.permission.reason ?? "unknown"} />
-      </div>
-    );
-  }
-
-  if (mode.kind === "list") {
-    return (
-      <ChatThreadList slug={slug} onSelect={enterActive} onNew={enterNew} />
-    );
-  }
 
   const headerTitle = mode.kind === "active" ? mode.title : null;
   const threadId = mode.kind === "active" ? mode.threadId : null;
