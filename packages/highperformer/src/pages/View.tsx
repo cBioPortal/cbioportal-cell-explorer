@@ -582,6 +582,12 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     effectiveLabelColumn ? s.summaryObsData.get(effectiveLabelColumn) : undefined,
   )
 
+  // True when labels and the color buffer share an obs column. Used to
+  // decide which categoryMap to use for label text/color AND whether
+  // category highlights apply to label filtering.
+  const labelMatchesColorColumn =
+    colorMode === 'category' && selectedObsColumn === effectiveLabelColumn
+
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Derive initial view state from data bounds + container size.
@@ -718,8 +724,6 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     // already loaded for the color buffer. When labeling by a DIFFERENT column,
     // pull labels + colors from summaryObsData (populated by addSummaryObsColumn
     // which the setter calls).
-    const labelMatchesColorColumn =
-      colorMode === 'category' && selectedObsColumn === effectiveLabelColumn
     const labelMap = labelMatchesColorColumn
       ? categoryMap
       : (labelColumnObsData?.categoryMap ?? [])
@@ -760,8 +764,7 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     })
   }, [
     effectiveLabelColumn,
-    colorMode,
-    selectedObsColumn,
+    labelMatchesColorColumn,
     selectedEmbedding,
     categoryCentroids,
     highlightedCategories,
