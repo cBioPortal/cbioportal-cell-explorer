@@ -25,6 +25,8 @@ export function ChatPanel({ slug }: { slug: string }) {
     const initialHistory: ChatMessage[] = detail.messages.map((m) => ({
       role: m.role,
       parts: [{ kind: "text", text: m.content }],
+      id: m.id,
+      feedback: m.feedback ?? null,
     }));
     setMode({
       kind: "active",

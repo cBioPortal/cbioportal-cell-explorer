@@ -142,7 +142,12 @@ export function reduce(
     }
     case "done": {
       const cur = state.current
-        ? { ...state.current, endedAt: Date.now(), usage: ev.usage }
+        ? {
+            ...state.current,
+            endedAt: Date.now(),
+            usage: ev.usage,
+            id: ev.message_id ?? state.current.id,
+          }
         : null;
       return {
         history: cur ? [...state.history, cur] : state.history,

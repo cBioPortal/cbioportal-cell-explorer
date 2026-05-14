@@ -78,6 +78,21 @@ describe("eventReducer.reduce", () => {
     expect(s.status).toBe("idle");
   });
 
+  it("done event carries message_id onto the finalized assistant message", () => {
+    let s = initialState();
+    s = reduce(s, { type: "text_delta", text: "hi" }, noopApply);
+    s = reduce(
+      s,
+      {
+        type: "done",
+        usage: { input_tokens: 1, output_tokens: 2 },
+        message_id: "msg-server-abc",
+      },
+      noopApply,
+    );
+    expect(s.history[0].id).toBe("msg-server-abc");
+  });
+
   it("mid-stream error between text_delta events keeps partial text visible", () => {
     let s = initialState();
     s = reduce(s, { type: "text_delta", text: "before " }, noopApply);

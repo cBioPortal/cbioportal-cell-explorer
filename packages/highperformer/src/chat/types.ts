@@ -45,13 +45,20 @@ export type ThreadSummary = {
 
 export type ThreadListResponse = { threads: ThreadSummary[] };
 
+export type MessageFeedback = {
+  rating: "up" | "down";
+  comment?: string | null;
+};
+
 export type ThreadDetailResponse = {
   id: string;
   title: string;
   messages: {
+    id: string;
     role: "user" | "assistant";
     content: string;
     created_at: string;
+    feedback?: MessageFeedback | null;
   }[];
 };
 
@@ -87,6 +94,10 @@ export type ErrorEvent   = { type: "error"; message: string; retryable: boolean 
 export type DoneEvent    = {
   type: "done";
   usage: { input_tokens: number; output_tokens: number };
+  /** Server-assigned id of the persisted assistant message — present once
+   * the backend has flushed the row (which it does inline before yielding
+   * the done event). Absent on older servers. */
+  message_id?: string;
 };
 export type ThreadOpenEvent = {
   type: "thread_open";
@@ -149,6 +160,10 @@ export type ChatMessage = {
   /** ms timestamps for computing total turn duration. */
   startedAt?: number;
   endedAt?: number;
+  /** Server-assigned message id (present once persisted; absent during streaming). */
+  id?: string;
+  /** Feedback hydrated from the server when reloading a thread. */
+  feedback?: MessageFeedback | null;
 };
 
 // ---------- chip definitions ----------
