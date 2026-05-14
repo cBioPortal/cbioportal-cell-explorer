@@ -239,6 +239,7 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
                 {m.role === "assistant" ? (
                   <AssistantBubble
                     message={m}
+                    slug={slug}
                     markdownComponents={markdownComponents}
                   />
                 ) : (
@@ -251,6 +252,7 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
                 <strong>Assistant: </strong>
                 <AssistantBubble
                   message={state.current}
+                  slug={slug}
                   markdownComponents={markdownComponents}
                 />
               </div>
