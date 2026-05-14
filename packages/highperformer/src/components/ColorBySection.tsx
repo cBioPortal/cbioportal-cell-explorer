@@ -7,6 +7,11 @@ import { COLOR_SCALES } from '../utils/colors'
 import CategoricalLegend from './CategoricalLegend'
 import ContinuousLegend from './ContinuousLegend'
 
+// Sentinel value used by the Labels "Label by" picker to represent
+// "fall back to the color-by column". Renamed to a vanishingly-unlikely
+// string so an obs column can't accidentally collide with it.
+const USE_COLOR_COLUMN_SENTINEL = '__CCE_use_color_by_column__'
+
 const scaleOptions = Object.keys(COLOR_SCALES).map((name) => ({
   value: name,
   label: name.charAt(0).toUpperCase() + name.slice(1),
@@ -72,6 +77,14 @@ export default function ColorBySection() {
   const geneLabelMap = useAppStore((s) => s.geneLabelMap)
   const showCategoryLabels = useAppStore((s) => s.showCategoryLabels)
   const setShowCategoryLabels = useAppStore((s) => s.setShowCategoryLabels)
+  const categoryLabelsObsColumn = useAppStore((s) => s.categoryLabelsObsColumn)
+  const setCategoryLabelsObsColumn = useAppStore((s) => s.setCategoryLabelsObsColumn)
+
+  // Mirror View.tsx's effectiveLabelColumn so the hint logic stays in sync.
+  const effectiveLabelColumn =
+    !showCategoryLabels
+      ? null
+      : (categoryLabelsObsColumn ?? (colorMode === 'category' ? selectedObsColumn : null))
 
   const [categoryOpen, setCategoryOpen] = useState(false)
   const [geneSearchText, setGeneSearchText] = useState('')
@@ -142,15 +155,6 @@ export default function ColorBySection() {
             style={{ width: '100%' }}
             size="small"
           />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-            <Switch
-              size="small"
-              checked={showCategoryLabels}
-              onChange={setShowCategoryLabels}
-              disabled={!selectedObsColumn}
-            />
-            <span style={{ fontSize: 12, color: '#666' }}>Show cluster labels</span>
-          </div>
           {categoryWarning && (
             <Alert
               title={categoryWarning}
@@ -213,6 +217,42 @@ export default function ColorBySection() {
           </Space.Compact>
         </div>
       )}
+
+      <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', marginBottom: 8 }}>
+          Labels
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Switch
+            size="small"
+            checked={showCategoryLabels}
+            onChange={setShowCategoryLabels}
+            aria-label="Show cluster labels"
+          />
+          <span style={{ fontSize: 12, color: '#666' }}>Show cluster labels</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
+            <span style={{ fontSize: 12, color: '#888' }}>Label by:</span>
+            <Select
+              value={categoryLabelsObsColumn ?? (colorMode === 'category' ? USE_COLOR_COLUMN_SENTINEL : undefined)}
+              onChange={(v) => setCategoryLabelsObsColumn(v === USE_COLOR_COLUMN_SENTINEL ? null : v)}
+              placeholder="Pick a column"
+              size="small"
+              style={{ minWidth: 120 }}
+              options={[
+                ...(colorMode === 'category'
+                  ? [{ value: USE_COLOR_COLUMN_SENTINEL, label: '(use color-by column)' }]
+                  : []),
+                ...obsColumnNames.map((name) => ({ value: name, label: name })),
+              ]}
+            />
+          </div>
+        </div>
+        {showCategoryLabels && !effectiveLabelColumn && (
+          <div style={{ fontSize: 12, color: '#999', marginTop: 6 }}>
+            Select a column to label by
+          </div>
+        )}
+      </div>
 
       {colorMode === 'category' && <CategoricalLegend />}
       {colorMode === 'gene' && <ContinuousLegend />}

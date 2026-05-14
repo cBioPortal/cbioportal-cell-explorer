@@ -1354,5 +1354,25 @@ describe('useAppStore', () => {
       await useAppStore.getState().ensureCategoryCentroids("X_umap", "cell_type");
       expect(useAppStore.getState().categoryCentroids.get("X_umap::cell_type")).toBe(firstCache);
     });
+
+    it("starts with categoryLabelsObsColumn=null", () => {
+      expect(useAppStore.getState().categoryLabelsObsColumn).toBeNull();
+    });
+
+    it("setCategoryLabelsObsColumn updates the field", () => {
+      useAppStore.getState().setCategoryLabelsObsColumn("leiden");
+      expect(useAppStore.getState().categoryLabelsObsColumn).toBe("leiden");
+      useAppStore.getState().setCategoryLabelsObsColumn(null);
+      expect(useAppStore.getState().categoryLabelsObsColumn).toBeNull();
+    });
+
+    it("categoryLabelsObsColumn is preserved across setShowCategoryLabels(false)+(true)", () => {
+      useAppStore.getState().setCategoryLabelsObsColumn("leiden");
+      useAppStore.getState().setShowCategoryLabels(true);
+      useAppStore.getState().setShowCategoryLabels(false);
+      expect(useAppStore.getState().categoryLabelsObsColumn).toBe("leiden");
+      useAppStore.getState().setShowCategoryLabels(true);
+      expect(useAppStore.getState().categoryLabelsObsColumn).toBe("leiden");
+    });
   });
 })

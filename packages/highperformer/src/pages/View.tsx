@@ -562,6 +562,32 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
   const selectedEmbedding = useAppStore((s) => s.selectedEmbedding)
   const colorMode = useAppStore((s) => s.colorMode)
   const selectedObsColumn = useAppStore((s) => s.selectedObsColumn)
+  const categoryLabelsObsColumn = useAppStore((s) => s.categoryLabelsObsColumn)
+
+  // The column we render labels for. Decoupled from color mode: explicit
+  // override wins; null falls back to selectedObsColumn but only when the
+  // user is actually coloring by a category. In gene mode without an
+  // explicit override, no labels render — the ColorBySection hint guides
+  // the user to pick a column.
+  const effectiveLabelColumn =
+    !showCategoryLabels
+      ? null
+      : (categoryLabelsObsColumn ?? (colorMode === 'category' ? selectedObsColumn : null))
+
+  // Subscribe to the label column's obs data so the centroid-dispatch effect
+  // re-fires once it lands (addSummaryObsColumn / selectObsColumn populate
+  // summaryObsData async; without this dep, the centroid dispatch misses
+  // the first-load window for a new column).
+  const labelColumnObsData = useAppStore((s) =>
+    effectiveLabelColumn ? s.summaryObsData.get(effectiveLabelColumn) : undefined,
+  )
+
+  // True when labels and the color buffer share an obs column. Used to
+  // decide which categoryMap to use for label text/color AND whether
+  // category highlights apply to label filtering.
+  const labelMatchesColorColumn =
+    colorMode === 'category' && selectedObsColumn === effectiveLabelColumn
+
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Derive initial view state from data bounds + container size.
@@ -690,22 +716,32 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
   }, [embeddingData, colorBuffer, radiusBuffer, selectionFilterBuffer, selectionDisplayMode])
 
   const categoryLabelLayer = useMemo(() => {
-    if (!showCategoryLabels || colorMode !== 'category' || !selectedObsColumn) return null
-    const cache = categoryCentroids.get(`${selectedEmbedding}::${selectedObsColumn}`)
+    if (!effectiveLabelColumn) return null
+    const cache = categoryCentroids.get(`${selectedEmbedding}::${effectiveLabelColumn}`)
     if (!cache) return null
 
-    // Highlight-aware: when the highlight set is non-empty, only render labels
-    // for those codes; otherwise render labels for all categories with data.
-    const visibleCodes = highlightedCategories.size > 0
-      ? Array.from(highlightedCategories)
-      : categoryMap.map((_, i) => i)
+    // When labeling by the SAME column we're coloring by, use the categoryMap
+    // already loaded for the color buffer. When labeling by a DIFFERENT column,
+    // pull labels + colors from summaryObsData (populated by addSummaryObsColumn
+    // which the setter calls).
+    const labelMap = labelMatchesColorColumn
+      ? categoryMap
+      : (labelColumnObsData?.categoryMap ?? [])
+    if (labelMap.length === 0) return null
+
+    // Highlights only apply when labeling by the column we're coloring by —
+    // the highlightedCategories codes refer to the color column's categoryMap.
+    const visibleCodes =
+      labelMatchesColorColumn && highlightedCategories.size > 0
+        ? Array.from(highlightedCategories)
+        : labelMap.map((_, i) => i)
 
     const labels = visibleCodes
       .filter((code) => cache.counts[code] > 0)
       .map((code) => ({
-        text: categoryMap[code]?.label ?? '',
+        text: labelMap[code]?.label ?? '',
         position: [cache.positions[2 * code], cache.positions[2 * code + 1]] as [number, number],
-        color: categoryMap[code]?.color ?? ([255, 255, 255] as [number, number, number]),
+        color: labelMap[code]?.color ?? ([255, 255, 255] as [number, number, number]),
       }))
 
     if (labels.length === 0) return null
@@ -727,13 +763,13 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
       outlineWidth: 0,
     })
   }, [
-    showCategoryLabels,
-    colorMode,
-    selectedObsColumn,
+    effectiveLabelColumn,
+    labelMatchesColorColumn,
     selectedEmbedding,
     categoryCentroids,
     highlightedCategories,
     categoryMap,
+    labelColumnObsData,
   ])
 
   const layers = useMemo(() => {
@@ -804,31 +840,15 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     didMountRef.current = false
   }, [deckKey])
 
-  // Subscribe to the active column's obs data so the effect below re-fires
-  // once it lands (selectObsColumn populates summaryObsData async; without
-  // this dep, the centroid dispatch misses the first-load window for a new
-  // column and the user has to toggle off+on to recover).
-  const currentObsData = useAppStore((s) =>
-    s.selectedObsColumn ? s.summaryObsData.get(s.selectedObsColumn) : undefined,
-  )
-
   useEffect(() => {
-    if (
-      showCategoryLabels &&
-      colorMode === 'category' &&
-      selectedObsColumn &&
-      embeddingData &&
-      currentObsData
-    ) {
-      ensureCategoryCentroids(selectedEmbedding, selectedObsColumn)
+    if (effectiveLabelColumn && embeddingData && labelColumnObsData && selectedEmbedding) {
+      ensureCategoryCentroids(selectedEmbedding, effectiveLabelColumn)
     }
   }, [
-    showCategoryLabels,
-    colorMode,
-    selectedObsColumn,
+    effectiveLabelColumn,
     selectedEmbedding,
     embeddingData,
-    currentObsData,
+    labelColumnObsData,
     ensureCategoryCentroids,
   ])
 

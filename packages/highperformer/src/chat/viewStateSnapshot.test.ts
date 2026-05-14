@@ -180,4 +180,29 @@ describe("buildViewStateSnapshot", () => {
     expect(snap.filter).toBeUndefined();
     expect(snap.selectionDisplayMode).toBeUndefined();
   });
+
+  it("omits showCategoryLabels when default (false)", () => {
+    useAppStore.setState({ showCategoryLabels: false } as any);
+    expect(buildViewStateSnapshot().showCategoryLabels).toBeUndefined();
+  });
+
+  it("includes showCategoryLabels when true", () => {
+    useAppStore.setState({ showCategoryLabels: true } as any);
+    expect(buildViewStateSnapshot().showCategoryLabels).toBe(true);
+  });
+
+  it("omits categoryLabelsObsColumn when null", () => {
+    useAppStore.setState({ categoryLabelsObsColumn: null } as any);
+    expect(buildViewStateSnapshot().categoryLabelsObsColumn).toBeUndefined();
+  });
+
+  it("includes categoryLabelsObsColumn when set", () => {
+    useAppStore.setState({
+      showCategoryLabels: true,
+      categoryLabelsObsColumn: "leiden",
+    } as any);
+    const snap = buildViewStateSnapshot();
+    expect(snap.showCategoryLabels).toBe(true);
+    expect(snap.categoryLabelsObsColumn).toBe("leiden");
+  });
 });

@@ -126,13 +126,17 @@ export interface AppState {
   highlightedCategories: Set<number>
   radiusBuffer: Float32Array | null
 
-  // Cluster label overlay (see docs/superpowers/specs/2026-05-13-category-label-layer-design.md)
+  // Cluster label overlay (see docs/superpowers/specs/2026-05-13-cluster-label-toggle-redesign-design.md)
   showCategoryLabels: boolean
+  // Explicit obs column to label by. null = fall back to selectedObsColumn when
+  // in category color mode; explicit string = label independent of color mode.
+  categoryLabelsObsColumn: string | null
   categoryCentroids: Map<string, {
     positions: Float32Array
     counts: Uint32Array
   }>
   setShowCategoryLabels: (value: boolean) => void
+  setCategoryLabelsObsColumn: (name: string | null) => void
   ensureCategoryCentroids: (embeddingKey: string, obsColumn: string) => Promise<void>
 
   // Selection
@@ -366,6 +370,16 @@ const useAppStore = create<AppState>((set, get) => ({
 
   setShowCategoryLabels: (value) => set({ showCategoryLabels: value }),
 
+  setCategoryLabelsObsColumn: (name) => {
+    set({ categoryLabelsObsColumn: name })
+    // Loading the codes/categoryMap for the label column happens lazily.
+    // If the column isn't already in summaryObsData (because the user picked
+    // a column they're not coloring by), addSummaryObsColumn fetches it.
+    // This auto-pins to the summary panel — acceptable for v1 (matches
+    // selectObsColumn's behavior).
+    if (name) get().addSummaryObsColumn(name)
+  },
+
   ensureCategoryCentroids: async (embeddingKey, obsColumn) => {
     const cacheKey = `${embeddingKey}::${obsColumn}`
     const state = get()
@@ -409,6 +423,7 @@ const useAppStore = create<AppState>((set, get) => ({
 
   // Cluster label overlay
   showCategoryLabels: false,
+  categoryLabelsObsColumn: null,
   categoryCentroids: new Map(),
 
   // Color By state

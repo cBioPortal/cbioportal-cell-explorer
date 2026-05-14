@@ -42,4 +42,14 @@ describe('AppConfigSchema', () => {
     const result = AppConfigSchema.safeParse({ embedding: 'X_umap', futuristicField: 'x' })
     expect(result.success).toBe(true)
   })
+
+  it('accepts categoryLabelsObsColumn (string, null, or omitted)', () => {
+    expect(AppConfigSchema.safeParse({ categoryLabelsObsColumn: 'leiden' }).success).toBe(true)
+    expect(AppConfigSchema.safeParse({ categoryLabelsObsColumn: null }).success).toBe(true)
+    expect(AppConfigSchema.safeParse({}).success).toBe(true)
+  })
+
+  it('rejects non-string non-null categoryLabelsObsColumn', () => {
+    expect(AppConfigSchema.safeParse({ categoryLabelsObsColumn: 42 }).success).toBe(false)
+  })
 })

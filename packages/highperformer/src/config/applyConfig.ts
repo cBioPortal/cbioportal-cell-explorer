@@ -62,6 +62,7 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     ...(config.showRightSidebar !== undefined && { showRightSidebar: config.showRightSidebar }),
     ...(config.showDatasetDropdown !== undefined && { showDatasetDropdown: config.showDatasetDropdown }),
     ...(config.showCategoryLabels !== undefined && { showCategoryLabels: config.showCategoryLabels }),
+    ...(config.categoryLabelsObsColumn !== undefined && { categoryLabelsObsColumn: config.categoryLabelsObsColumn }),
   })
 
   // Phase 2: Trigger dataset load if requested
