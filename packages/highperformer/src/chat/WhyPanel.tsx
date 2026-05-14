@@ -7,7 +7,7 @@
  * error, "Why" label, B+D chip variants. Reasoning text is not yet on the
  * wire so no 💬 rows in v1.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CaretDownOutlined, CaretRightOutlined, WarningOutlined } from "@ant-design/icons";
 import type { ChatMessage, TraceEntry } from "./types";
 
@@ -57,15 +57,52 @@ function previewJson(value: unknown, max = 160): string {
   return s.length <= max ? s : s.slice(0, max) + "…";
 }
 
-export function WhyPanel({ message }: { message: ChatMessage }) {
+export type WhyPanelProps = {
+  message: ChatMessage;
+  /** Controlled-open flag. When undefined the component manages its own state. */
+  open?: boolean;
+  onOpenChange?: (next: boolean) => void;
+  /**
+   * 1-based ordinal of the tool row to flash (used after a citation click).
+   * Resolves to the Nth `tool_start` entry in the trace; null to clear.
+   */
+  flashOrdinal?: number | null;
+};
+
+export function WhyPanel({
+  message,
+  open: openProp,
+  onOpenChange,
+  flashOrdinal,
+}: WhyPanelProps) {
   const stats = useMemo(() => computeStats(message), [message]);
   const hasError = stats.errorCount > 0;
-  const [open, setOpen] = useState(hasError);
+  const [openSelf, setOpenSelf] = useState(hasError);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp! : openSelf;
+  const setOpen = (next: boolean) => {
+    if (!isControlled) setOpenSelf(next);
+    onOpenChange?.(next);
+  };
 
   // Auto-expand the first time an error appears mid-stream.
   useEffect(() => {
     if (hasError) setOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasError]);
+
+  // Scroll the flashed tool row into view when a citation is clicked.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open || flashOrdinal == null || !containerRef.current) return;
+    const row = containerRef.current.querySelector(
+      `[data-cite-ordinal="${flashOrdinal}"]`,
+    );
+    if (row && row instanceof HTMLElement) {
+      // jsdom and some embedded webviews lack scrollIntoView — flash still works.
+      row.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+    }
+  }, [open, flashOrdinal]);
 
   if (!stats.hasContent) return null;
 
@@ -104,6 +141,7 @@ export function WhyPanel({ message }: { message: ChatMessage }) {
       </button>
       {open && (
         <div
+          ref={containerRef}
           style={{
             marginTop: 6,
             paddingLeft: 12,
@@ -113,9 +151,23 @@ export function WhyPanel({ message }: { message: ChatMessage }) {
             gap: 4,
           }}
         >
-          {(message.trace ?? []).map((entry, i) => (
-            <TraceRow key={i} entry={entry} />
-          ))}
+          {(() => {
+            // Assign each tool_start a 1-based ordinal matching the citation
+            // markers ([t:N]) emitted by the agent. The trace's tool_end and
+            // ui_action entries don't get ordinals — only tool_start.
+            let nextOrdinal = 1;
+            return (message.trace ?? []).map((entry, i) => {
+              const ord = entry.kind === "tool_start" ? nextOrdinal++ : null;
+              return (
+                <TraceRow
+                  key={i}
+                  entry={entry}
+                  ordinal={ord}
+                  flash={ord != null && ord === flashOrdinal}
+                />
+              );
+            });
+          })()}
           {message.usage && (
             <div style={{ color: "#999", marginTop: 4 }}>
               ✅ Done · {message.usage.input_tokens + message.usage.output_tokens} tokens
@@ -128,11 +180,39 @@ export function WhyPanel({ message }: { message: ChatMessage }) {
   );
 }
 
-function TraceRow({ entry }: { entry: TraceEntry }) {
+function TraceRow({
+  entry,
+  ordinal,
+  flash,
+}: {
+  entry: TraceEntry;
+  /** 1-based ordinal for tool_start; null for non-tool rows. */
+  ordinal: number | null;
+  flash: boolean;
+}) {
+  const flashStyle: React.CSSProperties = flash
+    ? {
+        background: "#fff3bf",
+        transition: "background 1.2s ease-out",
+        borderRadius: 3,
+        padding: "1px 4px",
+        margin: "-1px -4px",
+      }
+    : {};
+
   switch (entry.kind) {
     case "tool_start":
       return (
-        <div>
+        <div
+          id={ordinal != null ? `cite-${ordinal}` : undefined}
+          data-cite-ordinal={ordinal ?? undefined}
+          style={flashStyle}
+        >
+          {ordinal != null && (
+            <span style={{ color: "#1677ff", fontWeight: 600, marginRight: 4 }}>
+              [{ordinal}]
+            </span>
+          )}
           🛠 <code>{entry.tool}{fmtArgs(entry.args)}</code>
         </div>
       );
@@ -140,7 +220,7 @@ function TraceRow({ entry }: { entry: TraceEntry }) {
       const icon = entry.status === "error" ? "❌" : "✓";
       const color = entry.status === "error" ? "#cf1322" : "#52c41a";
       return (
-        <div style={{ color, paddingLeft: 14 }}>
+        <div style={{ color, paddingLeft: 14, ...flashStyle }}>
           {icon} {fmtDuration(entry.duration_ms)}
           {entry.summary && <span style={{ color: "#cf1322" }}> · {entry.summary}</span>}
         </div>

@@ -8,7 +8,7 @@ import { initialState, reduce, type State } from "./eventReducer";
 import { deriveSuggestionChips } from "./suggestionChips";
 import type { ChatEvent, ChatMessage, ContextResponse, MessagePart, WireMessage } from "./types";
 import { useChatTurn } from "./useChatTurn";
-import { WhyPanel } from "./WhyPanel";
+import { AssistantBubble } from "./AssistantBubble";
 
 type Action =
   | { type: "AGENT_EVENT"; event: ChatEvent }
@@ -236,19 +236,23 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
             {state.history.map((m, i) => (
               <div key={i}>
                 <strong>{m.role === "user" ? "You: " : "Assistant: "}</strong>
-                {m.parts.map((p, j) => (
-                  <MessagePartView key={j} part={p} />
-                ))}
-                {m.role === "assistant" && <WhyPanel message={m} />}
+                {m.role === "assistant" ? (
+                  <AssistantBubble
+                    message={m}
+                    markdownComponents={markdownComponents}
+                  />
+                ) : (
+                  m.parts.map((p, j) => <MessagePartView key={j} part={p} />)
+                )}
               </div>
             ))}
             {state.current && (
               <div>
                 <strong>Assistant: </strong>
-                {state.current.parts.map((p, j) => (
-                  <MessagePartView key={j} part={p} />
-                ))}
-                <WhyPanel message={state.current} />
+                <AssistantBubble
+                  message={state.current}
+                  markdownComponents={markdownComponents}
+                />
               </div>
             )}
             {hasError && (

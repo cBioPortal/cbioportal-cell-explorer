@@ -101,10 +101,16 @@ export function reduce(
       });
       const traceEntry: TraceEntry =
         ev.status === "started"
-          ? { kind: "tool_start", tool: ev.tool, args: ev.args }
+          ? {
+              kind: "tool_start",
+              tool: ev.tool,
+              tool_call_id: ev.tool_call_id,
+              args: ev.args,
+            }
           : {
               kind: "tool_end",
               tool: ev.tool,
+              tool_call_id: ev.tool_call_id,
               status: ev.status,
               summary: ev.summary,
               duration_ms: ev.duration_ms,
