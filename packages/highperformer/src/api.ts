@@ -37,6 +37,7 @@ import {
   HttpError,
   type ChatEvent,
   type ContextResponse,
+  type MessageFeedback,
   type ThreadDetailResponse,
   type ThreadListResponse,
   type WireMessage,
@@ -100,6 +101,38 @@ export const chat = {
   ): Promise<void> {
     const res = await fetch(
       `/api/chat/${encodeURIComponent(slug)}/threads/${encodeURIComponent(threadId)}`,
+      { method: "DELETE", credentials: "include", signal },
+    );
+    if (!res.ok) throw new HttpError(res.status, await res.text());
+  },
+
+  async putFeedback(
+    slug: string,
+    messageId: string,
+    body: { rating: "up" | "down"; comment?: string | null },
+    signal?: AbortSignal,
+  ): Promise<MessageFeedback> {
+    const res = await fetch(
+      `/api/chat/${encodeURIComponent(slug)}/messages/${encodeURIComponent(messageId)}/feedback`,
+      {
+        method: "PUT",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+        signal,
+      },
+    );
+    if (!res.ok) throw new HttpError(res.status, await res.text());
+    return (await res.json()) as MessageFeedback;
+  },
+
+  async deleteFeedback(
+    slug: string,
+    messageId: string,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const res = await fetch(
+      `/api/chat/${encodeURIComponent(slug)}/messages/${encodeURIComponent(messageId)}/feedback`,
       { method: "DELETE", credentials: "include", signal },
     );
     if (!res.ok) throw new HttpError(res.status, await res.text());

@@ -45,13 +45,20 @@ export type ThreadSummary = {
 
 export type ThreadListResponse = { threads: ThreadSummary[] };
 
+export type MessageFeedback = {
+  rating: "up" | "down";
+  comment?: string | null;
+};
+
 export type ThreadDetailResponse = {
   id: string;
   title: string;
   messages: {
+    id: string;
     role: "user" | "assistant";
     content: string;
     created_at: string;
+    feedback?: MessageFeedback | null;
   }[];
 };
 
@@ -149,6 +156,10 @@ export type ChatMessage = {
   /** ms timestamps for computing total turn duration. */
   startedAt?: number;
   endedAt?: number;
+  /** Server-assigned message id (present once persisted; absent during streaming). */
+  id?: string;
+  /** Feedback hydrated from the server when reloading a thread. */
+  feedback?: MessageFeedback | null;
 };
 
 // ---------- chip definitions ----------
