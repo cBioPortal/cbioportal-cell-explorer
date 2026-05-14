@@ -1140,7 +1140,6 @@ const useAppStore = create<AppState>((set, get) => ({
       summaryGeneData: new Map(), summaryGeneRanges: new Map(),
       summaryCache: new Map(),
       categoryCentroids: new Map(),
-      categoryLabelsObsColumn: null,
     })
     try {
       const adata = await AnnDataStore.open(url, overrides)

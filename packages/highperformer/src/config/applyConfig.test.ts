@@ -45,6 +45,30 @@ describe('applyConfig', () => {
     expect(state.showCategoryLabels).toBe(true)
   })
 
+  it('sets categoryLabelsObsColumn from config (Phase 1)', () => {
+    const config: AppConfig = {
+      url: 'https://example.com/data.zarr',
+      categoryLabelsObsColumn: 'leiden',
+    }
+
+    applyConfig(config)
+
+    expect(useAppStore.getState().categoryLabelsObsColumn).toBe('leiden')
+  })
+
+  it('clears categoryLabelsObsColumn when set to null', () => {
+    useAppStore.setState({ categoryLabelsObsColumn: 'leiden' } as any)
+
+    const config: AppConfig = {
+      url: 'https://example.com/data.zarr',
+      categoryLabelsObsColumn: null,
+    }
+
+    applyConfig(config)
+
+    expect(useAppStore.getState().categoryLabelsObsColumn).toBeNull()
+  })
+
   it('calls openDataset with config url', () => {
     const openDataset = vi.spyOn(useAppStore.getState(), 'openDataset').mockResolvedValue()
 
