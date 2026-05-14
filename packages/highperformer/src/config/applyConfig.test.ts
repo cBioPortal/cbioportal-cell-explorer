@@ -69,6 +69,55 @@ describe('applyConfig', () => {
     expect(useAppStore.getState().categoryLabelsObsColumn).toBeNull()
   })
 
+  it('calls addSummaryObsColumn to load data for the label column', async () => {
+    const addSummaryObsColumn = vi.spyOn(useAppStore.getState(), 'addSummaryObsColumn').mockImplementation(() => {})
+
+    const config: AppConfig = {
+      url: 'https://example.com/data.zarr',
+      categoryLabelsObsColumn: 'leiden',
+    }
+
+    const promise = applyConfig(config)
+    useAppStore.setState({ obsColumnNames: ['cell_type', 'leiden'], obsmKeys: [], varNames: [], varColumns: [] })
+    await promise
+
+    expect(addSummaryObsColumn).toHaveBeenCalledWith('leiden')
+    addSummaryObsColumn.mockRestore()
+  })
+
+  it('returns field_value_invalid when categoryLabelsObsColumn is not in the dataset', async () => {
+    const config: AppConfig = {
+      url: 'https://example.com/data.zarr',
+      categoryLabelsObsColumn: 'nonexistent',
+    }
+
+    const promise = applyConfig(config)
+    useAppStore.setState({ obsColumnNames: ['cell_type'], obsmKeys: [], varNames: [], varColumns: [] })
+    const result = await promise
+
+    expect(result.ok).toBe(false)
+    if (!result.ok && result.reason.kind === 'field_value_invalid') {
+      expect(result.reason.field).toBe('categoryLabelsObsColumn')
+      expect(result.reason.value).toBe('nonexistent')
+    } else {
+      throw new Error('expected field_value_invalid error')
+    }
+  })
+
+  it('does not call addSummaryObsColumn when categoryLabelsObsColumn is null', () => {
+    const addSummaryObsColumn = vi.spyOn(useAppStore.getState(), 'addSummaryObsColumn').mockImplementation(() => {})
+
+    const config: AppConfig = {
+      url: 'https://example.com/data.zarr',
+      categoryLabelsObsColumn: null,
+    }
+
+    applyConfig(config)
+
+    expect(addSummaryObsColumn).not.toHaveBeenCalled()
+    addSummaryObsColumn.mockRestore()
+  })
+
   it('calls openDataset with config url', () => {
     const openDataset = vi.spyOn(useAppStore.getState(), 'openDataset').mockResolvedValue()
 
