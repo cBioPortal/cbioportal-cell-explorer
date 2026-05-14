@@ -83,6 +83,11 @@ export const AppConfigSchema = z.object({
   // the user switches to category mode.
   showCategoryLabels: z.boolean().optional(),
 
+  // Explicit obs column for cluster labels. Pairs with showCategoryLabels.
+  // null = fall back to selectedObsColumn when in category color mode;
+  // string = label by that column independent of color mode.
+  categoryLabelsObsColumn: z.string().nullable().optional(),
+
   // UI chrome
   showHeader: z.boolean().optional(),
   showLeftSidebar: z.boolean().optional(),
