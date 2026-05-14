@@ -1,13 +1,13 @@
 /**
  * AssistantBubble — renders one assistant turn (text/tool/error parts + the
- * WhyPanel below) and orchestrates the citation handshake:
+ * WhyPanel below) and orchestrates the citation handshake.
  *
- *   1. Scan the message's text for [t:<id>] markers; assign each unique id a
- *      1-based index (so the first cited tool is "[1]", the second "[2]", etc.)
- *   2. Render text through ReactMarkdown with a components override that
- *      replaces marker substrings with Citation link components
- *   3. When a citation is clicked, open the WhyPanel and flash the matching
- *      tool row (cleared after 2 seconds)
+ * Citations use ordinals (the model emits `[t:1]`, `[t:2]`, ...). The ordinal
+ * resolves to a tool by position in the trace — `[t:N]` → the Nth `tool_start`
+ * entry. Out-of-range ordinals render as inert grey labels.
+ *
+ * When a citation is clicked, the WhyPanel opens (if collapsed) and the
+ * corresponding tool row flashes; the flash clears after a short timeout.
  */
 import { useCallback, useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -21,19 +21,16 @@ import type { ChatMessage, MessagePart, ToolPart } from "./types";
 
 const FLASH_MS = 2000;
 
-/** Walk through ReactMarkdown's children and replace [t:<id>] in text nodes. */
-function withCitations(
-  children: ReactNode,
-  citeIndex: Map<string, number>,
-  onCite: (id: string) => void,
-): ReactNode {
-  return walk(children, citeIndex, onCite);
+/** Total number of `tool_start` entries in this message's trace. */
+function toolCount(message: ChatMessage): number {
+  return (message.trace ?? []).filter((e) => e.kind === "tool_start").length;
 }
 
+/** Walk through ReactMarkdown's children and replace [t:N] in text nodes. */
 function walk(
   node: ReactNode,
-  citeIndex: Map<string, number>,
-  onCite: (id: string) => void,
+  maxOrdinal: number,
+  onCite: (ordinal: number) => void,
 ): ReactNode {
   if (typeof node === "string") {
     const segments = parseCitations(node);
@@ -43,33 +40,18 @@ function walk(
         seg.text
       ) : (
         <Citation
-          key={`cite-${i}-${seg.toolId}`}
-          toolId={seg.toolId}
-          index={citeIndex.get(seg.toolId) ?? 0}
+          key={`cite-${i}-${seg.ordinal}`}
+          ordinal={seg.ordinal}
+          valid={seg.ordinal >= 1 && seg.ordinal <= maxOrdinal}
           onCite={onCite}
         />
       ),
     );
   }
   if (Array.isArray(node)) {
-    return node.map((child) => walk(child, citeIndex, onCite));
+    return node.map((child) => walk(child, maxOrdinal, onCite));
   }
   return node;
-}
-
-function buildCitationIndex(message: ChatMessage): Map<string, number> {
-  const index = new Map<string, number>();
-  let next = 1;
-  for (const p of message.parts) {
-    if (p.kind !== "text") continue;
-    for (const m of p.text.matchAll(/\[t:([A-Za-z0-9_-]+)\]/g)) {
-      const id = m[1];
-      if (!index.has(id)) {
-        index.set(id, next++);
-      }
-    }
-  }
-  return index;
 }
 
 function ToolPartTag({ part }: { part: ToolPart }) {
@@ -91,14 +73,14 @@ export type AssistantBubbleProps = {
 
 export function AssistantBubble({ message, markdownComponents }: AssistantBubbleProps) {
   const [whyOpen, setWhyOpen] = useState(false);
-  const [flashToolId, setFlashToolId] = useState<string | null>(null);
+  const [flashOrdinal, setFlashOrdinal] = useState<number | null>(null);
 
-  const citeIndex = useMemo(() => buildCitationIndex(message), [message]);
+  const maxOrdinal = useMemo(() => toolCount(message), [message]);
 
-  const onCite = useCallback((toolId: string) => {
+  const onCite = useCallback((ordinal: number) => {
     setWhyOpen(true);
-    setFlashToolId(toolId);
-    window.setTimeout(() => setFlashToolId(null), FLASH_MS);
+    setFlashOrdinal(ordinal);
+    window.setTimeout(() => setFlashOrdinal(null), FLASH_MS);
   }, []);
 
   const componentsWithCitations: Components = useMemo(() => {
@@ -111,7 +93,7 @@ export function AssistantBubble({ message, markdownComponents }: AssistantBubble
       baseRenderer?: Components[T],
     ) => {
       const Wrapped = (props: { children?: ReactNode } & Record<string, unknown>) => {
-        const transformed = withCitations(props.children, citeIndex, onCite);
+        const transformed = walk(props.children, maxOrdinal, onCite);
         if (baseRenderer) {
           const Renderer = baseRenderer as (p: typeof props) => ReactNode;
           return <>{Renderer({ ...props, children: transformed })}</>;
@@ -130,7 +112,7 @@ export function AssistantBubble({ message, markdownComponents }: AssistantBubble
       strong: wrap("strong", base.strong),
       em: wrap("em", base.em),
     };
-  }, [markdownComponents, citeIndex, onCite]);
+  }, [markdownComponents, maxOrdinal, onCite]);
 
   return (
     <div>
@@ -145,7 +127,7 @@ export function AssistantBubble({ message, markdownComponents }: AssistantBubble
         message={message}
         open={whyOpen}
         onOpenChange={setWhyOpen}
-        flashToolId={flashToolId}
+        flashOrdinal={flashOrdinal}
       />
     </div>
   );

@@ -8,19 +8,25 @@ describe("parseCitations", () => {
     ]);
   });
 
-  it("extracts a single marker between text segments", () => {
-    expect(parseCitations("The top gene is CD8A [t:toolu_abc] in cluster 3.")).toEqual([
+  it("extracts an ordinal marker between text segments", () => {
+    expect(parseCitations("The top gene is CD8A [t:1] in cluster 3.")).toEqual([
       { kind: "text", text: "The top gene is CD8A " },
-      { kind: "citation", toolId: "toolu_abc", raw: "[t:toolu_abc]" },
+      { kind: "citation", ordinal: 1, raw: "[t:1]" },
       { kind: "text", text: " in cluster 3." },
     ]);
   });
 
   it("handles back-to-back markers with no separator", () => {
-    expect(parseCitations("CD8A, GZMB [t:a][t:b]")).toEqual([
+    expect(parseCitations("CD8A, GZMB [t:1][t:2]")).toEqual([
       { kind: "text", text: "CD8A, GZMB " },
-      { kind: "citation", toolId: "a", raw: "[t:a]" },
-      { kind: "citation", toolId: "b", raw: "[t:b]" },
+      { kind: "citation", ordinal: 1, raw: "[t:1]" },
+      { kind: "citation", ordinal: 2, raw: "[t:2]" },
+    ]);
+  });
+
+  it("only matches digit ordinals — letter-shaped markers are plain text", () => {
+    expect(parseCitations("see [t:abc] not a citation")).toEqual([
+      { kind: "text", text: "see [t:abc] not a citation" },
     ]);
   });
 
@@ -30,17 +36,17 @@ describe("parseCitations", () => {
     ]);
   });
 
-  it("accepts hyphens and underscores in tool ids", () => {
-    expect(parseCitations("ok [t:my-tool_42]")).toEqual([
+  it("handles multi-digit ordinals", () => {
+    expect(parseCitations("ok [t:12]")).toEqual([
       { kind: "text", text: "ok " },
-      { kind: "citation", toolId: "my-tool_42", raw: "[t:my-tool_42]" },
+      { kind: "citation", ordinal: 12, raw: "[t:12]" },
     ]);
   });
 });
 
 describe("hasCitations", () => {
   it("detects a marker", () => {
-    expect(hasCitations("x [t:abc] y")).toBe(true);
+    expect(hasCitations("x [t:1] y")).toBe(true);
   });
 
   it("returns false for non-citation text", () => {
@@ -48,7 +54,7 @@ describe("hasCitations", () => {
   });
 
   it("is stateless across calls (regex lastIndex reset)", () => {
-    const s = "x [t:a] y";
+    const s = "x [t:1] y";
     expect(hasCitations(s)).toBe(true);
     expect(hasCitations(s)).toBe(true);
     expect(hasCitations(s)).toBe(true);

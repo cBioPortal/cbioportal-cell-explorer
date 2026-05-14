@@ -1,23 +1,23 @@
 /**
  * Citation marker handling.
  *
- * The agent (per the system prompt instruction landed in cell-explorer-py#105)
- * emits `[t:<tool_use_id>]` markers in its assistant text immediately after
- * data-derived facts. These markers point at the tool_use_id of the tool call
- * whose result produced the fact, and are rendered by the frontend as clickable
- * links that open the corresponding tool row in the WhyPanel.
+ * The agent (per cell-explorer-py#107) emits `[t:N]` markers in its assistant
+ * text immediately after data-derived facts, where N is the 1-based ordinal of
+ * the tool call within the current turn. The frontend resolves N → tool row by
+ * position in the trace, so the marker remains valid even though the model
+ * cannot reliably reproduce random tool_use_ids.
  *
- * Tool ids are LLM-generated identifiers (Anthropic returns e.g. "toolu_01ab…")
- * — alphanumeric plus underscore. The regex is intentionally permissive on the
- * id chars so we can render whatever the model emits; an unknown id still
- * renders as a non-functional citation rather than getting stuck in the text.
+ * Out-of-range ordinals (e.g. `[t:9]` when only two tools ran) are surfaced
+ * but rendered as inert text — the agent will sometimes emit one when it
+ * hallucinates an extra tool call. That's a graceful degradation: the user
+ * sees a number that goes nowhere rather than a stuck `[t:9]` literal.
  */
 
 export type CitationSegment =
   | { kind: "text"; text: string }
-  | { kind: "citation"; toolId: string; raw: string };
+  | { kind: "citation"; ordinal: number; raw: string };
 
-const CITATION_RE = /\[t:([A-Za-z0-9_-]+)\]/g;
+const CITATION_RE = /\[t:(\d+)\]/g;
 
 export function parseCitations(text: string): CitationSegment[] {
   const segments: CitationSegment[] = [];
@@ -27,7 +27,7 @@ export function parseCitations(text: string): CitationSegment[] {
     if (start > lastIndex) {
       segments.push({ kind: "text", text: text.slice(lastIndex, start) });
     }
-    segments.push({ kind: "citation", toolId: m[1], raw: m[0] });
+    segments.push({ kind: "citation", ordinal: Number(m[1]), raw: m[0] });
     lastIndex = start + m[0].length;
   }
   if (lastIndex < text.length) {

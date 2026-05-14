@@ -63,14 +63,18 @@ export type WhyPanelProps = {
   open?: boolean;
   onOpenChange?: (next: boolean) => void;
   /**
-   * When set, the row with matching tool_call_id renders with a flash effect
-   * (used to draw the eye after a citation click). Set back to null after
-   * a few seconds in the parent.
+   * 1-based ordinal of the tool row to flash (used after a citation click).
+   * Resolves to the Nth `tool_start` entry in the trace; null to clear.
    */
-  flashToolId?: string | null;
+  flashOrdinal?: number | null;
 };
 
-export function WhyPanel({ message, open: openProp, onOpenChange, flashToolId }: WhyPanelProps) {
+export function WhyPanel({
+  message,
+  open: openProp,
+  onOpenChange,
+  flashOrdinal,
+}: WhyPanelProps) {
   const stats = useMemo(() => computeStats(message), [message]);
   const hasError = stats.errorCount > 0;
   const [openSelf, setOpenSelf] = useState(hasError);
@@ -90,15 +94,15 @@ export function WhyPanel({ message, open: openProp, onOpenChange, flashToolId }:
   // Scroll the flashed tool row into view when a citation is clicked.
   const containerRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (!open || !flashToolId || !containerRef.current) return;
+    if (!open || flashOrdinal == null || !containerRef.current) return;
     const row = containerRef.current.querySelector(
-      `[data-tool-id="${flashToolId}"]`,
+      `[data-cite-ordinal="${flashOrdinal}"]`,
     );
     if (row && row instanceof HTMLElement) {
       // jsdom and some embedded webviews lack scrollIntoView — flash still works.
       row.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
     }
-  }, [open, flashToolId]);
+  }, [open, flashOrdinal]);
 
   if (!stats.hasContent) return null;
 
@@ -147,9 +151,23 @@ export function WhyPanel({ message, open: openProp, onOpenChange, flashToolId }:
             gap: 4,
           }}
         >
-          {(message.trace ?? []).map((entry, i) => (
-            <TraceRow key={i} entry={entry} flash={isFlashed(entry, flashToolId)} />
-          ))}
+          {(() => {
+            // Assign each tool_start a 1-based ordinal matching the citation
+            // markers ([t:N]) emitted by the agent. The trace's tool_end and
+            // ui_action entries don't get ordinals — only tool_start.
+            let nextOrdinal = 1;
+            return (message.trace ?? []).map((entry, i) => {
+              const ord = entry.kind === "tool_start" ? nextOrdinal++ : null;
+              return (
+                <TraceRow
+                  key={i}
+                  entry={entry}
+                  ordinal={ord}
+                  flash={ord != null && ord === flashOrdinal}
+                />
+              );
+            });
+          })()}
           {message.usage && (
             <div style={{ color: "#999", marginTop: 4 }}>
               ✅ Done · {message.usage.input_tokens + message.usage.output_tokens} tokens
@@ -162,15 +180,16 @@ export function WhyPanel({ message, open: openProp, onOpenChange, flashToolId }:
   );
 }
 
-function isFlashed(entry: TraceEntry, flashToolId?: string | null): boolean {
-  if (!flashToolId) return false;
-  return (
-    (entry.kind === "tool_start" || entry.kind === "tool_end") &&
-    entry.tool_call_id === flashToolId
-  );
-}
-
-function TraceRow({ entry, flash }: { entry: TraceEntry; flash: boolean }) {
+function TraceRow({
+  entry,
+  ordinal,
+  flash,
+}: {
+  entry: TraceEntry;
+  /** 1-based ordinal for tool_start; null for non-tool rows. */
+  ordinal: number | null;
+  flash: boolean;
+}) {
   const flashStyle: React.CSSProperties = flash
     ? {
         background: "#fff3bf",
@@ -185,10 +204,15 @@ function TraceRow({ entry, flash }: { entry: TraceEntry; flash: boolean }) {
     case "tool_start":
       return (
         <div
-          id={entry.tool_call_id ? `tool-${entry.tool_call_id}` : undefined}
-          data-tool-id={entry.tool_call_id ?? undefined}
+          id={ordinal != null ? `cite-${ordinal}` : undefined}
+          data-cite-ordinal={ordinal ?? undefined}
           style={flashStyle}
         >
+          {ordinal != null && (
+            <span style={{ color: "#1677ff", fontWeight: 600, marginRight: 4 }}>
+              [{ordinal}]
+            </span>
+          )}
           🛠 <code>{entry.tool}{fmtArgs(entry.args)}</code>
         </div>
       );
@@ -196,10 +220,7 @@ function TraceRow({ entry, flash }: { entry: TraceEntry; flash: boolean }) {
       const icon = entry.status === "error" ? "❌" : "✓";
       const color = entry.status === "error" ? "#cf1322" : "#52c41a";
       return (
-        <div
-          data-tool-id={entry.tool_call_id ?? undefined}
-          style={{ color, paddingLeft: 14, ...flashStyle }}
-        >
+        <div style={{ color, paddingLeft: 14, ...flashStyle }}>
           {icon} {fmtDuration(entry.duration_ms)}
           {entry.summary && <span style={{ color: "#cf1322" }}> · {entry.summary}</span>}
         </div>
