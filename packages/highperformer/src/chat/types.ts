@@ -94,6 +94,10 @@ export type ErrorEvent   = { type: "error"; message: string; retryable: boolean 
 export type DoneEvent    = {
   type: "done";
   usage: { input_tokens: number; output_tokens: number };
+  /** Server-assigned id of the persisted assistant message — present once
+   * the backend has flushed the row (which it does inline before yielding
+   * the done event). Absent on older servers. */
+  message_id?: string;
 };
 export type ThreadOpenEvent = {
   type: "thread_open";
