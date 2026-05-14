@@ -90,7 +90,11 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     config.pointSize !== undefined ||  // null is a valid clear sentinel
     config.opacity !== undefined ||  // null is a valid clear sentinel
     config.summaryContext ||
-    config.selectionDisplayMode
+    config.selectionDisplayMode ||
+    // A non-null categoryLabelsObsColumn needs post-load handling to fetch
+    // the column's codes/categoryMap. Plain null is a Phase 1 clear — no
+    // post-load work needed.
+    !!config.categoryLabelsObsColumn
 
   if (!hasPostLoadConfig) return ok()
 
@@ -213,6 +217,23 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
   // color buffer only if currently in gene mode (no-op otherwise).
   if (config.colorScaleName) {
     store.getState().setColorScaleName(config.colorScaleName)
+  }
+
+  // Load the data for the cluster-label obs column when set to a non-null
+  // string. Phase 1's setState updated the field but bypassed the store
+  // setter's side effect (addSummaryObsColumn). Without this, View.tsx's
+  // labelColumnObsData selector returns undefined and labels never render.
+  if (config.categoryLabelsObsColumn) {
+    const { obsColumnNames } = store.getState()
+    if (!obsColumnNames.includes(config.categoryLabelsObsColumn)) {
+      return err({
+        kind: 'field_value_invalid',
+        field: 'categoryLabelsObsColumn',
+        value: config.categoryLabelsObsColumn,
+        reason: 'not found in dataset',
+      })
+    }
+    store.getState().addSummaryObsColumn(config.categoryLabelsObsColumn)
   }
 
   // 3d: Summary panel.
