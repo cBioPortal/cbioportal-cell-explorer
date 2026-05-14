@@ -32,6 +32,8 @@ export type ViewStateSnapshot = {
   summaryGenes?: string[];
   selectionDisplayMode?: "dim" | "hide";
   filter?: FilterSnapshot;
+  showCategoryLabels?: boolean;
+  categoryLabelsObsColumn?: string;
 };
 
 export function buildViewStateSnapshot(): ViewStateSnapshot {
@@ -73,6 +75,9 @@ export function buildViewStateSnapshot(): ViewStateSnapshot {
       (g) => s.geneLabelMap?.get(g) ?? g,
     );
   }
+
+  if (s.showCategoryLabels) snap.showCategoryLabels = true;
+  if (s.categoryLabelsObsColumn) snap.categoryLabelsObsColumn = s.categoryLabelsObsColumn;
 
   // Filter / selection state. Only include if there's a filter buffer
   // (something actually selected on the canvas).
