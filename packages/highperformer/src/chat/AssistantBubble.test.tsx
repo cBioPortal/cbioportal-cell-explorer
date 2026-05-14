@@ -1,7 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { AssistantBubble } from "./AssistantBubble";
-import { chat as chatClient } from "../api";
 import type { ChatMessage } from "./types";
 
 afterEach(() => cleanup());
@@ -97,10 +96,6 @@ describe("AssistantBubble", () => {
   });
 
   it("renders FeedbackThumbs when message.id is present", () => {
-    vi.spyOn(chatClient, "putFeedback").mockResolvedValue({
-      rating: "up",
-      comment: null,
-    });
     render(
       <AssistantBubble
         message={{

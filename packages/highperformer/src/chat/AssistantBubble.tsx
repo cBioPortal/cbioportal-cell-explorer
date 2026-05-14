@@ -127,7 +127,7 @@ export function AssistantBubble({ message, slug, markdownComponents }: Assistant
           markdownComponents={componentsWithCitations}
         />
       ))}
-      <span style={{ display: "inline-flex", alignItems: "flex-start", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
         <WhyPanel
           message={message}
           open={whyOpen}
@@ -141,7 +141,7 @@ export function AssistantBubble({ message, slug, markdownComponents }: Assistant
             initial={message.feedback ?? null}
           />
         )}
-      </span>
+      </div>
     </div>
   );
 }
