@@ -16,8 +16,10 @@ import remarkGfm from "remark-gfm";
 import { Alert, Tag } from "antd";
 import { Citation } from "./Citation";
 import { parseCitations } from "./citations";
+import { FeedbackThumbs } from "./FeedbackThumbs";
+import { useChatFeedback } from "./useChatFeedback";
 import { WhyPanel } from "./WhyPanel";
-import type { ChatMessage, MessagePart, ToolPart } from "./types";
+import type { ChatMessage, MessageFeedback, MessagePart, ToolPart } from "./types";
 
 const FLASH_MS = 2000;
 
@@ -67,11 +69,13 @@ function ToolPartTag({ part }: { part: ToolPart }) {
 
 export type AssistantBubbleProps = {
   message: ChatMessage;
+  /** Dataset slug — required to scope feedback writes to the right thread. */
+  slug: string;
   /** Inherited from the parent — controls antd-table layout etc. */
   markdownComponents?: Components;
 };
 
-export function AssistantBubble({ message, markdownComponents }: AssistantBubbleProps) {
+export function AssistantBubble({ message, slug, markdownComponents }: AssistantBubbleProps) {
   const [whyOpen, setWhyOpen] = useState(false);
   const [flashOrdinal, setFlashOrdinal] = useState<number | null>(null);
 
@@ -123,13 +127,50 @@ export function AssistantBubble({ message, markdownComponents }: AssistantBubble
           markdownComponents={componentsWithCitations}
         />
       ))}
-      <WhyPanel
-        message={message}
-        open={whyOpen}
-        onOpenChange={setWhyOpen}
-        flashOrdinal={flashOrdinal}
-      />
+      <span style={{ display: "inline-flex", alignItems: "flex-start", gap: 12 }}>
+        <WhyPanel
+          message={message}
+          open={whyOpen}
+          onOpenChange={setWhyOpen}
+          flashOrdinal={flashOrdinal}
+        />
+        {message.id && (
+          <FeedbackSlot
+            slug={slug}
+            messageId={message.id}
+            initial={message.feedback ?? null}
+          />
+        )}
+      </span>
     </div>
+  );
+}
+
+function FeedbackSlot({
+  slug,
+  messageId,
+  initial,
+}: {
+  slug: string;
+  messageId: string;
+  initial: MessageFeedback | null;
+}) {
+  const { rating, comment, setFeedback, status } = useChatFeedback(
+    slug,
+    messageId,
+    initial,
+  );
+  return (
+    <FeedbackThumbs
+      rating={rating}
+      comment={comment}
+      onChange={(next) => {
+        setFeedback(next).catch(() => {
+          // optimistic revert handled inside the hook; toast is out of scope v1
+        });
+      }}
+      disabled={status === "pending"}
+    />
   );
 }
 
