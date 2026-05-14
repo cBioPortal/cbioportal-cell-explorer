@@ -223,6 +223,60 @@ describe('applyConfig', () => {
     expect(selectByIds).toHaveBeenCalledWith('sample_id', ['cell1', 'cell2'])
     selectByIds.mockRestore()
   })
+
+  it('clears the filter when ids is empty (clear sentinel from chat-agent clear_filter)', async () => {
+    // The chat-agent's clear_filter tool emits { filter: { obsColumn: "_none", ids: [] } }.
+    // applyConfig must dispatch clearCustomGroup so the viewer actually resets,
+    // not silently no-op (which is what happened before this fix).
+    const clearCustomGroup = vi
+      .spyOn(useAppStore.getState(), 'clearCustomGroup')
+      .mockImplementation(() => {})
+    const selectByIds = vi
+      .spyOn(useAppStore.getState(), 'selectByIds')
+      .mockImplementation(() => {})
+
+    useAppStore.setState({
+      obsColumnNames: ['cell_type'],
+      obsmKeys: [],
+      varNames: [],
+      varColumns: [],
+    })
+
+    const result = await applyConfig({
+      filter: { obsColumn: '_none', ids: [] },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(clearCustomGroup).toHaveBeenCalledTimes(1)
+    expect(selectByIds).not.toHaveBeenCalled()
+
+    clearCustomGroup.mockRestore()
+    selectByIds.mockRestore()
+  })
+
+  it('does not validate obsColumn against schema when clearing', async () => {
+    // The clear sentinel uses "_none" which isn't a real obs column. Validating
+    // would falsely reject the clear payload with field_value_invalid.
+    const clearCustomGroup = vi
+      .spyOn(useAppStore.getState(), 'clearCustomGroup')
+      .mockImplementation(() => {})
+
+    useAppStore.setState({
+      obsColumnNames: ['cell_type', 'sample_id'],
+      obsmKeys: [],
+      varNames: [],
+      varColumns: [],
+    })
+
+    const result = await applyConfig({
+      filter: { obsColumn: '_none', ids: [] },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(clearCustomGroup).toHaveBeenCalledTimes(1)
+
+    clearCustomGroup.mockRestore()
+  })
 })
 
 describe('applyConfig — return type and schema validation', () => {

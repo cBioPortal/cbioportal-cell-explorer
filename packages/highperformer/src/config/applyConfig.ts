@@ -300,22 +300,29 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     }
   }
 
-  // 3e: Custom group filter
-  if (config.filter && config.filter.ids.length > 0) {
-    const { obsColumnNames } = store.getState()
-    if (!obsColumnNames.includes(config.filter.obsColumn)) {
-      return err({
-        kind: 'field_value_invalid',
-        field: 'filter.obsColumn',
-        value: config.filter.obsColumn,
-        reason: 'not found in dataset',
-      })
-    }
-    store.getState().selectByIds(config.filter.obsColumn, config.filter.ids)
-    // Default: when filter is set, switch summary to selections — UNLESS the
-    // caller explicitly specified summaryContext (then their value wins).
-    if (config.summaryContext === undefined) {
-      store.setState({ summaryContext: 'selections' })
+  // 3e: Custom group filter. Empty `ids` is the clear sentinel — the agent's
+  // `clear_filter` tool emits `{filter: {obsColumn: "_none", ids: []}}`. Skip
+  // obsColumn validation in that case because the sentinel name won't appear
+  // in the dataset schema.
+  if (config.filter) {
+    if (config.filter.ids.length === 0) {
+      store.getState().clearCustomGroup()
+    } else {
+      const { obsColumnNames } = store.getState()
+      if (!obsColumnNames.includes(config.filter.obsColumn)) {
+        return err({
+          kind: 'field_value_invalid',
+          field: 'filter.obsColumn',
+          value: config.filter.obsColumn,
+          reason: 'not found in dataset',
+        })
+      }
+      store.getState().selectByIds(config.filter.obsColumn, config.filter.ids)
+      // Default: when filter is set, switch summary to selections — UNLESS
+      // the caller explicitly specified summaryContext (then their value wins).
+      if (config.summaryContext === undefined) {
+        store.setState({ summaryContext: 'selections' })
+      }
     }
   }
 
