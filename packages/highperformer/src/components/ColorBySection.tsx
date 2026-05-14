@@ -7,6 +7,11 @@ import { COLOR_SCALES } from '../utils/colors'
 import CategoricalLegend from './CategoricalLegend'
 import ContinuousLegend from './ContinuousLegend'
 
+// Sentinel value used by the Labels "Label by" picker to represent
+// "fall back to the color-by column". Renamed to a vanishingly-unlikely
+// string so an obs column can't accidentally collide with it.
+const USE_COLOR_COLUMN_SENTINEL = '__CCE_use_color_by_column__'
+
 const scaleOptions = Object.keys(COLOR_SCALES).map((name) => ({
   value: name,
   label: name.charAt(0).toUpperCase() + name.slice(1),
@@ -228,14 +233,14 @@ export default function ColorBySection() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
             <span style={{ fontSize: 12, color: '#888' }}>Label by:</span>
             <Select
-              value={categoryLabelsObsColumn ?? (colorMode === 'category' ? '__color_column__' : null)}
-              onChange={(v) => setCategoryLabelsObsColumn(v === '__color_column__' ? null : v)}
+              value={categoryLabelsObsColumn ?? (colorMode === 'category' ? USE_COLOR_COLUMN_SENTINEL : undefined)}
+              onChange={(v) => setCategoryLabelsObsColumn(v === USE_COLOR_COLUMN_SENTINEL ? null : v)}
               placeholder="Pick a column"
               size="small"
               style={{ minWidth: 120 }}
               options={[
                 ...(colorMode === 'category'
-                  ? [{ value: '__color_column__', label: '(use color-by column)' }]
+                  ? [{ value: USE_COLOR_COLUMN_SENTINEL, label: '(use color-by column)' }]
                   : []),
                 ...obsColumnNames.map((name) => ({ value: name, label: name })),
               ]}

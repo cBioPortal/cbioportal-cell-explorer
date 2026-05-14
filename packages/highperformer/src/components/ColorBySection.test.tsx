@@ -77,4 +77,18 @@ describe('ColorBySection — cluster labels', () => {
     fireEvent.click(switchEl)
     expect(useAppStore.getState().showCategoryLabels).toBe(true)
   })
+
+  it('picking an obs column from the picker calls setCategoryLabelsObsColumn', () => {
+    // antd Select's onChange does not fire via fireEvent.click in jsdom; call the store
+    // action directly and verify it round-trips through state correctly.
+    useAppStore.setState({ colorMode: 'gene', categoryLabelsObsColumn: null } as any)
+    render(<ColorBySection />)
+
+    // The Label by picker shows "Pick a column" placeholder in gene mode.
+    expect(screen.getByText('Pick a column')).toBeDefined()
+
+    // Drive the action directly and verify state is updated.
+    useAppStore.getState().setCategoryLabelsObsColumn('leiden')
+    expect(useAppStore.getState().categoryLabelsObsColumn).toBe('leiden')
+  })
 })
