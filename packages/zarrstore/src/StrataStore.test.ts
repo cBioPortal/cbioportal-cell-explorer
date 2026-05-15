@@ -109,3 +109,38 @@ describe("StrataStore — readCoarse", () => {
     expect(() => strata.readCoarse("no_such_slug")).toThrow(/no_such_slug/);
   });
 });
+
+describe("StrataStore — readAtomicGenes", () => {
+  it("reads a gene slice with the requested column order", async () => {
+    const zs = await ZarrStore.open(FIXTURE);
+    const strata = await StrataStore.fromZarrStore(zs);
+    const atomic = await strata.readAtomicGenes([0, 5, 9]);
+
+    expect(atomic.kind).toBe("atomic");
+    expect(atomic.axes).toEqual(["cell_type", "donor"]);
+    expect(atomic.geneIndices).toEqual([0, 5, 9]);
+    // 6 strata × 3 selected genes
+    expect(atomic.sumX.length).toBe(18);
+    expect(atomic.nCells.length).toBe(6);
+    expect(atomic.stratumKeys.length).toBe(6);
+  });
+
+  it("readAtomicGenes([]) returns empty arrays without fetching", async () => {
+    const zs = await ZarrStore.open(FIXTURE);
+    const strata = await StrataStore.fromZarrStore(zs);
+    const atomic = await strata.readAtomicGenes([]);
+
+    expect(atomic.kind).toBe("atomic");
+    expect(atomic.geneIndices).toEqual([]);
+    expect(atomic.sumX.length).toBe(0);
+    expect(atomic.nCells.length).toBe(6);
+    // stratumKeys + nCells are still populated even when geneIndices is empty
+    expect(atomic.stratumKeys.length).toBe(6);
+  });
+
+  it("readAtomicGenes throws when no atomic exists", async () => {
+    const zs = await ZarrStore.open(`${globalThis.__TEST_BASE_URL__}/pbmc3k.zarr`);
+    const strata = await StrataStore.fromZarrStore(zs);
+    await expect(strata.readAtomicGenes([0])).rejects.toThrow(/no atomic/i);
+  });
+});

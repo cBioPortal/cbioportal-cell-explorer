@@ -387,6 +387,109 @@ export class StrataStore {
     return promise as Promise<T>;
   }
 
+  async readAtomicGenes(
+    geneIndices: number[],
+    signal?: AbortSignal,
+  ): Promise<AtomicStrataTable> {
+    if (!this.hasAtomic()) {
+      throw new Error("no atomic table in this dataset");
+    }
+    const cacheKey = `atomic:genes:${geneIndices.join(",")}`;
+    if (signal && this.#cache.has(cacheKey) && !this.#settled.has(cacheKey)) {
+      this.#cache.delete(cacheKey);
+    }
+    return this.#cached(cacheKey, () => this.#fetchAtomicGenes(geneIndices, signal)) as Promise<AtomicStrataTable>;
+  }
+
+  async #fetchAtomicGenes(
+    geneIndices: number[],
+    signal?: AbortSignal,
+  ): Promise<AtomicStrataTable> {
+    const groupPath = "uns/strata/atomic";
+    const [stratumKeys, nCells] = await Promise.all([
+      this.#readStringMatrix(`${groupPath}/stratum_keys`, signal),
+      this.#readInt32(`${groupPath}/n_cells`, signal),
+    ]);
+    const schemaVersion = this.#readSchemaVersion(groupPath);
+
+    const axes = this.atomicAxes();
+    if (!axes) throw new Error("no atomic axes after hasAtomic check");
+
+    if (geneIndices.length === 0) {
+      return {
+        kind: "atomic",
+        axes,
+        stratumKeys,
+        geneIndices: [],
+        sumX: new Float32Array(0),
+        sumXX: new Float32Array(0),
+        nnz: new Int32Array(0),
+        nCells,
+        schemaVersion,
+      };
+    }
+
+    const [sumX, sumXX, nnz] = await Promise.all([
+      this.#readFloat32GenesSliced(`${groupPath}/sum_x`, geneIndices, signal),
+      this.#readFloat32GenesSliced(`${groupPath}/sum_xx`, geneIndices, signal),
+      this.#readInt32GenesSliced(`${groupPath}/nnz`, geneIndices, signal),
+    ]);
+
+    return {
+      kind: "atomic",
+      axes,
+      stratumKeys,
+      geneIndices: [...geneIndices],
+      sumX,
+      sumXX,
+      nnz,
+      nCells,
+      schemaVersion,
+    };
+  }
+
+  async #readFloat32GenesSliced(
+    path: string,
+    geneIndices: number[],
+    _signal?: AbortSignal,
+  ): Promise<Float32Array> {
+    // v1 simplification: fetch the whole array, then slice in JS.
+    // Future opt: zarrita fancy indexing to fetch only the gene-batch chunks
+    // that contain geneIndices. Whole-fetch keeps the chunk-cache warm for
+    // overlapping reads in the same session.
+    const arr = await this.zarrStore.openArray(path);
+    const result = await readArray(arr);
+    const flat = result.data as ArrayLike<number>;
+    const nGenes = result.shape[1];
+    const nStrata = result.shape[0];
+    const out = new Float32Array(nStrata * geneIndices.length);
+    for (let row = 0; row < nStrata; row++) {
+      for (let k = 0; k < geneIndices.length; k++) {
+        out[row * geneIndices.length + k] = flat[row * nGenes + geneIndices[k]];
+      }
+    }
+    return out;
+  }
+
+  async #readInt32GenesSliced(
+    path: string,
+    geneIndices: number[],
+    _signal?: AbortSignal,
+  ): Promise<Int32Array> {
+    const arr = await this.zarrStore.openArray(path);
+    const result = await readArray(arr);
+    const flat = result.data as ArrayLike<number>;
+    const nGenes = result.shape[1];
+    const nStrata = result.shape[0];
+    const out = new Int32Array(nStrata * geneIndices.length);
+    for (let row = 0; row < nStrata; row++) {
+      for (let k = 0; k < geneIndices.length; k++) {
+        out[row * geneIndices.length + k] = flat[row * nGenes + geneIndices[k]];
+      }
+    }
+    return out;
+  }
+
   clearCache(): void {
     this.#cache.clear();
     this.#settled.clear();
