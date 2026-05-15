@@ -531,3 +531,42 @@ export class StrataStore {
     this.#settled.clear();
   }
 }
+
+function setsEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const aSet = new Set(a);
+  for (const v of b) if (!aSet.has(v)) return false;
+  return true;
+}
+
+/** Find a coarse slug whose axes match the given set exactly. Returns null if none match. */
+export function findCoarseByAxes(
+  strata: StrataStore,
+  axes: string[],
+): string | null {
+  for (const slug of strata.coarseSlugs()) {
+    if (setsEqual(strata.coarseAxes(slug), axes)) return slug;
+  }
+  return null;
+}
+
+/**
+ * Find the smallest coarse table whose axes are a superset of the requested axes.
+ * Useful when a query wants "by cell_type" and would accept any coarse containing
+ * that axis. Returns null if no coarse covers all the requested axes.
+ */
+export function findCoarseCovering(
+  strata: StrataStore,
+  requiredAxes: string[],
+): string | null {
+  let best: { slug: string; size: number } | null = null;
+  for (const slug of strata.coarseSlugs()) {
+    const axes = strata.coarseAxes(slug);
+    const covers = requiredAxes.every((a) => axes.includes(a));
+    if (!covers) continue;
+    if (!best || axes.length < best.size) {
+      best = { slug, size: axes.length };
+    }
+  }
+  return best?.slug ?? null;
+}

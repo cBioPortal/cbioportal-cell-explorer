@@ -4,7 +4,7 @@ import type {
   CoarseStrataTable,
   AtomicStrataTable,
 } from "./StrataStore";
-import { StrataStore } from "./StrataStore";
+import { StrataStore, findCoarseByAxes, findCoarseCovering } from "./StrataStore";
 import { ZarrStore } from "./ZarrStore";
 
 const FIXTURE = `${globalThis.__TEST_BASE_URL__}/strata-tiny.zarr`;
@@ -195,5 +195,23 @@ describe("StrataStore — abort behavior", () => {
     const secondP = strata.readCoarse("cell_type", ctrl.signal);
     expect(secondP).not.toBe(firstP);
     await Promise.all([firstP, secondP]);
+  });
+});
+
+describe("strata discovery helpers", () => {
+  it("findCoarseByAxes matches axes exactly (order-insensitive)", async () => {
+    const zs = await ZarrStore.open(FIXTURE);
+    const strata = await StrataStore.fromZarrStore(zs);
+    expect(findCoarseByAxes(strata, ["cell_type"])).toBe("cell_type");
+    expect(findCoarseByAxes(strata, ["cell_type", "donor"])).toBeNull();
+    expect(findCoarseByAxes(strata, ["nope"])).toBeNull();
+  });
+
+  it("findCoarseCovering returns smallest coarse containing the requested axes", async () => {
+    const zs = await ZarrStore.open(FIXTURE);
+    const strata = await StrataStore.fromZarrStore(zs);
+    // Only `cell_type` coarse exists in the fixture — covers ['cell_type']
+    expect(findCoarseCovering(strata, ["cell_type"])).toBe("cell_type");
+    expect(findCoarseCovering(strata, ["donor"])).toBeNull();
   });
 });
