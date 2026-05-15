@@ -5,6 +5,9 @@ import type {
   AtomicStrataTable,
 } from "./StrataStore";
 import { StrataStore } from "./StrataStore";
+import { ZarrStore } from "./ZarrStore";
+
+const FIXTURE = `${globalThis.__TEST_BASE_URL__}/strata-tiny.zarr`;
 
 describe("StrataStore type definitions", () => {
   it("exports a StrataTable union resolvable to coarse or atomic", () => {
@@ -27,5 +30,38 @@ describe("StrataStore type definitions", () => {
   it("exports StrataStore as a class", () => {
     expect(StrataStore).toBeDefined();
     expect(typeof StrataStore).toBe("function");
+  });
+});
+
+describe("StrataStore — discovery", () => {
+  it("hasAtomic + atomicAxes + atomicStrataCount", async () => {
+    const zs = await ZarrStore.open(FIXTURE);
+    const strata = await StrataStore.fromZarrStore(zs);
+    expect(strata.hasAtomic()).toBe(true);
+    expect(strata.atomicAxes()).toEqual(["cell_type", "donor"]);
+    expect(strata.atomicStrataCount()).toBe(6);
+  });
+
+  it("coarseSlugs + coarseAxes + coarseStrataCount", async () => {
+    const zs = await ZarrStore.open(FIXTURE);
+    const strata = await StrataStore.fromZarrStore(zs);
+    expect(strata.coarseSlugs()).toEqual(["cell_type"]);
+    expect(strata.coarseAxes("cell_type")).toEqual(["cell_type"]);
+    expect(strata.coarseStrataCount("cell_type")).toBe(3);
+  });
+
+  it("coarseAxes throws on unknown slug", async () => {
+    const zs = await ZarrStore.open(FIXTURE);
+    const strata = await StrataStore.fromZarrStore(zs);
+    expect(() => strata.coarseAxes("no_such_slug")).toThrow(/no_such_slug/);
+  });
+
+  it("returns empty discovery on a store without strata", async () => {
+    const zs = await ZarrStore.open(`${globalThis.__TEST_BASE_URL__}/pbmc3k.zarr`);
+    const strata = await StrataStore.fromZarrStore(zs);
+    expect(strata.hasAtomic()).toBe(false);
+    expect(strata.atomicAxes()).toBeNull();
+    expect(strata.atomicStrataCount()).toBeNull();
+    expect(strata.coarseSlugs()).toEqual([]);
   });
 });
