@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { StrataTable } from "./StrataStore";
-import { strataMeans, strataFracExpressing } from "./strataHelpers";
+import { strataMeans, strataFracExpressing, strataVariances } from "./strataHelpers";
 
 function makeTable(
   nStrata: number,
@@ -53,5 +53,25 @@ describe("strataFracExpressing", () => {
     const table = makeTable(1, 2, [0, 0], [0]);
     table.nnz.set([0, 0]);
     expect(Array.from(strataFracExpressing(table))).toEqual([0, 0]);
+  });
+});
+
+describe("strataVariances", () => {
+  it("computes sample variance: (sum_xx - sum_x^2 / n) / (n - 1)", () => {
+    // stratum 0: 4 cells, gene 0 values [1, 2, 3, 4]
+    //   sum_x = 10, sum_xx = 1+4+9+16 = 30, n=4
+    //   variance = (30 - 100/4) / 3 = (30 - 25) / 3 = 5/3 ≈ 1.6666...
+    const table = makeTable(1, 1, [10], [4]);
+    table.sumXX.set([30]);
+    const out = strataVariances(table);
+    expect(out[0]).toBeCloseTo(5 / 3, 6);
+  });
+
+  it("returns 0 for strata with 0 or 1 cells (variance undefined / zero)", () => {
+    const t0 = makeTable(1, 1, [0], [0]);
+    expect(strataVariances(t0)[0]).toBe(0);
+    const t1 = makeTable(1, 1, [5], [1]);
+    t1.sumXX.set([25]);
+    expect(strataVariances(t1)[0]).toBe(0);
   });
 });
