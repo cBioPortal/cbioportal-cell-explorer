@@ -65,3 +65,47 @@ describe("StrataStore — discovery", () => {
     expect(strata.coarseSlugs()).toEqual([]);
   });
 });
+
+describe("StrataStore — readCoarse", () => {
+  it("reads a coarse table with the expected shape and values", async () => {
+    const zs = await ZarrStore.open(FIXTURE);
+    const strata = await StrataStore.fromZarrStore(zs);
+    const coarse = await strata.readCoarse("cell_type");
+
+    expect(coarse.kind).toBe("coarse");
+    expect(coarse.slug).toBe("cell_type");
+    expect(coarse.axes).toEqual(["cell_type"]);
+    expect(coarse.geneIndices).toBeNull();
+    expect(coarse.schemaVersion).toBe("1.0");
+
+    // 3 strata × 10 genes
+    expect(coarse.stratumKeys.length).toBe(3);
+    expect(coarse.sumX.length).toBe(30);
+    expect(coarse.sumXX.length).toBe(30);
+    expect(coarse.nnz.length).toBe(30);
+    expect(coarse.nCells.length).toBe(3);
+
+    // Cell counts: 20 (A) + 20 (B) + 10 (C) = 50
+    const totalCells = Array.from(coarse.nCells).reduce((a, b) => a + b, 0);
+    expect(totalCells).toBe(50);
+
+    // Stratum keys are 1-axis -> each row is a 1-element array
+    const flatKeys = coarse.stratumKeys.map((row) => row[0]).sort();
+    expect(flatKeys).toEqual(["A", "B", "C"]);
+  });
+
+  it("dedupes concurrent calls (returns the same Promise)", async () => {
+    const zs = await ZarrStore.open(FIXTURE);
+    const strata = await StrataStore.fromZarrStore(zs);
+    const p1 = strata.readCoarse("cell_type");
+    const p2 = strata.readCoarse("cell_type");
+    expect(p1).toBe(p2);
+    await Promise.all([p1, p2]);
+  });
+
+  it("readCoarse throws synchronously on unknown slug", async () => {
+    const zs = await ZarrStore.open(FIXTURE);
+    const strata = await StrataStore.fromZarrStore(zs);
+    expect(() => strata.readCoarse("no_such_slug")).toThrow(/no_such_slug/);
+  });
+});
