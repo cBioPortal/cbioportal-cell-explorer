@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { StrataTable } from "./StrataStore";
-import { strataMeans, strataFracExpressing, strataVariances } from "./strataHelpers";
+import { strataMeans, strataFracExpressing, strataVariances, dotplotData } from "./strataHelpers";
 
 function makeTable(
   nStrata: number,
@@ -73,5 +73,34 @@ describe("strataVariances", () => {
     const t1 = makeTable(1, 1, [5], [1]);
     t1.sumXX.set([25]);
     expect(strataVariances(t1)[0]).toBe(0);
+  });
+});
+
+describe("dotplotData", () => {
+  it("returns means and fracExpressing for the requested genes", () => {
+    // 2 strata × 3 underlying genes; select columns 0 and 2.
+    const table = makeTable(2, 3, [10, 20, 30, 8, 12, 16], [10, 4]);
+    table.nnz.set([10, 5, 8, 4, 2, 4]);
+
+    const result = dotplotData(table, [0, 2]);
+
+    // means stratum 0: [10/10, 30/10] = [1, 3]
+    // means stratum 1: [8/4,   16/4]  = [2, 4]
+    expect(Array.from(result.means)).toEqual([1, 3, 2, 4]);
+
+    // fracExpressing stratum 0: [10/10, 8/10] = [1, 0.8]
+    // fracExpressing stratum 1: [4/4,   4/4]  = [1, 1]
+    const frac = Array.from(result.fracExpressing);
+    expect(frac[0]).toBeCloseTo(1, 6);
+    expect(frac[1]).toBeCloseTo(0.8, 6);
+    expect(frac[2]).toBeCloseTo(1, 6);
+    expect(frac[3]).toBeCloseTo(1, 6);
+  });
+
+  it("returns empty arrays for empty geneIndices", () => {
+    const table = makeTable(2, 3, [10, 20, 30, 8, 12, 16], [10, 4]);
+    const result = dotplotData(table, []);
+    expect(result.means.length).toBe(0);
+    expect(result.fracExpressing.length).toBe(0);
   });
 });

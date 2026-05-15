@@ -71,3 +71,33 @@ export function strataVariances(table: StrataTable): Float32Array {
   }
   return out;
 }
+
+/**
+ * Convenience for the dotplot use case: returns (means, fracExpressing) for a
+ * specific set of genes from a full StrataTable.
+ *
+ * The returned arrays are (nStrata × geneIndices.length) row-major Float32.
+ * Note: this is for slicing an *already-loaded* full StrataTable by gene index.
+ * It does NOT re-fetch the underlying data.
+ */
+export function dotplotData(
+  table: StrataTable,
+  geneIndices: number[],
+): { means: Float32Array; fracExpressing: Float32Array } {
+  const nStrata = table.nCells.length;
+  const sourceGeneCount = table.geneIndices?.length ?? table.sumX.length / nStrata;
+  const means = new Float32Array(nStrata * geneIndices.length);
+  const fracExpressing = new Float32Array(nStrata * geneIndices.length);
+  for (let row = 0; row < nStrata; row++) {
+    const n = table.nCells[row];
+    if (n === 0) continue;
+    const srcBase = row * sourceGeneCount;
+    const dstBase = row * geneIndices.length;
+    for (let k = 0; k < geneIndices.length; k++) {
+      const srcCol = geneIndices[k];
+      means[dstBase + k] = table.sumX[srcBase + srcCol] / n;
+      fracExpressing[dstBase + k] = table.nnz[srcBase + srcCol] / n;
+    }
+  }
+  return { means, fracExpressing };
+}
