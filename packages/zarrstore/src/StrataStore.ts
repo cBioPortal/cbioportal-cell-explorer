@@ -387,6 +387,42 @@ export class StrataStore {
     return promise as Promise<T>;
   }
 
+  async readAtomic(signal?: AbortSignal): Promise<AtomicStrataTable> {
+    if (!this.hasAtomic()) {
+      throw new Error("no atomic table in this dataset");
+    }
+    const cacheKey = "atomic:full";
+    if (signal && this.#cache.has(cacheKey) && !this.#settled.has(cacheKey)) {
+      this.#cache.delete(cacheKey);
+    }
+    return this.#cached(cacheKey, () => this.#fetchAtomicFull(signal)) as Promise<AtomicStrataTable>;
+  }
+
+  async #fetchAtomicFull(signal?: AbortSignal): Promise<AtomicStrataTable> {
+    const groupPath = "uns/strata/atomic";
+    const [sumX, sumXX, nnz, nCells, stratumKeys] = await Promise.all([
+      this.#readFloat32(`${groupPath}/sum_x`, signal),
+      this.#readFloat32(`${groupPath}/sum_xx`, signal),
+      this.#readInt32(`${groupPath}/nnz`, signal),
+      this.#readInt32(`${groupPath}/n_cells`, signal),
+      this.#readStringMatrix(`${groupPath}/stratum_keys`, signal),
+    ]);
+    const schemaVersion = this.#readSchemaVersion(groupPath);
+    const axes = this.atomicAxes();
+    if (!axes) throw new Error("no atomic axes after hasAtomic check");
+    return {
+      kind: "atomic",
+      axes,
+      stratumKeys,
+      geneIndices: null,
+      sumX,
+      sumXX,
+      nnz,
+      nCells,
+      schemaVersion,
+    };
+  }
+
   async readAtomicGenes(
     geneIndices: number[],
     signal?: AbortSignal,

@@ -144,3 +144,27 @@ describe("StrataStore — readAtomicGenes", () => {
     await expect(strata.readAtomicGenes([0])).rejects.toThrow(/no atomic/i);
   });
 });
+
+describe("StrataStore — readAtomic (whole table)", () => {
+  it("reads the full atomic table", async () => {
+    const zs = await ZarrStore.open(FIXTURE);
+    const strata = await StrataStore.fromZarrStore(zs);
+    const atomic = await strata.readAtomic();
+
+    expect(atomic.kind).toBe("atomic");
+    expect(atomic.geneIndices).toBeNull();
+    expect(atomic.axes).toEqual(["cell_type", "donor"]);
+    // 6 strata × 10 genes
+    expect(atomic.sumX.length).toBe(60);
+    expect(atomic.nCells.length).toBe(6);
+    // Total cells across atomic == 50
+    const total = Array.from(atomic.nCells).reduce((a, b) => a + b, 0);
+    expect(total).toBe(50);
+  });
+
+  it("readAtomic throws when no atomic exists", async () => {
+    const zs = await ZarrStore.open(`${globalThis.__TEST_BASE_URL__}/pbmc3k.zarr`);
+    const strata = await StrataStore.fromZarrStore(zs);
+    await expect(strata.readAtomic()).rejects.toThrow(/no atomic/i);
+  });
+});
