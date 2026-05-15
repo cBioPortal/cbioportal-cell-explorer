@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { StrataTable } from "./StrataStore";
-import { strataMeans } from "./strataHelpers";
+import { strataMeans, strataFracExpressing } from "./strataHelpers";
 
 function makeTable(
   nStrata: number,
@@ -36,5 +36,22 @@ describe("strataMeans", () => {
     const table = makeTable(1, 2, [0, 0], [0]);
     const means = strataMeans(table);
     expect(Array.from(means)).toEqual([0, 0]);
+  });
+});
+
+describe("strataFracExpressing", () => {
+  it("computes nnz / nCells per row", () => {
+    const table = makeTable(2, 3, [0, 0, 0, 0, 0, 0], [10, 4]);
+    table.nnz.set([5, 0, 10, 1, 2, 4]);
+    // stratum 0: 5/10, 0/10, 10/10 -> 0.5, 0, 1
+    // stratum 1: 1/4, 2/4, 4/4     -> 0.25, 0.5, 1
+    const out = strataFracExpressing(table);
+    expect(Array.from(out)).toEqual([0.5, 0, 1, 0.25, 0.5, 1]);
+  });
+
+  it("returns 0 for strata with 0 cells", () => {
+    const table = makeTable(1, 2, [0, 0], [0]);
+    table.nnz.set([0, 0]);
+    expect(Array.from(strataFracExpressing(table))).toEqual([0, 0]);
   });
 });
