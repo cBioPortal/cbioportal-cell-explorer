@@ -26,3 +26,17 @@ export type {
   DecodeNodeResult,
   OpenFn,
 } from "./decoders";
+
+// Strata layer
+export { StrataStore, findCoarseByAxes, findCoarseCovering } from "./StrataStore";
+export type {
+  StrataTable,
+  CoarseStrataTable,
+  AtomicStrataTable,
+} from "./StrataStore";
+export {
+  strataMeans,
+  strataFracExpressing,
+  strataVariances,
+  dotplotData,
+} from "./strataHelpers";
