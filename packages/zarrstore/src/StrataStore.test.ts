@@ -168,3 +168,32 @@ describe("StrataStore — readAtomic (whole table)", () => {
     await expect(strata.readAtomic()).rejects.toThrow(/no atomic/i);
   });
 });
+
+describe("StrataStore — abort behavior", () => {
+  it("settled cache entries are reused even when a new AbortSignal is passed", async () => {
+    const zs = await ZarrStore.open(FIXTURE);
+    const strata = await StrataStore.fromZarrStore(zs);
+
+    const firstP = strata.readCoarse("cell_type");
+    await firstP;
+
+    // Settled cache: a new call with a signal returns the SAME cached Promise.
+    const ctrl = new AbortController();
+    const secondP = strata.readCoarse("cell_type", ctrl.signal);
+    expect(secondP).toBe(firstP);
+    await secondP;
+  });
+
+  it("in-flight cache entries are evicted when a new AbortSignal is passed", async () => {
+    const zs = await ZarrStore.open(FIXTURE);
+    const strata = await StrataStore.fromZarrStore(zs);
+
+    // Start a read but don't await — it stays in-flight in cache.
+    const firstP = strata.readCoarse("cell_type");
+    // While in-flight, a call with a signal evicts and re-fetches.
+    const ctrl = new AbortController();
+    const secondP = strata.readCoarse("cell_type", ctrl.signal);
+    expect(secondP).not.toBe(firstP);
+    await Promise.all([firstP, secondP]);
+  });
+});
