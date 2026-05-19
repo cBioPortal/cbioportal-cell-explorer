@@ -19,3 +19,14 @@ body {
 .chat-tabs .ant-tabs-tabpane {
   height: 100%;
 }
+
+/* Subtle pulse for in-flight tool pills — communicates "still working"
+   without being distracting. Used by AssistantBubble's ToolPartTag when
+   the tool's status is 'started'. */
+@keyframes chat-tool-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.chat-tool-pulse {
+  animation: chat-tool-pulse 1.4s ease-in-out infinite;
+}

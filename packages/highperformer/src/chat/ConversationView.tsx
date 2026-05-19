@@ -1,4 +1,4 @@
-import { Alert, Button, Input, Tag } from "antd";
+import { Alert, Button, Input, Spin, Tag } from "antd";
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -9,6 +9,7 @@ import { deriveSuggestionChips } from "./suggestionChips";
 import type { ChatEvent, ChatMessage, ContextResponse, MessagePart, WireMessage } from "./types";
 import { useChatTurn } from "./useChatTurn";
 import { AssistantBubble } from "./AssistantBubble";
+import { ensureAlternation } from "./wireMessages";
 
 type Action =
   | { type: "AGENT_EVENT"; event: ChatEvent }
@@ -158,10 +159,14 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
       const trimmed = text.trim();
       if (!trimmed || streaming) return;
       dispatch({ type: "USER_SUBMIT", content: trimmed });
-      const wireMessages: WireMessage[] = [
+      // ensureAlternation guards against hydrated threads whose last
+      // persisted message is a user role (server can leave one trailing if
+      // an earlier assistant turn errored before persisting) — without this,
+      // the next submit produces [user, user] and the server returns 422.
+      const wireMessages: WireMessage[] = ensureAlternation([
         ...toWireMessages(state.history),
         { role: "user", content: trimmed },
-      ];
+      ]);
       setLastSubmittedMessages(wireMessages);
       setInput("");
       try {
@@ -255,6 +260,12 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
                   slug={slug}
                   markdownComponents={markdownComponents}
                 />
+              </div>
+            )}
+            {streaming && !state.current && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#666", fontSize: 12 }}>
+                <Spin size="small" />
+                <span>Thinking…</span>
               </div>
             )}
             {hasError && (

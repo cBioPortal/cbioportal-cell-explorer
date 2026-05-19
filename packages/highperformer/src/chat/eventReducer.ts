@@ -86,6 +86,17 @@ function ensureNonEmptyText(parts: MessagePart[]): MessagePart[] {
   return [placeholder, ...parts];
 }
 
+function finalizeStartedTools(parts: MessagePart[]): MessagePart[] {
+  // A turn that errors/cancels mid-tool-call leaves any in-flight ToolPart
+  // stuck in `status: "started"` — the pill renders forever as a spinner.
+  // Move them to a terminal "error" state so the bubble settles.
+  return parts.map((p) =>
+    p.kind === "tool" && p.status === "started"
+      ? ({ ...p, status: "error" as const } satisfies ToolPart)
+      : p,
+  );
+}
+
 export function reduce(
   state: State,
   ev: ChatEvent,
@@ -147,7 +158,8 @@ export function reduce(
       // produces back-to-back user messages and the server rejects with a
       // role-alternation 422.
       const base = ensureCurrent(state);
-      const partsWithText = ensureNonEmptyText(base.parts);
+      const partsWithFinalizedTools = finalizeStartedTools(base.parts);
+      const partsWithText = ensureNonEmptyText(partsWithFinalizedTools);
       const partsWithError = appendErrorPart(partsWithText, ev.message);
       const finalized = appendTrace(
         { ...base, parts: partsWithError, endedAt: Date.now() },

@@ -69,7 +69,7 @@ describe("useChatTurn", () => {
     expect(result.current.streaming).toBe(false);
   });
 
-  it("stop() aborts the iteration with AbortError", async () => {
+  it("stop() emits a friendly 'Cancelled' error event and does not throw", async () => {
     let abortSignal: AbortSignal | undefined;
     fetchMock.mockImplementation((_url, init: RequestInit) => {
       abortSignal = init.signal as AbortSignal;
@@ -81,10 +81,13 @@ describe("useChatTurn", () => {
     });
 
     const { result } = renderHook(() => useChatTurn());
+    const events: ChatEvent[] = [];
     let caught: unknown;
     const startPromise = act(async () => {
       try {
-        await result.current.start("s", [{ role: "user", content: "hi" }], null, () => {});
+        await result.current.start("s", [{ role: "user", content: "hi" }], null, (e) =>
+          events.push(e),
+        );
       } catch (e) {
         caught = e;
       }
@@ -92,7 +95,8 @@ describe("useChatTurn", () => {
     // Stop immediately.
     act(() => result.current.stop());
     await startPromise;
-    expect((caught as Error).name).toBe("AbortError");
+    expect(caught).toBeUndefined();
+    expect(events).toEqual([{ type: "error", message: "Cancelled", retryable: false }]);
     expect(result.current.streaming).toBe(false);
   });
 

@@ -26,6 +26,16 @@ export function useChatTurn() {
         for await (const ev of chat.streamTurn(slug, messages, viewState, threadId, controller.signal)) {
           onEvent(ev);
         }
+      } catch (e) {
+        if (controller.signal.aborted) {
+          // User-initiated cancel. Surface as a friendly error event via
+          // onEvent — don't bubble the raw browser AbortError text
+          // ("BodyStreamBuffer was aborted" / "signal is aborted without
+          // reason") to the user.
+          onEvent({ type: "error", message: "Cancelled", retryable: false });
+          return;
+        }
+        throw e;
       } finally {
         setStreaming(false);
         if (abortRef.current === controller) abortRef.current = null;

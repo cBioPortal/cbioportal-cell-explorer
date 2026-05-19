@@ -70,6 +70,17 @@ describe("eventReducer.reduce", () => {
     ]);
   });
 
+  it("error finalizes any in-flight (started) tool parts to terminal error state", () => {
+    // A turn that errors/cancels mid-tool-call should not leave the pill
+    // spinning forever. Move started → error so the bubble settles.
+    let s = initialState();
+    s = reduce(s, { type: "tool_progress", tool: "top_genes", status: "started" }, noopApply);
+    s = reduce(s, { type: "error", message: "Cancelled", retryable: false }, noopApply);
+    const toolPart = s.history[0].parts.find((p) => p.kind === "tool");
+    expect(toolPart).toBeDefined();
+    expect(toolPart!.status).toBe("error");
+  });
+
   it("error before any text streamed prepends synthetic (interrupted) text so wire content is non-empty", () => {
     // Repros the abort-during-tool-call case: tool fires, user aborts before
     // any text streams. Without a synthetic placeholder the resulting wire
