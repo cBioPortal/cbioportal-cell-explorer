@@ -59,8 +59,11 @@ function walk(
 function ToolPartTag({ part }: { part: ToolPart }) {
   const sym = part.status === "started" ? "▶" : part.status === "ok" ? "✓" : "✗";
   const color = part.status === "error" ? "red" : part.status === "ok" ? "green" : "blue";
+  // Pulse the pill while the tool is in flight so it reads as "working"
+  // alongside the higher-level "Thinking…" indicator. Keyframes in index.css.
+  const className = part.status === "started" ? "chat-tool-pulse" : undefined;
   return (
-    <Tag color={color}>
+    <Tag color={color} className={className}>
       {sym} {part.tool}
       {part.summary ? ` — ${part.summary}` : part.status === "started" ? "…" : ""}
     </Tag>

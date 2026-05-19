@@ -1,4 +1,4 @@
-import { Alert, Button, Input, Tag } from "antd";
+import { Alert, Button, Input, Spin, Tag } from "antd";
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -255,6 +255,12 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
                   slug={slug}
                   markdownComponents={markdownComponents}
                 />
+              </div>
+            )}
+            {streaming && !state.current && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#666", fontSize: 12 }}>
+                <Spin size="small" />
+                <span>Thinking…</span>
               </div>
             )}
             {hasError && (
