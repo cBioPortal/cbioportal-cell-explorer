@@ -6,6 +6,7 @@ import Home from './pages/Home'
 import View from './pages/View'
 import ZarrView from './pages/ZarrView'
 import useAppStore from './store/useAppStore'
+import { useTokenRefresh } from './hooks/useTokenRefresh'
 
 const { Content } = Layout
 
@@ -31,6 +32,10 @@ function App() {
     const { backendInfo } = useAppStore.getState()
     if (backendInfo) fetchCatalog()
   }, [user, fetchCatalog])
+
+  // Keep the access cookie fresh while signed in. Sidesteps the rotation
+  // race that surfaces as 'Session expired' on long-lived chat streams.
+  useTokenRefresh(user !== null)
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
