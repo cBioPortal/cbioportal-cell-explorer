@@ -16,3 +16,9 @@ Chat cancellation and streaming UX polish:
   message while streaming, until the first text/tool arrives.
 - Adds a subtle pulse animation on in-flight tool pills so they
   read as actively working alongside the higher-level indicator.
+- Hardens the wire-message builder with `ensureAlternation` so
+  hydrated threads whose last persisted message is a user role
+  (possible if an older assistant turn errored before persisting)
+  don't immediately 422 on the next submit. Inserts a synthetic
+  `(interrupted)` assistant in the wire payload only — does not
+  mutate stored history.
