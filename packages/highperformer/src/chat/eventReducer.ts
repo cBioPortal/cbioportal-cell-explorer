@@ -76,6 +76,16 @@ function appendErrorPart(parts: MessagePart[], message: string): MessagePart[] {
   return [...parts, err];
 }
 
+function ensureNonEmptyText(parts: MessagePart[]): MessagePart[] {
+  // Ensure the resulting wire content (text parts joined) is non-empty.
+  // Anthropic-style APIs reject assistant messages with empty content, which
+  // happens when a turn aborts before any text streamed (e.g. mid-tool-call).
+  const hasText = parts.some((p) => p.kind === "text" && p.text.length > 0);
+  if (hasText) return parts;
+  const placeholder: TextPart = { kind: "text", text: "(interrupted)" };
+  return [placeholder, ...parts];
+}
+
 export function reduce(
   state: State,
   ev: ChatEvent,
@@ -130,13 +140,22 @@ export function reduce(
       };
     }
     case "error": {
-      const cur = ensureCurrent(state);
+      // Finalize the in-flight (or synthesize a placeholder) assistant
+      // message onto history with the error attached. Keeping the assistant
+      // turn in history is required so the conversation alternation
+      // (user/assistant/user/...) survives — otherwise the next user submit
+      // produces back-to-back user messages and the server rejects with a
+      // role-alternation 422.
+      const base = ensureCurrent(state);
+      const partsWithText = ensureNonEmptyText(base.parts);
+      const partsWithError = appendErrorPart(partsWithText, ev.message);
+      const finalized = appendTrace(
+        { ...base, parts: partsWithError, endedAt: Date.now() },
+        { kind: "error", message: ev.message },
+      );
       return {
-        ...state,
-        current: appendTrace(
-          { ...cur, parts: appendErrorPart(cur.parts, ev.message) },
-          { kind: "error", message: ev.message },
-        ),
+        history: [...state.history, finalized],
+        current: null,
         status: "error",
       };
     }
@@ -156,14 +175,10 @@ export function reduce(
       };
     }
     default: {
-      // Unknown event type — defensive; surface as error part.
-      const cur = ensureCurrent(state);
+      // Unknown event type — defensive; surface as an error by reusing the
+      // error case's finalize-to-history path so alternation is preserved.
       const message = `unknown event type: ${(ev as { type?: string }).type ?? "<missing>"}`;
-      return {
-        ...state,
-        current: { ...cur, parts: appendErrorPart(cur.parts, message) },
-        status: "error",
-      };
+      return reduce(state, { type: "error", message, retryable: false }, applyConfig);
     }
   }
 }
