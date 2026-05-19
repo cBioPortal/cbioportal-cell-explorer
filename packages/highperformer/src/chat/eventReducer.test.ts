@@ -57,15 +57,67 @@ describe("eventReducer.reduce", () => {
     expect(asyncApply).toHaveBeenCalledTimes(1);
   });
 
-  it("error event appends ErrorPart and sets status to error, keeps preceding text", () => {
+  it("error event finalizes current onto history with the error part attached", () => {
     let s = initialState();
     s = reduce(s, { type: "text_delta", text: "partial " }, noopApply);
     s = reduce(s, { type: "error", message: "boom", retryable: false }, noopApply);
     expect(s.status).toBe("error");
-    expect(s.current!.parts).toEqual([
+    expect(s.current).toBeNull();
+    expect(s.history).toHaveLength(1);
+    expect(s.history[0].parts).toEqual([
       { kind: "text", text: "partial " },
       { kind: "error", message: "boom" },
     ]);
+  });
+
+  it("error before any text streamed prepends synthetic (interrupted) text so wire content is non-empty", () => {
+    // Repros the abort-during-tool-call case: tool fires, user aborts before
+    // any text streams. Without a synthetic placeholder the resulting wire
+    // assistant message has empty content, which Anthropic-style APIs reject.
+    let s = initialState();
+    s = reduce(s, { type: "tool_progress", tool: "top_genes", status: "started" }, noopApply);
+    s = reduce(s, { type: "error", message: "aborted", retryable: false }, noopApply);
+    expect(s.current).toBeNull();
+    expect(s.history).toHaveLength(1);
+    const parts = s.history[0].parts;
+    expect(parts[0]).toEqual({ kind: "text", text: "(interrupted)" });
+    expect(parts.some((p) => p.kind === "tool")).toBe(true);
+    expect(parts.some((p) => p.kind === "error")).toBe(true);
+  });
+
+  it("error with no in-flight turn creates a synthetic assistant entry for alternation", () => {
+    // Edge case: server errors during handshake, before any text_delta or
+    // tool_progress. The reducer still needs to leave a placeholder so the
+    // next user message lands in a well-formed alternation.
+    let s = initialState();
+    s = reduce(s, { type: "error", message: "no thread", retryable: false }, noopApply);
+    expect(s.current).toBeNull();
+    expect(s.history).toHaveLength(1);
+    expect(s.history[0].role).toBe("assistant");
+    expect(s.history[0].parts[0]).toEqual({ kind: "text", text: "(interrupted)" });
+    expect(s.history[0].parts.some((p) => p.kind === "error")).toBe(true);
+  });
+
+  it("USER_SUBMIT-style append after error produces well-formed user/assistant/user history", () => {
+    // The bug we're fixing: turn 1 aborts mid-tool, user types turn 2,
+    // wire messages must alternate. After the error, history must end with
+    // an assistant entry so the next user message is the only consecutive
+    // role.
+    let s = initialState();
+    // Synthetic turn 1: user → assistant streams a tool → aborts
+    s = {
+      ...s,
+      history: [{ role: "user", parts: [{ kind: "text", text: "what are the top 20?" }] }],
+    };
+    s = reduce(s, { type: "tool_progress", tool: "top_genes", status: "started" }, noopApply);
+    s = reduce(s, { type: "error", message: "aborted", retryable: false }, noopApply);
+    // Now simulate the next user submission appending to history.
+    expect(s.history.map((m) => m.role)).toEqual(["user", "assistant"]);
+    const withNextUser = [
+      ...s.history,
+      { role: "user" as const, parts: [{ kind: "text" as const, text: "nevermind" }] },
+    ];
+    expect(withNextUser.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
   });
 
   it("done finalizes current onto history and clears current", () => {
@@ -93,23 +145,26 @@ describe("eventReducer.reduce", () => {
     expect(s.history[0].id).toBe("msg-server-abc");
   });
 
-  it("mid-stream error between text_delta events keeps partial text visible", () => {
+  it("mid-stream error between text_delta events keeps partial text visible in history", () => {
     let s = initialState();
     s = reduce(s, { type: "text_delta", text: "before " }, noopApply);
     s = reduce(s, { type: "error", message: "x", retryable: false }, noopApply);
-    expect(s.current!.parts.find((p) => p.kind === "text")).toEqual({
+    expect(s.current).toBeNull();
+    expect(s.history[0].parts.find((p) => p.kind === "text")).toEqual({
       kind: "text",
       text: "before ",
     });
   });
 
-  it("unknown event type appends a synthetic error part instead of throwing", () => {
+  it("unknown event type finalizes a synthetic error entry to history", () => {
     const s = reduce(
       initialState(),
       { type: "garbage" } as unknown as ChatEvent,
       noopApply,
     );
     expect(s.status).toBe("error");
-    expect(s.current!.parts.some((p) => p.kind === "error")).toBe(true);
+    expect(s.current).toBeNull();
+    expect(s.history).toHaveLength(1);
+    expect(s.history[0].parts.some((p) => p.kind === "error")).toBe(true);
   });
 });
