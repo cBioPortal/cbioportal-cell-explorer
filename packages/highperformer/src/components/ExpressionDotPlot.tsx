@@ -336,7 +336,7 @@ function DotPlotLegends({
 // DotPlotTable
 // ---------------------------------------------------------------------------
 
-function DotPlotTable({
+export function DotPlotTable({
   data,
   genes,
   categories,

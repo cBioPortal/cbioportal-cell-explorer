@@ -1,6 +1,8 @@
 import type { ComponentType } from "react";
 import TopGenesBarChart from "../components/TopGenesBarChart";
 import GenePanelDotplot from "../components/GenePanelDotplot";
+import TopGenesBarTable from "../components/TopGenesBarTable";
+import GenePanelDotplotTable from "../components/GenePanelDotplotTable";
 import type { ChartHint } from "./types";
 
 /**
@@ -54,4 +56,45 @@ const REGISTRY: Record<string, ChartRenderer> = {
 export function getChartRenderer(hint: ChartHint | null | undefined): ChartRenderer | undefined {
   if (!hint || typeof hint.type !== "string") return undefined;
   return REGISTRY[hint.type];
+}
+
+// ---------------------------------------------------------------------------
+// Table renderers — used by the ChartModal "Table" tab. Parallel structure to
+// the chart registry above.
+// ---------------------------------------------------------------------------
+
+export type ChartTableProps = { data: unknown };
+export type ChartTableRenderer = ComponentType<ChartTableProps>;
+
+const TopGenesBarTableAdapter: ChartTableRenderer = ({ data }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d = data as any;
+  if (!d || !Array.isArray(d.genes)) return null;
+  return (
+    <TopGenesBarTable
+      obs_column={d.obs_column ?? ""}
+      group_value={d.group_value ?? ""}
+      genes={d.genes}
+    />
+  );
+};
+
+const GenePanelDotplotTableAdapter: ChartTableRenderer = ({ data }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d = data as any;
+  if (!d || !Array.isArray(d.genes) || !Array.isArray(d.categories)) return null;
+  return <GenePanelDotplotTable data={d} />;
+};
+
+const TABLE_REGISTRY: Record<string, ChartTableRenderer> = {
+  top_genes_bar: TopGenesBarTableAdapter,
+  gene_panel_dotplot: GenePanelDotplotTableAdapter,
+};
+
+/** Returns a table renderer for the given hint, or undefined if unknown. */
+export function getChartTableRenderer(
+  hint: ChartHint | null | undefined,
+): ChartTableRenderer | undefined {
+  if (!hint || typeof hint.type !== "string") return undefined;
+  return TABLE_REGISTRY[hint.type];
 }

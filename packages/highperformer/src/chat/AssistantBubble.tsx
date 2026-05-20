@@ -20,7 +20,7 @@ import { FeedbackThumbs } from "./FeedbackThumbs";
 import { useChatFeedback } from "./useChatFeedback";
 import { WhyPanel } from "./WhyPanel";
 import type { ChatMessage, ChartHint, MessageFeedback, MessagePart, ToolPart } from "./types";
-import { getChartRenderer } from "./chartRegistry";
+import { getChartRenderer, getChartTableRenderer } from "./chartRegistry";
 import ChartModal from "../components/ChartModal";
 
 const FLASH_MS = 2000;
@@ -116,6 +116,7 @@ function ToolPartView({ part }: { part: ToolPart }) {
       {modalSnapshot && (() => {
         const ModalRenderer = getChartRenderer(modalSnapshot);
         if (!ModalRenderer) return null;
+        const TableRenderer = getChartTableRenderer(modalSnapshot);
         return (
           <ChartModal
             title={`${tool}`}
@@ -129,9 +130,13 @@ function ToolPartView({ part }: { part: ToolPart }) {
               />
             }
             table={
-              <pre style={{ whiteSpace: "pre-wrap", fontSize: 12 }}>
-                {JSON.stringify(modalSnapshot.data, null, 2)}
-              </pre>
+              TableRenderer ? (
+                <TableRenderer data={modalSnapshot.data} />
+              ) : (
+                <pre style={{ whiteSpace: "pre-wrap", fontSize: 12 }}>
+                  {JSON.stringify(modalSnapshot.data, null, 2)}
+                </pre>
+              )
             }
           />
         );
