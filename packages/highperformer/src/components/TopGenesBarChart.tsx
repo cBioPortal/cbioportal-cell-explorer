@@ -18,7 +18,7 @@ export type TopGenesBarChartProps = {
 
 const DEFAULT_WIDTH = 280;
 const DEFAULT_ROW_HEIGHT = 16;
-const MARGIN = { top: 24, right: 8, bottom: 32, left: 64 };
+const MARGIN = { top: 24, right: 8, bottom: 36, left: 64 };
 const BAR_COLOR = "#4a90d9";
 
 export default function TopGenesBarChart({
@@ -49,8 +49,7 @@ export default function TopGenesBarChart({
   return (
     <div style={{ width, maxWidth: width }}>
       <div style={{ fontSize: 12, color: "#555", marginBottom: 4 }}>
-        Top {genes.length} genes in <b>{group_value}</b>
-        <span style={{ color: "#999" }}> ({obs_column})</span>
+        Top {genes.length} genes in <b>{group_value}</b> by mean expression
       </div>
       <svg
         width={width}
@@ -90,8 +89,6 @@ export default function TopGenesBarChart({
             tickStroke="#ccc"
             numTicks={4}
             tickLabelProps={{ fontSize: 9, textAnchor: "middle", fill: "#777" }}
-            label="mean expression"
-            labelProps={{ fontSize: 10, textAnchor: "middle", fill: "#666" }}
           />
         </Group>
       </svg>

@@ -72,7 +72,7 @@ function ToolPartTag({ part }: { part: ToolPart }) {
   );
 }
 
-const INLINE_CHART_WIDTH = 280;
+const INLINE_CHART_WIDTH = 400;
 const MODAL_CHART_WIDTH = 800;
 
 function ToolPartView({ part }: { part: ToolPart }) {
@@ -107,7 +107,7 @@ function ToolPartView({ part }: { part: ToolPart }) {
               openModal();
             }
           }}
-          style={{ marginTop: 6, cursor: "pointer", display: "inline-block" }}
+          style={{ marginTop: 6, marginBottom: 6, cursor: "pointer", display: "block", width: "fit-content" }}
           aria-label={`Open ${tool} chart in full size`}
         >
           <Renderer data={part.chart.data} width={INLINE_CHART_WIDTH} />
