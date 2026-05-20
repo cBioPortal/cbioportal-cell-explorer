@@ -19,7 +19,9 @@ import { parseCitations } from "./citations";
 import { FeedbackThumbs } from "./FeedbackThumbs";
 import { useChatFeedback } from "./useChatFeedback";
 import { WhyPanel } from "./WhyPanel";
-import type { ChatMessage, MessageFeedback, MessagePart, ToolPart } from "./types";
+import type { ChatMessage, ChartHint, MessageFeedback, MessagePart, ToolPart } from "./types";
+import { getChartRenderer, getChartTableRenderer } from "./chartRegistry";
+import ChartModal from "../components/ChartModal";
 
 const FLASH_MS = 2000;
 
@@ -67,6 +69,79 @@ function ToolPartTag({ part }: { part: ToolPart }) {
       {sym} {part.tool}
       {part.summary ? ` — ${part.summary}` : part.status === "started" ? "…" : ""}
     </Tag>
+  );
+}
+
+const INLINE_CHART_WIDTH = 400;
+const MODAL_CHART_WIDTH = 800;
+
+function ToolPartView({ part }: { part: ToolPart }) {
+  const [modalSnapshot, setModalSnapshot] = useState<ChartHint | null>(null);
+  const Renderer = getChartRenderer(part.chart);
+  const tool = part.tool;
+
+  const openModal = () => {
+    if (!part.chart) return;
+    // Snapshot via JSON round-trip — sufficient for chart payloads which are
+    // plain JSON values from the backend (backend serializes via cap_json_bytes).
+    const snap: ChartHint = {
+      type: part.chart.type,
+      data: part.chart.data === undefined
+        ? undefined
+        : JSON.parse(JSON.stringify(part.chart.data)),
+    };
+    setModalSnapshot(snap);
+  };
+
+  return (
+    <>
+      <ToolPartTag part={part} />
+      {Renderer && part.chart && (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={openModal}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              openModal();
+            }
+          }}
+          style={{ marginTop: 6, marginBottom: 6, cursor: "pointer", display: "block", width: "fit-content" }}
+          aria-label={`Open ${tool} chart in full size`}
+        >
+          <Renderer data={part.chart.data} width={INLINE_CHART_WIDTH} />
+        </div>
+      )}
+      {modalSnapshot && (() => {
+        const ModalRenderer = getChartRenderer(modalSnapshot);
+        if (!ModalRenderer) return null;
+        const TableRenderer = getChartTableRenderer(modalSnapshot);
+        return (
+          <ChartModal
+            title={`${tool}`}
+            open={true}
+            onClose={() => setModalSnapshot(null)}
+            chart={
+              <ModalRenderer
+                data={modalSnapshot.data}
+                width={MODAL_CHART_WIDTH}
+                isModal={true}
+              />
+            }
+            table={
+              TableRenderer ? (
+                <TableRenderer data={modalSnapshot.data} />
+              ) : (
+                <pre style={{ whiteSpace: "pre-wrap", fontSize: 12 }}>
+                  {JSON.stringify(modalSnapshot.data, null, 2)}
+                </pre>
+              )
+            }
+          />
+        );
+      })()}
+    </>
   );
 }
 
@@ -192,7 +267,7 @@ function PartView({
     );
   }
   if (part.kind === "tool") {
-    return <ToolPartTag part={part} />;
+    return <ToolPartView part={part} />;
   }
   return <Alert type="error" message={part.message} showIcon style={{ marginTop: 8 }} />;
 }

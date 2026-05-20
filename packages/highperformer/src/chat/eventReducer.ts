@@ -6,6 +6,7 @@ import type {
   ToolPart,
   ErrorPart,
   TraceEntry,
+  ChartHint,
 } from "./types";
 
 export type State = {
@@ -49,6 +50,7 @@ function upsertToolPart(
     summary?: string;
     args?: Record<string, unknown> | null;
     duration_ms?: number | null;
+    chart?: ChartHint | null;
   },
 ): MessagePart[] {
   const idx = parts.findIndex(
@@ -56,6 +58,7 @@ function upsertToolPart(
   );
   // Preserve args from the 'started' event when 'ok' / 'error' arrives
   // without args. Preserve duration_ms from end event when later updates come.
+  // Preserve chart from any earlier event that provided it.
   const prev = idx === -1 ? undefined : (parts[idx] as ToolPart);
   const updated: ToolPart = {
     kind: "tool",
@@ -64,6 +67,7 @@ function upsertToolPart(
     summary: ev.summary ?? prev?.summary,
     args: ev.args ?? prev?.args,
     duration_ms: ev.duration_ms ?? prev?.duration_ms,
+    chart: ev.chart ?? prev?.chart,
   };
   if (idx === -1) return [...parts, updated];
   const next = parts.slice();
@@ -119,6 +123,7 @@ export function reduce(
         summary: ev.summary,
         args: ev.args,
         duration_ms: ev.duration_ms,
+        chart: ev.chart,
       });
       const traceEntry: TraceEntry =
         ev.status === "started"

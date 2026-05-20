@@ -20,7 +20,7 @@ interface ExpressionByCategoryResult {
   fractionExpressing: Float32Array
 }
 
-interface DotPlotDatum {
+export interface DotPlotDatum {
   gene: string
   geneLabel: string
   category: string
@@ -46,7 +46,7 @@ const CHAR_WIDTH = 6 // approximate width per character at fontSize 10
 const LABEL_TRUNCATE_LEN = 16
 const MODAL_LABEL_TRUNCATE_LEN = 22
 
-function DotPlotMatrix({
+export function DotPlotMatrix({
   data,
   genes,
   categories,
@@ -336,7 +336,7 @@ function DotPlotLegends({
 // DotPlotTable
 // ---------------------------------------------------------------------------
 
-function DotPlotTable({
+export function DotPlotTable({
   data,
   genes,
   categories,

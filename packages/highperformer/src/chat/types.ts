@@ -76,6 +76,17 @@ export type TurnRequest = {
 
 // ---------- /turns wire events ----------
 
+/**
+ * Inline chart hint, attached to a tool's 'ok' tool_progress event.
+ * `data` is renderer-specific and narrowed by each chart-type registry entry.
+ * The LLM never sees `data` (backend strips it); the frontend renders charts
+ * inline beneath the matching tool pill.
+ */
+export type ChartHint = {
+  type: string;
+  data?: unknown;
+};
+
 export type TextDelta    = { type: "text_delta"; text: string };
 export type ToolProgress = {
   type: "tool_progress";
@@ -88,6 +99,8 @@ export type ToolProgress = {
   duration_ms?: number | null;
   /** LLM-generated tool_use_id. Citation markers [t:<id>] reference this. */
   tool_call_id?: string | null;
+  /** Populated only on the 'ok' event when the tool result included a chart hint. */
+  chart?: ChartHint | null;
 };
 export type UIAction     = { type: "ui_action"; payload: Record<string, unknown> };
 export type ErrorEvent   = { type: "error"; message: string; retryable: boolean };
@@ -123,6 +136,8 @@ export type ToolPart  = {
   summary?: string;
   args?: Record<string, unknown> | null;
   duration_ms?: number | null;
+  /** Inline chart attached when the tool produced one. */
+  chart?: ChartHint | null;
 };
 export type ErrorPart = { kind: "error"; message: string };
 export type MessagePart = TextPart | ToolPart | ErrorPart;

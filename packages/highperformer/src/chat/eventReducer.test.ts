@@ -178,4 +178,68 @@ describe("eventReducer.reduce", () => {
     expect(s.history).toHaveLength(1);
     expect(s.history[0].parts.some((p) => p.kind === "error")).toBe(true);
   });
+
+  it("tool_progress ok with chart attaches chart to the ToolPart", () => {
+    let s = initialState();
+    const chart = { type: "bar", data: { labels: ["a", "b"], values: [1, 2] } };
+    s = reduce(
+      s,
+      { type: "tool_progress", tool: "top_genes", status: "ok", summary: "done", chart },
+      noopApply,
+    );
+    const toolPart = s.current!.parts.find((p) => p.kind === "tool");
+    expect(toolPart).toBeDefined();
+    expect((toolPart as { chart?: unknown }).chart).toEqual(chart);
+  });
+
+  it("tool_progress started then ok with chart: ok upserts chart and preserves args from started", () => {
+    let s = initialState();
+    const args = { n: 10 };
+    const chart = { type: "scatter", data: [1, 2, 3] };
+    s = reduce(
+      s,
+      { type: "tool_progress", tool: "top_genes", status: "started", args },
+      noopApply,
+    );
+    s = reduce(
+      s,
+      { type: "tool_progress", tool: "top_genes", status: "ok", summary: "32k scanned", chart },
+      noopApply,
+    );
+    const tools = s.current!.parts.filter((p) => p.kind === "tool");
+    expect(tools).toHaveLength(1);
+    expect(tools[0]).toMatchObject({ status: "ok", summary: "32k scanned", chart, args });
+  });
+
+  it("tool_progress without chart does not clear an existing chart (prev-preservation)", () => {
+    let s = initialState();
+    const chart = { type: "bar" };
+    // First event attaches the chart
+    s = reduce(
+      s,
+      { type: "tool_progress", tool: "top_genes", status: "ok", summary: "first", chart },
+      noopApply,
+    );
+    // Second event arrives without chart — must not blow away the existing one
+    s = reduce(
+      s,
+      { type: "tool_progress", tool: "top_genes", status: "ok", summary: "second" },
+      noopApply,
+    );
+    const toolPart = s.current!.parts.find((p) => p.kind === "tool");
+    expect((toolPart as { chart?: unknown }).chart).toEqual(chart);
+  });
+
+  it("chart on ToolPart does NOT appear in the tool_end TraceEntry", () => {
+    let s = initialState();
+    const chart = { type: "pie", data: [3, 7] };
+    s = reduce(
+      s,
+      { type: "tool_progress", tool: "top_genes", status: "ok", summary: "done", chart },
+      noopApply,
+    );
+    const traceEntry = s.current!.trace?.find((e) => e.kind === "tool_end");
+    expect(traceEntry).toBeDefined();
+    expect((traceEntry as Record<string, unknown>)["chart"]).toBeUndefined();
+  });
 });
