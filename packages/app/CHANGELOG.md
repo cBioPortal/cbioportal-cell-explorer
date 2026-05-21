@@ -1,5 +1,14 @@
 # @cbioportal-cell-explorer/app
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [[`f691ec8`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/f691ec811223156f8e9aad4a27f9ef3ea737bc99), [`1b54449`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/1b54449ccbd34e84c43aa388089f7043a7f547c6), [`07e97e5`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/07e97e53d382aec2d34d67985b2d9923a2b59a5c), [`72a55cb`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/72a55cb1940290feafc89a9dd54df9e2d6004287), [`61fde5f`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/61fde5fa82857df655649e0b817558a6f6ab03b7)]:
+  - @cbioportal-cell-explorer/api-client@0.2.0
+  - @cbioportal-cell-explorer/profiler@0.2.0
+  - @cbioportal-cell-explorer/zarrstore@0.3.0
+
 ## 0.1.1
 
 ### Patch Changes
