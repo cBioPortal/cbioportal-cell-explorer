@@ -1,5 +1,27 @@
 # @cbioportal-cell-explorer/api-client
 
+## 0.2.0
+
+### Minor Changes
+
+- [#255](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/255) [`f691ec8`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/f691ec811223156f8e9aad4a27f9ef3ea737bc99) Thanks [@hweej](https://github.com/hweej)! - Wire the chat-panel UI to the new per-dataset and per-user chat gates from
+  cell-explorer-py. The chat tab on the View page is now hidden when
+  `dataset.chat_enabled` is false. When the tab is visible but the user's
+  `permission.can_chat` is false, ChatPanel renders a `ChatPermissionBanner`
+  (sign-in CTA for anonymous, contact-admin copy for missing role) instead of
+  the chat input. The api-client is regenerated to expose `chat_enabled` on
+  the dataset shapes and a `permission` field on `ContextResponse`.
+
+- [#256](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/256) [`1b54449`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/1b54449ccbd34e84c43aa388089f7043a7f547c6) Thanks [@hweej](https://github.com/hweej)! - Add chat thread persistence and history. The chat tab now opens to a list of
+  past conversations on the current dataset. Click a thread to resume it (history
+  hydrates into the reducer); click "+ New chat" to start a fresh one (auto-titled
+  from the first user message after the stream's `thread_open` event). Hover a
+  row to reveal a delete button, confirmed via `Modal.confirm` and persisted via
+  `DELETE /api/chat/{slug}/threads/{id}`. ChatPanel becomes a mode-based router
+  (list / new / active), with the conversation render extracted into a dedicated
+  `ConversationView` component. `useChatTurn`'s `start()` and `chat.streamTurn()`
+  gain a `threadId` parameter the route uses to attribute messages.
+
 ## 0.1.0
 
 ### Minor Changes
