@@ -56,6 +56,13 @@ export function FeedbackThumbs({
     onChange({ rating: "down", comment: draft.trim() || null });
   };
 
+  // Send is a no-op when the draft (normalized) already matches the saved
+  // comment. Disabling on no-op gives the user a visible signal that their
+  // comment was successfully saved — the button greys out after a send and
+  // re-enables only when they type something different.
+  const sendDisabled =
+    disabled || (draft.trim() || null) === (comment ?? null);
+
   return (
     <span style={{ display: "inline-flex", flexDirection: "column", gap: 4 }}>
       <span style={{ display: "inline-flex", gap: 4 }}>
@@ -87,7 +94,7 @@ export function FeedbackThumbs({
             onPressEnter={sendComment}
             style={{ width: 200 }}
           />
-          <Button size="small" disabled={disabled} onClick={sendComment}>
+          <Button size="small" disabled={sendDisabled} onClick={sendComment}>
             Send
           </Button>
         </span>
