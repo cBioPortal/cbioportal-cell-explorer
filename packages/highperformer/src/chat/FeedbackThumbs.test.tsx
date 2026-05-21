@@ -62,4 +62,62 @@ describe("FeedbackThumbs", () => {
     );
     expect(screen.getByRole("textbox")).toHaveProperty("disabled", true);
   });
+
+  it("Send is disabled when textarea is empty and no comment is saved", () => {
+    const onChange = vi.fn();
+    render(<FeedbackThumbs rating="down" comment={null} onChange={onChange} />);
+    expect(screen.getByRole("button", { name: /send/i })).toHaveProperty(
+      "disabled",
+      true,
+    );
+  });
+
+  it("Send re-enables when the user types", () => {
+    const onChange = vi.fn();
+    render(<FeedbackThumbs rating="down" comment={null} onChange={onChange} />);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "x" } });
+    expect(screen.getByRole("button", { name: /send/i })).toHaveProperty(
+      "disabled",
+      false,
+    );
+  });
+
+  it("Send greys out after a successful save (draft matches saved comment)", () => {
+    // Simulate the post-save state: the saved comment now matches the draft
+    // the user typed. The Send button should disable on its own.
+    const onChange = vi.fn();
+    render(
+      <FeedbackThumbs
+        rating="down"
+        comment="off-topic answer"
+        onChange={onChange}
+      />,
+    );
+    // Local draft initialized to "off-topic answer" via useState(comment ?? "")
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "off-topic answer" },
+    });
+    expect(screen.getByRole("button", { name: /send/i })).toHaveProperty(
+      "disabled",
+      true,
+    );
+  });
+
+  it("Send re-enables when the user clears a previously-saved comment", () => {
+    // After clearing the textarea, draft="" → null, saved="text" → "text".
+    // Sending now would null out the saved comment, which is a legitimate change.
+    const onChange = vi.fn();
+    render(
+      <FeedbackThumbs
+        rating="down"
+        comment="off-topic answer"
+        onChange={onChange}
+      />,
+    );
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "" } });
+    expect(screen.getByRole("button", { name: /send/i })).toHaveProperty(
+      "disabled",
+      false,
+    );
+  });
 });
