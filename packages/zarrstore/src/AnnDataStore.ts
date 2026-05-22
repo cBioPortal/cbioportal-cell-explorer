@@ -39,7 +39,18 @@ interface CachedOpts<T> {
   getLabel?: (result: T) => Promise<string | undefined> | string | undefined;
 }
 
-/** Common var column names that hold human-readable gene symbols (case-sensitive candidates). */
+/**
+ * Common var column names that hold human-readable gene symbols (case-sensitive
+ * candidates). The first column present in a given dataset wins.
+ *
+ * `gene` is the most ambiguous candidate (a future dataset could store
+ * something else under that name) so it sits at the end — a dataset that has
+ * both a canonical column AND `gene` still picks the canonical one. Per-dataset
+ * overrides for unusual schemas are tracked separately.
+ *
+ * Keep in sync with cell-explorer-py's GENE_SYMBOL_COLUMNS in
+ * packages/api/src/cell_explorer_api/services/zarr_adapter.py.
+ */
 export const GENE_SYMBOL_COLUMNS: readonly string[] = [
   "gene_symbol",
   "GeneSymbol",
@@ -50,6 +61,7 @@ export const GENE_SYMBOL_COLUMNS: readonly string[] = [
   "gene_short_name",
   "symbol",
   "name",
+  "gene",
 ];
 
 export class AnnDataStore {
