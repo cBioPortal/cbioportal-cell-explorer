@@ -1,5 +1,17 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.5.0
+
+### Minor Changes
+
+- [#287](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/287) [`a80a076`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/a80a076d62a2400b82cc8d49cee67fd16237c19e) Thanks [@hweej](https://github.com/hweej)! - Apply a dataset's stored default view on load. When a catalog dataset has a curator-set `default_view` (coloring, cluster labels, point rendering) and no explicit `?config=` link is present, highperformer now applies it via `applyConfig()`. The generated API client exposes the new `default_view` field on `DatasetResponse`.
+
+### Patch Changes
+
+- Updated dependencies [[`a80a076`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/a80a076d62a2400b82cc8d49cee67fd16237c19e), [`5c1e8a8`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/5c1e8a8ec5e97cab7c72d7337d16421f42d7b17f)]:
+  - @cbioportal-cell-explorer/api-client@0.2.1
+  - @cbioportal-cell-explorer/zarrstore@0.3.1
+
 ## 0.4.0
 
 ### Minor Changes
