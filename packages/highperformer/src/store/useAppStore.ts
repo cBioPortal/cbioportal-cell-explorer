@@ -216,6 +216,7 @@ export interface AppState {
     is_public: boolean
     url: string | null
     chat_enabled: boolean
+    default_view?: Record<string, unknown> | null
   }>
   fetchCatalog: () => Promise<void>
   openCatalogDataset: (slug: string) => Promise<void>
@@ -534,10 +535,19 @@ const useAppStore = create<AppState>((set, get) => ({
       }
     }
 
+    const finishOpen = async () => {
+      set({ datasetSlug: slug })
+      const dv = dataset.default_view
+      if (dv) {
+        const { applyConfig } = await import('../config/applyConfig')
+        await applyConfig(dv)
+      }
+    }
+
     // Public dataset — open directly
     if (dataset.url) {
       await get().openDataset(dataset.url)
-      set({ datasetSlug: slug })
+      await finishOpen()
       return
     }
 
@@ -562,13 +572,13 @@ const useAppStore = create<AppState>((set, get) => ({
         await get().openDataset(data.url, {
           headers: { Authorization: `Bearer ${data.token}` },
         })
-        set({ datasetSlug: slug })
+        await finishOpen()
         return
       }
 
       // signed_cookies or public — no overrides needed
       await get().openDataset(data.url)
-      set({ datasetSlug: slug })
+      await finishOpen()
     } catch {
       set({ loadingError: 'Failed to access dataset' })
     }
