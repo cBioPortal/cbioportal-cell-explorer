@@ -108,6 +108,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh
+         * @description Rotate session cookies using the refresh cookie.
+         *
+         *     Idempotent endpoint used by the frontend's proactive-refresh timer to
+         *     keep the access cookie fresh before its TTL expires. Avoids the
+         *     rotation race that happens when multiple parallel requests all try to
+         *     refresh after expiry. Returns 401 if no refresh cookie or if Keycloak
+         *     rejects the refresh.
+         */
+        post: operations["refresh_api_auth_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/token-exchange": {
         parameters: {
             query?: never;
@@ -362,6 +388,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/chat/{slug}/messages/{message_id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Message Feedback */
+        put: operations["put_message_feedback_api_chat__slug__messages__message_id__feedback_put"];
+        post?: never;
+        /** Delete Message Feedback */
+        delete: operations["delete_message_feedback_api_chat__slug__messages__message_id__feedback_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -426,6 +470,12 @@ export interface components {
             is_public: boolean;
             /** Required Roles */
             required_roles: string[];
+            /** Prompt Addendum */
+            prompt_addendum: string | null;
+            /** Default View */
+            default_view: {
+                [key: string]: unknown;
+            } | null;
             /** Chat Enabled */
             chat_enabled: boolean;
         };
@@ -451,6 +501,12 @@ export interface components {
              * @default []
              */
             required_roles: string[];
+            /** Prompt Addendum */
+            prompt_addendum?: string | null;
+            /** Default View */
+            default_view?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Chat Enabled
              * @default false
@@ -476,6 +532,10 @@ export interface components {
             url: string | null;
             /** Chat Enabled */
             chat_enabled: boolean;
+            /** Default View */
+            default_view?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** DatasetUpdate */
         DatasetUpdate: {
@@ -489,6 +549,12 @@ export interface components {
             is_public?: boolean | null;
             /** Required Roles */
             required_roles?: string[] | null;
+            /** Prompt Addendum */
+            prompt_addendum?: string | null;
+            /** Default View */
+            default_view?: {
+                [key: string]: unknown;
+            } | null;
             /** Chat Enabled */
             chat_enabled?: boolean | null;
         };
@@ -540,6 +606,31 @@ export interface components {
             /** Credential Ref */
             credential_ref?: string | null;
         };
+        /** FeedbackRequest */
+        FeedbackRequest: {
+            /**
+             * Rating
+             * @enum {string}
+             */
+            rating: "up" | "down";
+            /** Comment */
+            comment?: string | null;
+        };
+        /** FeedbackResponse */
+        FeedbackResponse: {
+            /**
+             * Rating
+             * @enum {string}
+             */
+            rating: "up" | "down";
+            /** Comment */
+            comment: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -589,8 +680,23 @@ export interface components {
             /** Threads */
             threads: components["schemas"]["ThreadSummaryResponse"][];
         };
+        /** ThreadMessageFeedback */
+        ThreadMessageFeedback: {
+            /**
+             * Rating
+             * @enum {string}
+             */
+            rating: "up" | "down";
+            /** Comment */
+            comment: string | null;
+        };
         /** ThreadMessageResponse */
         ThreadMessageResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
             /**
              * Role
              * @enum {string}
@@ -603,6 +709,7 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            feedback?: components["schemas"]["ThreadMessageFeedback"] | null;
         };
         /** ThreadSummaryResponse */
         ThreadSummaryResponse: {
@@ -780,6 +887,26 @@ export interface operations {
         };
     };
     logout_api_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    refresh_api_auth_refresh_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1284,6 +1411,72 @@ export interface operations {
             path: {
                 slug: string;
                 thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_message_feedback_api_chat__slug__messages__message_id__feedback_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_message_feedback_api_chat__slug__messages__message_id__feedback_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                message_id: string;
             };
             cookie?: never;
         };
