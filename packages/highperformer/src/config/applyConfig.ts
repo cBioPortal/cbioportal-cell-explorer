@@ -99,8 +99,17 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
   if (!hasPostLoadConfig) return ok()
 
   const metadataReady = store.getState().obsColumnNames.length > 0
+  // `adata != null` covers the window after openDataset() resolves (it sets
+  // `adata` and flips `loading` off) but before obsColumnNames arrives — those
+  // are fetched a couple async hops later in fetchEmbedding's background
+  // Promise. Without this, a post-load config applied with no url/dataset (e.g.
+  // a stored default_view) wrongly bails with metadata_unavailable.
   const datasetLoading =
-    !metadataReady && (config.dataset !== undefined || config.url !== undefined || store.getState().loading)
+    !metadataReady &&
+    (config.dataset !== undefined ||
+      config.url !== undefined ||
+      store.getState().loading ||
+      store.getState().adata != null)
 
   if (!metadataReady && datasetLoading) {
     try {
