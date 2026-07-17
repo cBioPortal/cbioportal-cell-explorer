@@ -1,5 +1,11 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.5.1
+
+### Patch Changes
+
+- [#289](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/289) [`589b279`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/589b279f56aecb44b1c6286c280dcdc7446254bc) Thanks [@hweej](https://github.com/hweej)! - Fix intermittent failure applying a dataset's stored default view. `applyConfig` now treats a dataset as still-loading when its handle is open (`adata`) but obs columns haven't arrived yet — the async window after `openDataset` resolves but before `fetchEmbedding`'s background obs-columns fetch completes — so it waits for metadata instead of bailing with `metadata_unavailable`.
+
 ## 0.5.0
 
 ### Minor Changes
