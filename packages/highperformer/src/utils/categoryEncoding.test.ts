@@ -7,7 +7,7 @@ describe('encodeCategories', () => {
     const values = ['A', 'B', 'A', 'C', 'B']
     const result = encodeCategories(values)
 
-    expect(result.codes).toBeInstanceOf(Uint8Array)
+    expect(result.codes).toBeInstanceOf(Uint16Array)
     expect(result.codes.length).toBe(5)
     // Same strings get same codes
     expect(result.codes[0]).toBe(result.codes[2]) // A === A
@@ -60,5 +60,15 @@ describe('encodeCategories', () => {
 
   it('exports MAX_CATEGORIES as 1000', () => {
     expect(MAX_CATEGORIES).toBe(1000)
+  })
+
+  it('assigns distinct codes beyond 256 categories (no Uint8 wrap)', () => {
+    const values = Array.from({ length: 300 }, (_, i) => `cat_${i}`)
+    const result = encodeCategories(values)
+    expect(result.uniqueCount).toBe(300)
+    // The 257th category (code 256) must be distinct from the first (code 0).
+    expect(result.codes[256]).toBe(256)
+    expect(result.codes[0]).toBe(0)
+    expect(result.codes[256]).not.toBe(result.codes[0])
   })
 })

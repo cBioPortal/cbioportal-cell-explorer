@@ -24,7 +24,7 @@ const BuildFromExpressionMsgSchema = z.object({
 const BuildFromCategoriesMsgSchema = z.object({
   type: z.literal('buildFromCategories'),
   numPoints: z.number(),
-  categories: z.custom<Uint8Array>((v) => v instanceof Uint8Array),
+  categories: z.custom<Uint16Array>((v) => v instanceof Uint16Array),
   alpha: z.number(),
   highlightedCodes: z.array(z.number()).nullable(),
   version: z.number(),

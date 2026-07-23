@@ -3,14 +3,14 @@ import { CATEGORICAL_COLORS, type RGB } from './colors'
 export const MAX_CATEGORIES = 1000
 
 export interface CategoryEncoding {
-  codes: Uint8Array
+  codes: Uint16Array
   categoryMap: { label: string; color: RGB }[]
   uniqueCount: number
 }
 
 export function encodeCategories(values: (string | number | null)[]): CategoryEncoding {
   const labelToCode = new Map<string, number>()
-  const codes = new Uint8Array(values.length)
+  const codes = new Uint16Array(values.length)
   const numColors = CATEGORICAL_COLORS.length
 
   for (let i = 0; i < values.length; i++) {

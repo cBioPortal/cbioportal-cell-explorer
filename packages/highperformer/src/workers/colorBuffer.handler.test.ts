@@ -106,7 +106,7 @@ describe('colorBuffer handler', () => {
 
   describe('buildFromCategories', () => {
     it('maps category indices to categorical colors', () => {
-      const categories = new Uint8Array([0, 1, 2])
+      const categories = new Uint16Array([0, 1, 2])
       const result = handleColorBufferMessage({
         type: 'buildFromCategories',
         numPoints: 3,
@@ -133,7 +133,7 @@ describe('colorBuffer handler', () => {
       const result = handleColorBufferMessage({
         type: 'buildFromCategories',
         numPoints: 1,
-        categories: new Uint8Array([CATEGORICAL_COLORS.length]),
+        categories: new Uint16Array([CATEGORICAL_COLORS.length]),
         alpha: 1.0,
         highlightedCodes: null,
         version: 1,
@@ -149,7 +149,7 @@ describe('colorBuffer handler', () => {
       const result = handleColorBufferMessage({
         type: 'buildFromCategories',
         numPoints: 1,
-        categories: new Uint8Array([0]),
+        categories: new Uint16Array([0]),
         alpha: 1.0,
         highlightedCodes: null,
         version: 99,
@@ -161,7 +161,7 @@ describe('colorBuffer handler', () => {
       const result = handleColorBufferMessage({
         type: 'buildFromCategories',
         numPoints: 2,
-        categories: new Uint8Array([0, 1]),
+        categories: new Uint16Array([0, 1]),
         alpha: 0.5,
         highlightedCodes: null,
         version: 1,
@@ -173,7 +173,7 @@ describe('colorBuffer handler', () => {
       const result = handleColorBufferMessage({
         type: 'buildFromCategories',
         numPoints: 3,
-        categories: new Uint8Array([0, 1, 2]),
+        categories: new Uint16Array([0, 1, 2]),
         alpha: 0.5,
         highlightedCodes: [1],
         version: 1,
@@ -209,7 +209,7 @@ describe('colorBuffer handler', () => {
       const result = handleColorBufferMessage({
         type: 'buildFromCategories',
         numPoints: 3,
-        categories: new Uint8Array([0, 1, 2]),
+        categories: new Uint16Array([0, 1, 2]),
         alpha: 0.5,
         highlightedCodes: [0, 2],
         version: 1,
@@ -236,7 +236,7 @@ describe('colorBuffer handler', () => {
       const result = handleColorBufferMessage({
         type: 'buildFromCategories',
         numPoints: 2,
-        categories: new Uint8Array([0, 1]),
+        categories: new Uint16Array([0, 1]),
         alpha: 0.8,
         highlightedCodes: [],
         version: 1,

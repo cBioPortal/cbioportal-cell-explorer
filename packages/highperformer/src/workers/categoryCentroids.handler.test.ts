@@ -5,7 +5,7 @@ describe("computeCategoryCentroids", () => {
   it("computes the mean of points per category", () => {
     // Two categories: code 0 has points (0,0), (2,0); code 1 has points (10,10), (20,20).
     const positions = new Float32Array([0, 0, 2, 0, 10, 10, 20, 20]);
-    const codes = new Uint8Array([0, 0, 1, 1]);
+    const codes = new Uint16Array([0, 0, 1, 1]);
 
     const result = computeCategoryCentroids(positions, codes, 2);
 
@@ -15,7 +15,7 @@ describe("computeCategoryCentroids", () => {
 
   it("leaves empty categories at (0, 0) with count 0", () => {
     const positions = new Float32Array([5, 5]);
-    const codes = new Uint8Array([0]);
+    const codes = new Uint16Array([0]);
 
     const result = computeCategoryCentroids(positions, codes, 3);
 
@@ -25,7 +25,7 @@ describe("computeCategoryCentroids", () => {
 
   it("handles a single-category degenerate case", () => {
     const positions = new Float32Array([1, 2, 3, 4, 5, 6]);
-    const codes = new Uint8Array([0, 0, 0]);
+    const codes = new Uint16Array([0, 0, 0]);
 
     const result = computeCategoryCentroids(positions, codes, 1);
 
@@ -38,7 +38,7 @@ describe("computeCategoryCentroids", () => {
     // 1M points, code 0, all at (1e6, 1e6). Float32 sum would lose precision.
     const numPoints = 1_000_000;
     const positions = new Float32Array(2 * numPoints);
-    const codes = new Uint8Array(numPoints);
+    const codes = new Uint16Array(numPoints);
     for (let i = 0; i < numPoints; i++) {
       positions[2 * i]     = 1e6;
       positions[2 * i + 1] = 1e6;
@@ -57,7 +57,7 @@ describe("computeCategoryCentroids", () => {
     const numPoints = 10_000;
     const numCategories = 5;
     const positions = new Float32Array(2 * numPoints);
-    const codes = new Uint8Array(numPoints);
+    const codes = new Uint16Array(numPoints);
     for (let i = 0; i < numPoints; i++) {
       positions[2 * i]     = rng() * 100;
       positions[2 * i + 1] = rng() * 100;

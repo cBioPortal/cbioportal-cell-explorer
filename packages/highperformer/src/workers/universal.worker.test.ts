@@ -63,7 +63,7 @@ describe('universal worker', () => {
           _poolTaskId: 7,
           type: 'buildFromCategories',
           numPoints: 1,
-          categories: new Uint8Array([0]),
+          categories: new Uint16Array([0]),
           alpha: 1.0,
           highlightedCodes: null,
           version: 1,

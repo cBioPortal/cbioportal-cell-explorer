@@ -118,7 +118,7 @@ export interface AppState {
   geneLabelMap: Map<string, string> | null
 
   // Internal — cached data for rebuilds (not for UI consumption)
-  _categoryCodes: Uint8Array | null
+  _categoryCodes: Uint16Array | null
   _expressionData: Float32Array | null
   _colorAbort: AbortController | null
 
@@ -179,7 +179,7 @@ export interface AppState {
   summaryPanelOpen: boolean
   summaryObsColumns: string[]
   summaryGenes: string[]
-  summaryObsData: Map<string, { codes: Uint8Array; categoryMap: { label: string; color: RGB }[] }>
+  summaryObsData: Map<string, { codes: Uint16Array; categoryMap: { label: string; color: RGB }[] }>
   summaryObsContinuousData: Map<string, Float32Array>
   summaryGeneData: Map<string, Float32Array>
   summaryGeneRanges: Map<string, { min: number; max: number }>
