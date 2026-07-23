@@ -2,7 +2,9 @@ export type RGB = [number, number, number]
 
 export type ColorScale = RGB[]
 
-// Categorical color palette (similar to D3 category10)
+// Categorical color palette. First 15 are D3 category10 + 5 light variants
+// (kept stable so existing low-cardinality coloring is unchanged); the next 9
+// extend distinctness for higher-cardinality columns. Colors recycle beyond 24.
 export const CATEGORICAL_COLORS: RGB[] = [
   [31, 119, 180],   // #1f77b4
   [255, 127, 14],   // #ff7f0e
@@ -19,6 +21,15 @@ export const CATEGORICAL_COLORS: RGB[] = [
   [152, 223, 138],  // #98df8a
   [255, 152, 150],  // #ff9896
   [197, 176, 213],  // #c5b0d5
+  [57, 59, 121],    // #393b79
+  [99, 121, 57],    // #637939
+  [140, 109, 49],   // #8c6d31
+  [132, 60, 57],    // #843c39
+  [123, 65, 115],   // #7b4173
+  [82, 84, 163],    // #5254a3
+  [140, 162, 82],   // #8ca252
+  [189, 158, 57],   // #bd9e39
+  [173, 73, 74],    // #ad494a
 ]
 
 const VIRIDIS: ColorScale = [

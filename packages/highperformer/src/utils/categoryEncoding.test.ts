@@ -47,12 +47,15 @@ describe('encodeCategories', () => {
     expect(result.codes.length).toBe(3)
   })
 
-  it('wraps colors via modulo for > 15 categories', () => {
-    const values = Array.from({ length: 20 }, (_, i) => `cat_${i}`)
+  it('wraps colors via modulo at the palette length', () => {
+    const n = CATEGORICAL_COLORS.length
+    const values = Array.from({ length: n + 3 }, (_, i) => `cat_${i}`)
     const result = encodeCategories(values)
-    expect(result.uniqueCount).toBe(20)
-    // Color at index 15 wraps to CATEGORICAL_COLORS[0]
-    expect(result.categoryMap[15].color).toEqual(CATEGORICAL_COLORS[0])
+    expect(result.uniqueCount).toBe(n + 3)
+    // The (n+1)th category recycles the first color.
+    expect(result.categoryMap[n].color).toEqual(CATEGORICAL_COLORS[0])
+    // The category just before the wrap uses the last palette color.
+    expect(result.categoryMap[n - 1].color).toEqual(CATEGORICAL_COLORS[n - 1])
   })
 
   it('exports MAX_CATEGORIES as 1000', () => {

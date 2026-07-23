@@ -93,17 +93,22 @@ describe('inferno scale', () => {
 })
 
 describe('CATEGORICAL_COLORS', () => {
-  it('has 15 colors', () => {
-    expect(CATEGORICAL_COLORS).toHaveLength(15)
+  it('has 24 colors', () => {
+    expect(CATEGORICAL_COLORS.length).toBe(24)
   })
 
-  it('each entry is an RGB triplet', () => {
-    for (const color of CATEGORICAL_COLORS) {
-      expect(color).toHaveLength(3)
-      color.forEach((v) => {
-        expect(v).toBeGreaterThanOrEqual(0)
-        expect(v).toBeLessThanOrEqual(255)
-      })
+  it('every entry is a valid RGB triple', () => {
+    for (const c of CATEGORICAL_COLORS) {
+      expect(c).toHaveLength(3)
+      for (const channel of c) {
+        expect(channel).toBeGreaterThanOrEqual(0)
+        expect(channel).toBeLessThanOrEqual(255)
+      }
     }
+  })
+
+  it('has no duplicate colors', () => {
+    const seen = new Set(CATEGORICAL_COLORS.map((c) => c.join(',')))
+    expect(seen.size).toBe(CATEGORICAL_COLORS.length)
   })
 })

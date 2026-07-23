@@ -133,7 +133,7 @@ describe('colorBuffer handler', () => {
       const result = handleColorBufferMessage({
         type: 'buildFromCategories',
         numPoints: 1,
-        categories: new Uint8Array([15]),
+        categories: new Uint8Array([CATEGORICAL_COLORS.length]),
         alpha: 1.0,
         highlightedCodes: null,
         version: 1,
