@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { encodeCategories, MAX_CATEGORIES } from './categoryEncoding'
+import { encodeCategories, MAX_CATEGORIES, classifyCardinality, MAX_COLORABLE_CATEGORIES, CATEGORY_LEGEND_LIST_CAP } from './categoryEncoding'
 import { CATEGORICAL_COLORS } from './colors'
 
 describe('encodeCategories', () => {
@@ -70,5 +70,33 @@ describe('encodeCategories', () => {
     expect(result.codes[256]).toBe(256)
     expect(result.codes[0]).toBe(0)
     expect(result.codes[256]).not.toBe(result.codes[0])
+  })
+})
+
+describe('classifyCardinality', () => {
+  it('colors with no note at or below the palette length', () => {
+    expect(classifyCardinality(CATEGORICAL_COLORS.length)).toEqual({ colorable: true, note: null })
+    expect(classifyCardinality(1)).toEqual({ colorable: true, note: null })
+  })
+
+  it('colors with a repeat note between palette length and the colorable ceiling', () => {
+    const r = classifyCardinality(CATEGORICAL_COLORS.length + 1)
+    expect(r.colorable).toBe(true)
+    expect(r.note).toContain('colors repeat')
+
+    const hi = classifyCardinality(MAX_COLORABLE_CATEGORIES)
+    expect(hi.colorable).toBe(true)
+    expect(hi.note).toContain('colors repeat')
+  })
+
+  it('blocks above the colorable ceiling', () => {
+    const r = classifyCardinality(MAX_COLORABLE_CATEGORIES + 1)
+    expect(r.colorable).toBe(false)
+    expect(r.note).toContain('too many to color')
+  })
+
+  it('exposes the expected constants', () => {
+    expect(MAX_COLORABLE_CATEGORIES).toBe(65535)
+    expect(CATEGORY_LEGEND_LIST_CAP).toBe(500)
   })
 })
