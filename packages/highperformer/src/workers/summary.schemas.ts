@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 const SummarizeCategoryMsgSchema = z.object({
   type: z.literal('summarizeCategory'),
-  codes: z.custom<Uint8Array>((v) => v instanceof Uint8Array),
+  codes: z.custom<Uint16Array>((v) => v instanceof Uint16Array),
   indices: z.custom<Uint32Array>((v) => v instanceof Uint32Array),
   numCategories: z.number(),
   version: z.number(),
@@ -22,7 +22,7 @@ const SummarizeExpressionMsgSchema = z.object({
 const SummarizeExpressionByCategoryMsgSchema = z.object({
   type: z.literal('summarizeExpressionByCategory'),
   expression: z.custom<Float32Array>((v) => v instanceof Float32Array),
-  codes: z.custom<Uint8Array>((v) => v instanceof Uint8Array),
+  codes: z.custom<Uint16Array>((v) => v instanceof Uint16Array),
   numCategories: z.number(),
   indices: z.custom<Uint32Array>((v) => v instanceof Uint32Array),
   version: z.number(),

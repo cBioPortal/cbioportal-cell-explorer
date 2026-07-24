@@ -92,3 +92,37 @@ describe('ColorBySection — cluster labels', () => {
     expect(useAppStore.getState().categoryLabelsObsColumn).toBe('leiden')
   })
 })
+
+describe('ColorBySection — cardinality note', () => {
+  beforeEach(() => {
+    useAppStore.setState(useAppStore.getInitialState())
+    useAppStore.setState({
+      obsColumnNames: ['leiden'],
+      colorMode: 'category',
+      selectedObsColumn: 'leiden',
+    } as any)
+  })
+
+  it('renders the repeat note as an info alert when the column is still colored', () => {
+    useAppStore.setState({
+      categoryWarning: '30 values — colors repeat',
+      categoryMap: [{ label: 'a', color: [0, 0, 0] }],
+      _categoryCodes: new Uint16Array([0]),
+    } as any)
+    const { container } = render(<ColorBySection />)
+    expect(screen.getByText('30 values — colors repeat')).toBeDefined()
+    expect(container.querySelector('.ant-alert-info')).not.toBeNull()
+    expect(container.querySelector('.ant-alert-warning')).toBeNull()
+  })
+
+  it('renders a warning alert when coloring is blocked (no categoryMap)', () => {
+    useAppStore.setState({
+      categoryWarning: '99999 distinct values — too many to color; likely an ID or continuous column',
+      categoryMap: [],
+      _categoryCodes: null,
+    } as any)
+    const { container } = render(<ColorBySection />)
+    expect(container.querySelector('.ant-alert-warning')).not.toBeNull()
+    expect(container.querySelector('.ant-alert-info')).toBeNull()
+  })
+})
