@@ -556,7 +556,7 @@ describe('useAppStore', () => {
       )
     })
 
-    it('shows warning when unique values exceed threshold', async () => {
+    it('shows repeat-color warning but still colors when unique values exceed palette size', async () => {
       const manyValues = Array.from({ length: 1001 }, (_, i) => `val_${i}`)
       const mockAdata = {
         obsColumn: vi.fn().mockResolvedValue(manyValues),
@@ -576,6 +576,31 @@ describe('useAppStore', () => {
 
       await vi.waitFor(() => {
         expect(useAppStore.getState().categoryWarning).toContain('1001')
+      })
+      // Colors repeat warning — coloring proceeds (dispatch is called)
+      expect(mockDispatch).toHaveBeenCalled()
+    })
+
+    it('blocks coloring and warns when unique values exceed the colorable ceiling', async () => {
+      const hugeValues = Array.from({ length: 65536 }, (_, i) => `val_${i}`)
+      const mockAdata = {
+        obsColumn: vi.fn().mockResolvedValue(hugeValues),
+      }
+      useAppStore.setState({
+        adata: mockAdata as any,
+        embeddingData: {
+          positions: new Float32Array(65536 * 2),
+          numPoints: 65536,
+          bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
+        },
+        colorMode: 'category',
+      })
+      mockDispatch.mockClear()
+
+      useAppStore.getState().selectObsColumn('id_col')
+
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().categoryWarning).toContain('too many to color')
       })
       // Should NOT dispatch a color buffer build
       expect(mockDispatch).not.toHaveBeenCalled()
