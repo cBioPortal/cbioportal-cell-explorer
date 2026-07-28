@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { interpolateColorScale, COLOR_SCALES, CATEGORICAL_COLORS } from './colors'
+import { interpolateColorScale, COLOR_SCALES, CATEGORICAL_COLORS, OBS_CONTINUOUS_SCALE_NAME } from './colors'
 
 describe('interpolateColorScale', () => {
   const scale = COLOR_SCALES.viridis
@@ -89,6 +89,24 @@ describe('inferno scale', () => {
     expect(r0).toBeGreaterThanOrEqual(0)
     expect(r1).toBeGreaterThanOrEqual(0)
     expect(r0).not.toBe(r1)
+  })
+})
+
+describe('obs-continuous scale', () => {
+  it('is registered in COLOR_SCALES under its exported name', () => {
+    const scale = COLOR_SCALES[OBS_CONTINUOUS_SCALE_NAME]
+    expect(scale).toBeDefined()
+    expect(scale.length).toBe(3)
+  })
+
+  it('is a valid RGB scale', () => {
+    for (const c of COLOR_SCALES[OBS_CONTINUOUS_SCALE_NAME]) {
+      expect(c).toHaveLength(3)
+      for (const channel of c) {
+        expect(channel).toBeGreaterThanOrEqual(0)
+        expect(channel).toBeLessThanOrEqual(255)
+      }
+    }
   })
 })
 

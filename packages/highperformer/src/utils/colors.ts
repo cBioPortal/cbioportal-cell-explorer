@@ -84,11 +84,20 @@ const INFERNO: ColorScale = [
   [252, 255, 164],
 ]
 
+const OBS_SEQUENTIAL: ColorScale = [
+  [255, 255, 204],  // #ffffcc low
+  [253, 141, 60],   // #fd8d3c mid
+  [128, 0, 38],     // #800026 high
+]
+
+export const OBS_CONTINUOUS_SCALE_NAME = 'obs-sequential'
+
 export const COLOR_SCALES: Record<string, ColorScale> = {
   viridis: VIRIDIS,
   magma: MAGMA,
   plasma: PLASMA,
   inferno: INFERNO,
+  [OBS_CONTINUOUS_SCALE_NAME]: OBS_SEQUENTIAL,
 }
 
 /**
