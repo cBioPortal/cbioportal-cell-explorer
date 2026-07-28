@@ -1328,6 +1328,24 @@ const useAppStore = create<AppState>((set, get) => ({
     })
 
     adata.obsColumn(name, abortController.signal).then((values) => {
+      const isTypedArray = ArrayBuffer.isView(values) && !(values instanceof DataView)
+      if (isTypedArray) {
+        const floats = values instanceof Float32Array ? values : new Float32Array(values as ArrayLike<number>)
+        const range = computeRange(floats)
+        set({
+          colorMode: 'obs-continuous',
+          _obsContinuousData: floats,
+          obsContinuousRange: range,
+          _categoryCodes: null,
+          categoryMap: [],
+          categoryWarning: null,
+          colorBufferLoading: false,
+          _colorAbort: null,
+        })
+        get().rebuildColorBuffer()
+        return
+      }
+
       const valuesArray = Array.isArray(values) ? values : Array.from(values as Iterable<number>)
       const { codes, categoryMap, uniqueCount } = encodeCategories(valuesArray as (string | number | null)[])
 
@@ -1371,7 +1389,10 @@ const useAppStore = create<AppState>((set, get) => ({
     if (_colorAbort) _colorAbort.abort()
     set({
       selectedObsColumn: null,
+      colorMode: 'category',
       _categoryCodes: null,
+      _obsContinuousData: null,
+      obsContinuousRange: null,
       categoryMap: [],
       categoryWarning: null,
       highlightedCategories: new Set(),
