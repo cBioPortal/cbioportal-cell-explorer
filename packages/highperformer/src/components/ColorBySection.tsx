@@ -278,7 +278,7 @@ export default function ColorBySection() {
         <ContinuousLegend
           range={expressionRange}
           scale={COLOR_SCALES[colorScaleName] || COLOR_SCALES.viridis}
-          label={colorScaleName}
+          label={colorScaleName.charAt(0).toUpperCase() + colorScaleName.slice(1)}
         />
       )}
     </div>
