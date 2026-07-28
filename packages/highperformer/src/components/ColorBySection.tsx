@@ -80,6 +80,8 @@ export default function ColorBySection() {
   const setShowCategoryLabels = useAppStore((s) => s.setShowCategoryLabels)
   const categoryLabelsObsColumn = useAppStore((s) => s.categoryLabelsObsColumn)
   const setCategoryLabelsObsColumn = useAppStore((s) => s.setCategoryLabelsObsColumn)
+  const expressionRange = useAppStore((s) => s.expressionRange)
+  const colorScaleName = useAppStore((s) => s.colorScaleName)
 
   // Mirror View.tsx's effectiveLabelColumn so the hint logic stays in sync.
   const effectiveLabelColumn =
@@ -256,7 +258,13 @@ export default function ColorBySection() {
       </div>
 
       {colorMode === 'category' && <CategoricalLegend />}
-      {colorMode === 'gene' && <ContinuousLegend />}
+      {colorMode === 'gene' && (
+        <ContinuousLegend
+          range={expressionRange}
+          scale={COLOR_SCALES[colorScaleName] || COLOR_SCALES.viridis}
+          label={colorScaleName}
+        />
+      )}
     </div>
   )
 }
