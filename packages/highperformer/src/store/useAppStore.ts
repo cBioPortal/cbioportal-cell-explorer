@@ -6,6 +6,7 @@ import { flushSummaryQueue } from '../hooks/summaryScheduler'
 import UniversalWorker from '../workers/universal.worker.ts?worker'
 import type { ColorBufferResponse } from '../workers/colorBuffer.schemas'
 import type { RGB } from '../utils/colors'
+import { OBS_CONTINUOUS_SCALE_NAME } from '../utils/colors'
 import { encodeCategories, MAX_CATEGORIES, classifyCardinality, CATEGORY_LEGEND_LIST_CAP } from '../utils/categoryEncoding'
 
 export interface EmbeddingBounds {
@@ -26,7 +27,7 @@ import type { components } from '@cbioportal-cell-explorer/api-client'
 export type BackendInfo = components['schemas']['InfoResponse']
 export type User = components['schemas']['User']
 
-export type ColorMode = 'category' | 'gene'
+export type ColorMode = 'category' | 'gene' | 'obs-continuous'
 
 // Selection types
 export type SelectionTool = 'pan' | 'rectangle' | 'lasso'
@@ -120,6 +121,8 @@ export interface AppState {
   // Internal — cached data for rebuilds (not for UI consumption)
   _categoryCodes: Uint16Array | null
   _expressionData: Float32Array | null
+  _obsContinuousData: Float32Array | null
+  obsContinuousRange: { min: number; max: number } | null
   _colorAbort: AbortController | null
 
   // Legend highlight
@@ -446,6 +449,8 @@ const useAppStore = create<AppState>((set, get) => ({
   // Internal
   _categoryCodes: null,
   _expressionData: null,
+  _obsContinuousData: null,
+  obsContinuousRange: null,
   _colorAbort: null,
 
   // Selection
@@ -1141,6 +1146,7 @@ const useAppStore = create<AppState>((set, get) => ({
       colorMode: 'category', selectedObsColumn: null, selectedGene: null,
       obsColumnNames: [], varNames: [], categoryMap: [], expressionRange: null,
       categoryWarning: null, _categoryCodes: null, _expressionData: null,
+      _obsContinuousData: null, obsContinuousRange: null,
       varColumns: [], geneLabelColumn: null, geneLabelMap: null,
       selectionGroups: [], selectionFilterBuffer: null, selectionTool: 'pan', selectionDisplayMode: 'dim',
       customGroupColumn: null, customGroupIds: [], customGroupUnmatched: [], customGroupWarning: null, customGroupLoading: false, customGroupRecomputing: false, customGroupIndexMap: {}, customGroupEnabledIds: new Set(), customGroupCommittedCount: 0,
@@ -1228,7 +1234,7 @@ const useAppStore = create<AppState>((set, get) => ({
   },
 
   rebuildColorBuffer: () => {
-    const { embeddingData, opacity, colorMode, _categoryCodes, _expressionData, expressionRange, colorScaleName } = get()
+    const { embeddingData, opacity, colorMode, _categoryCodes, _expressionData, expressionRange, colorScaleName, _obsContinuousData, obsContinuousRange } = get()
     if (!embeddingData) return
 
     colorBuildVersion++
@@ -1255,6 +1261,17 @@ const useAppStore = create<AppState>((set, get) => ({
         max: expressionRange.max,
         alpha: opacity,
         scaleName: colorScaleName,
+        version,
+      }
+    } else if (colorMode === 'obs-continuous' && _obsContinuousData && obsContinuousRange) {
+      message = {
+        type: 'buildFromExpression',
+        numPoints: embeddingData.numPoints,
+        expression: _obsContinuousData,
+        min: obsContinuousRange.min,
+        max: obsContinuousRange.max,
+        alpha: opacity,
+        scaleName: OBS_CONTINUOUS_SCALE_NAME,
         version,
       }
     } else {
@@ -1290,6 +1307,8 @@ const useAppStore = create<AppState>((set, get) => ({
     if (mode === 'category' && get()._categoryCodes) {
       get().rebuildColorBuffer()
     } else if (mode === 'gene' && get()._expressionData) {
+      get().rebuildColorBuffer()
+    } else if (mode === 'obs-continuous' && get()._obsContinuousData) {
       get().rebuildColorBuffer()
     }
   },
