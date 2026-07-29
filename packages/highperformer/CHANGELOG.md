@@ -1,5 +1,13 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.5.2
+
+### Patch Changes
+
+- [#293](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/293) [`99397aa`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/99397aaccb8dd2c259b640dc0d2d417ffdcda0b5) Thanks [@hweej](https://github.com/hweej)! - Color numeric obs columns as a continuous gradient. Selecting a numeric obs column (e.g. `percent.rb`, `nCount_RNA`) now renders a 3-color continuous scale with a range legend instead of forcing categorical encoding and warning "likely continuous." Genuine categorical columns are unchanged; the high-cardinality block message for string columns is reworded accordingly.
+
+- [#291](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/291) [`1fa3a55`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/1fa3a55301710d2edc75be1912e7fe934048198a) Thanks [@hweej](https://github.com/hweej)! - Improve coloring by high-cardinality obs categories. Expand the categorical palette to 24 colors, fix a silent code-wrap that merged categories past 256 (codes are now Uint16, ceiling 65,535), and replace the hard 1000-value block with tiered behavior: color with a recycled palette (and an informational "colors repeat" note) up to 65,535 distinct values, block above that. The on-plot legend collapses to a compact summary above 500 categories instead of rendering every row.
+
 ## 0.5.1
 
 ### Patch Changes
