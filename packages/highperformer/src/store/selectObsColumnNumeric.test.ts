@@ -35,4 +35,19 @@ describe('selectObsColumn numeric detection', () => {
     expect(useAppStore.getState().colorMode).toBe('category')
     expect(useAppStore.getState()._obsContinuousData).toBeNull()
   })
+
+  it('switching from a numeric column back to a categorical one resets to category mode and clears obs data', async () => {
+    // First color by a numeric column → obs-continuous.
+    useAppStore.setState({ adata: fakeAdata(new Float32Array([0.2, 0.8, 0.5])) })
+    useAppStore.getState().selectObsColumn('percent.mt')
+    await waitFor(() => expect(useAppStore.getState().colorMode).toBe('obs-continuous'))
+
+    // Then color by a categorical column — must switch back to category, not linger on the gradient.
+    useAppStore.setState({ adata: fakeAdata(['A', 'B', 'A']) })
+    useAppStore.getState().selectObsColumn('cell_type')
+    await waitFor(() => expect(useAppStore.getState()._categoryCodes).not.toBeNull())
+    expect(useAppStore.getState().colorMode).toBe('category')
+    expect(useAppStore.getState()._obsContinuousData).toBeNull()
+    expect(useAppStore.getState().obsContinuousRange).toBeNull()
+  })
 })

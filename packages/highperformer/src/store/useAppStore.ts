@@ -1353,19 +1353,28 @@ const useAppStore = create<AppState>((set, get) => ({
 
       if (!colorable) {
         set({
+          colorMode: 'category',
           categoryWarning: note,
           colorBufferLoading: false,
           _categoryCodes: null,
           categoryMap: [],
+          _obsContinuousData: null,
+          obsContinuousRange: null,
           _colorAbort: null,
         })
+        // Reset the plot to the default (uncolored) render so the view matches
+        // the warning instead of lingering on the previous coloring.
+        get().rebuildColorBuffer()
         return
       }
 
       set({
+        colorMode: 'category',
         _categoryCodes: codes,
         categoryMap,
         categoryWarning: note,
+        _obsContinuousData: null,
+        obsContinuousRange: null,
         _colorAbort: null,
       })
       get().rebuildColorBuffer()
