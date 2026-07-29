@@ -6,7 +6,7 @@ import { flushSummaryQueue } from '../hooks/summaryScheduler'
 import UniversalWorker from '../workers/universal.worker.ts?worker'
 import type { ColorBufferResponse } from '../workers/colorBuffer.schemas'
 import type { RGB } from '../utils/colors'
-import { encodeCategories, MAX_CATEGORIES } from '../utils/categoryEncoding'
+import { encodeCategories, MAX_CATEGORIES, classifyCardinality, CATEGORY_LEGEND_LIST_CAP } from '../utils/categoryEncoding'
 
 export interface EmbeddingBounds {
   minX: number
@@ -118,7 +118,7 @@ export interface AppState {
   geneLabelMap: Map<string, string> | null
 
   // Internal — cached data for rebuilds (not for UI consumption)
-  _categoryCodes: Uint8Array | null
+  _categoryCodes: Uint16Array | null
   _expressionData: Float32Array | null
   _colorAbort: AbortController | null
 
@@ -179,7 +179,7 @@ export interface AppState {
   summaryPanelOpen: boolean
   summaryObsColumns: string[]
   summaryGenes: string[]
-  summaryObsData: Map<string, { codes: Uint8Array; categoryMap: { label: string; color: RGB }[] }>
+  summaryObsData: Map<string, { codes: Uint16Array; categoryMap: { label: string; color: RGB }[] }>
   summaryObsContinuousData: Map<string, Float32Array>
   summaryGeneData: Map<string, Float32Array>
   summaryGeneRanges: Map<string, { min: number; max: number }>
@@ -1312,9 +1312,11 @@ const useAppStore = create<AppState>((set, get) => ({
       const valuesArray = Array.isArray(values) ? values : Array.from(values as Iterable<number>)
       const { codes, categoryMap, uniqueCount } = encodeCategories(valuesArray as (string | number | null)[])
 
-      if (uniqueCount > MAX_CATEGORIES) {
+      const { colorable, note } = classifyCardinality(uniqueCount)
+
+      if (!colorable) {
         set({
-          categoryWarning: `This column has ${uniqueCount} unique values (likely continuous). Please choose a categorical column.`,
+          categoryWarning: note,
           colorBufferLoading: false,
           _categoryCodes: null,
           categoryMap: [],
@@ -1326,18 +1328,21 @@ const useAppStore = create<AppState>((set, get) => ({
       set({
         _categoryCodes: codes,
         categoryMap,
-        categoryWarning: null,
+        categoryWarning: note,
         _colorAbort: null,
       })
       get().rebuildColorBuffer()
 
-      // Auto-pin to summary panel
-      const { summaryObsColumns, summaryObsData } = get()
-      if (!summaryObsColumns.includes(name)) {
-        const nextPinned = [...summaryObsColumns, name]
-        const nextData = new Map(summaryObsData)
-        nextData.set(name, { codes, categoryMap })
-        set({ summaryObsColumns: nextPinned, summaryObsData: nextData })
+      // Auto-pin to summary panel — but skip for very high cardinality, where the
+      // summary CategoryDotPlot would choke on a huge categoryMap.
+      if (uniqueCount <= CATEGORY_LEGEND_LIST_CAP) {
+        const { summaryObsColumns, summaryObsData } = get()
+        if (!summaryObsColumns.includes(name)) {
+          const nextPinned = [...summaryObsColumns, name]
+          const nextData = new Map(summaryObsData)
+          nextData.set(name, { codes, categoryMap })
+          set({ summaryObsColumns: nextPinned, summaryObsData: nextData })
+        }
       }
     })
   },

@@ -14,7 +14,7 @@ describe('buildRequiredPairs', () => {
 
   it('builds pairs for every variable x every group', () => {
     const obsData = new Map([
-      ['dataset', { codes: new Uint8Array(10), categoryMap: [{ label: 'A', color: [0, 0, 0] as [number, number, number] }] }],
+      ['dataset', { codes: new Uint16Array(10), categoryMap: [{ label: 'A', color: [0, 0, 0] as [number, number, number] }] }],
     ])
     const geneData = new Map([
       ['GENE1', new Float32Array(10)],
@@ -59,7 +59,7 @@ describe('buildRequiredPairs', () => {
 
   it('builds expressionByCategory pairs for each gene x obs x group', () => {
     const obsData = new Map([
-      ['cell_type', { codes: new Uint8Array(10), categoryMap: [
+      ['cell_type', { codes: new Uint16Array(10), categoryMap: [
         { label: 'A', color: [0, 0, 0] as [number, number, number] },
         { label: 'B', color: [1, 1, 1] as [number, number, number] },
       ] }],
@@ -86,7 +86,7 @@ describe('buildRequiredPairs', () => {
   })
 
   it('expressionByCategory pairs carry codes, numCategories, and expression', () => {
-    const codes = new Uint8Array([0, 1, 0])
+    const codes = new Uint16Array([0, 1, 0])
     const expression = new Float32Array([1, 2, 3])
     const obsData = new Map([
       ['ct', { codes, categoryMap: [
@@ -116,7 +116,7 @@ describe('buildRequiredPairs', () => {
 
   it('no expressionByCategory pairs when no genes', () => {
     const obsData = new Map([
-      ['ct', { codes: new Uint8Array(10), categoryMap: [{ label: 'A', color: [0, 0, 0] as [number, number, number] }] }],
+      ['ct', { codes: new Uint16Array(10), categoryMap: [{ label: 'A', color: [0, 0, 0] as [number, number, number] }] }],
     ])
     const groups = [{ id: -1, indices: new Uint32Array(10) }]
 
@@ -134,8 +134,8 @@ describe('reconcileSummaries', () => {
     cache.set('cat:dataset', new Map([[-1, new Uint32Array(3)]]))
 
     const pairs = [
-      { key: 'cat:dataset', groupId: -1, type: 'category' as const, codes: new Uint8Array(10), numCategories: 3, indices: new Uint32Array(10) },
-      { key: 'cat:dataset', groupId: 1, type: 'category' as const, codes: new Uint8Array(10), numCategories: 3, indices: new Uint32Array(5) },
+      { key: 'cat:dataset', groupId: -1, type: 'category' as const, codes: new Uint16Array(10), numCategories: 3, indices: new Uint32Array(10) },
+      { key: 'cat:dataset', groupId: 1, type: 'category' as const, codes: new Uint16Array(10), numCategories: 3, indices: new Uint32Array(5) },
     ]
 
     reconcileSummaries(pairs, cache, dispatchFn)
@@ -150,8 +150,8 @@ describe('reconcileSummaries', () => {
     cache.set('cat:dataset', new Map([[-1, new Uint32Array(3)], [1, new Uint32Array(3)], [2, new Uint32Array(3)]]))
 
     const pairs = [
-      { key: 'cat:dataset', groupId: -1, type: 'category' as const, codes: new Uint8Array(10), numCategories: 3, indices: new Uint32Array(10) },
-      { key: 'cat:dataset', groupId: 1, type: 'category' as const, codes: new Uint8Array(10), numCategories: 3, indices: new Uint32Array(5) },
+      { key: 'cat:dataset', groupId: -1, type: 'category' as const, codes: new Uint16Array(10), numCategories: 3, indices: new Uint32Array(10) },
+      { key: 'cat:dataset', groupId: 1, type: 'category' as const, codes: new Uint16Array(10), numCategories: 3, indices: new Uint32Array(5) },
     ]
 
     reconcileSummaries(pairs, cache, dispatchFn)
@@ -167,7 +167,7 @@ describe('reconcileSummaries', () => {
     cache.set('expr:GENE1', new Map([[-1, {} as unknown]]))
 
     const pairs = [
-      { key: 'cat:dataset', groupId: -1, type: 'category' as const, codes: new Uint8Array(10), numCategories: 3, indices: new Uint32Array(10) },
+      { key: 'cat:dataset', groupId: -1, type: 'category' as const, codes: new Uint16Array(10), numCategories: 3, indices: new Uint32Array(10) },
     ]
 
     reconcileSummaries(pairs, cache, dispatchFn)

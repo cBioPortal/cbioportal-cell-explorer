@@ -4,7 +4,7 @@ import { handleSummaryMessage } from './summary.handler'
 describe('summary handler', () => {
   describe('summarizeCategory', () => {
     it('tallies codes correctly for selected indices', () => {
-      const codes = new Uint8Array([0, 1, 2, 1, 0, 2])
+      const codes = new Uint16Array([0, 1, 2, 1, 0, 2])
       const indices = new Uint32Array([0, 1, 3, 4]) // codes: 0, 1, 1, 0
 
       const result = handleSummaryMessage({
@@ -25,7 +25,7 @@ describe('summary handler', () => {
     })
 
     it('returns zeros for empty indices', () => {
-      const codes = new Uint8Array([0, 1, 2])
+      const codes = new Uint16Array([0, 1, 2])
       const indices = new Uint32Array([])
 
       const result = handleSummaryMessage({
@@ -45,7 +45,7 @@ describe('summary handler', () => {
     it('echoes version in response', () => {
       const result = handleSummaryMessage({
         type: 'summarizeCategory',
-        codes: new Uint8Array([0]),
+        codes: new Uint16Array([0]),
         indices: new Uint32Array([0]),
         numCategories: 1,
         version: 42,
@@ -166,7 +166,7 @@ describe('summary handler', () => {
       // cat0: mean=2, expressing=1/2=0.5 (only val 4 > 0)
       // cat1: mean=0, expressing=0/2=0
       // cat2: mean=4, expressing=2/2=1.0
-      const codes = new Uint8Array([0, 0, 1, 1, 2, 2])
+      const codes = new Uint16Array([0, 0, 1, 1, 2, 2])
       const expression = new Float32Array([0, 4, 0, 0, 2, 6])
       const indices = new Uint32Array([0, 1, 2, 3, 4, 5])
 
@@ -195,7 +195,7 @@ describe('summary handler', () => {
     })
 
     it('handles log-normalized data with negative baseline', () => {
-      const codes = new Uint8Array([0, 0, 0])
+      const codes = new Uint16Array([0, 0, 0])
       const expression = new Float32Array([-1, -1, 2.5])
       const indices = new Uint32Array([0, 1, 2])
 
@@ -215,7 +215,7 @@ describe('summary handler', () => {
     })
 
     it('handles subset of indices', () => {
-      const codes = new Uint8Array([0, 1, 0, 1])
+      const codes = new Uint16Array([0, 1, 0, 1])
       const expression = new Float32Array([0, 5, 3, 10])
       const indices = new Uint32Array([1, 2])
 
@@ -242,7 +242,7 @@ describe('summary handler', () => {
       const result = handleSummaryMessage({
         type: 'summarizeExpressionByCategory',
         expression: new Float32Array([1, 2]),
-        codes: new Uint8Array([0, 1]),
+        codes: new Uint16Array([0, 1]),
         numCategories: 2,
         indices: new Uint32Array([]),
         version: 1,
@@ -259,7 +259,7 @@ describe('summary handler', () => {
       const result = handleSummaryMessage({
         type: 'summarizeExpressionByCategory',
         expression: new Float32Array([1]),
-        codes: new Uint8Array([0]),
+        codes: new Uint16Array([0]),
         numCategories: 1,
         indices: new Uint32Array([0]),
         version: 77,

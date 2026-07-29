@@ -6,7 +6,7 @@ export interface SummaryPair {
   type: 'category' | 'expression' | 'expressionByCategory'
   indices: Uint32Array
   // Category-specific
-  codes?: Uint8Array
+  codes?: Uint16Array
   numCategories?: number
   // Expression-specific
   expression?: Float32Array
@@ -23,7 +23,7 @@ interface GroupLike {
  * indices produces one pair.
  */
 export function buildRequiredPairs(
-  obsData: Map<string, { codes: Uint8Array; categoryMap: { label: string; color: RGB }[] }>,
+  obsData: Map<string, { codes: Uint16Array; categoryMap: { label: string; color: RGB }[] }>,
   contData: Map<string, Float32Array>,
   geneData: Map<string, Float32Array>,
   groups: GroupLike[],

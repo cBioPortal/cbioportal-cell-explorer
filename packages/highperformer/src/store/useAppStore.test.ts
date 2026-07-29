@@ -210,7 +210,7 @@ describe('useAppStore', () => {
     })
 
     it('dispatches buildFromCategories in category mode', () => {
-      const codes = new Uint8Array([0, 1, 0])
+      const codes = new Uint16Array([0, 1, 0])
       useAppStore.setState({
         embeddingData: {
           positions: new Float32Array([0, 0, 1, 1, 2, 2]),
@@ -326,7 +326,7 @@ describe('useAppStore', () => {
           bounds: { minX: 0, maxX: 2, minY: 0, maxY: 2 },
         },
         colorMode: 'category',
-        _categoryCodes: new Uint8Array([0, 1, 2]),
+        _categoryCodes: new Uint16Array([0, 1, 2]),
       })
       mockDispatch.mockClear()
 
@@ -349,7 +349,7 @@ describe('useAppStore', () => {
           bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
         },
         colorMode: 'category',
-        _categoryCodes: new Uint8Array([0, 1]),
+        _categoryCodes: new Uint16Array([0, 1]),
         highlightedCategories: new Set([1]),
       })
       mockDispatch.mockClear()
@@ -373,7 +373,7 @@ describe('useAppStore', () => {
           bounds: { minX: 0, maxX: 2, minY: 0, maxY: 2 },
         },
         colorMode: 'category',
-        _categoryCodes: new Uint8Array([0, 1, 2]),
+        _categoryCodes: new Uint16Array([0, 1, 2]),
         highlightedCategories: new Set([0]),
       })
       mockDispatch.mockClear()
@@ -396,7 +396,7 @@ describe('useAppStore', () => {
           bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
         },
         colorMode: 'category',
-        _categoryCodes: new Uint8Array([0, 1]),
+        _categoryCodes: new Uint16Array([0, 1]),
         highlightedCategories: new Set([0, 1]),
       })
       mockDispatch.mockClear()
@@ -487,7 +487,7 @@ describe('useAppStore', () => {
 
   describe('setColorMode', () => {
     it('switches mode and rebuilds if cached data exists', () => {
-      const codes = new Uint8Array([0, 1])
+      const codes = new Uint16Array([0, 1])
       useAppStore.setState({
         embeddingData: {
           positions: new Float32Array([0, 0, 1, 1]),
@@ -556,7 +556,7 @@ describe('useAppStore', () => {
       )
     })
 
-    it('shows warning when unique values exceed threshold', async () => {
+    it('shows repeat-color warning but still colors when unique values exceed palette size', async () => {
       const manyValues = Array.from({ length: 1001 }, (_, i) => `val_${i}`)
       const mockAdata = {
         obsColumn: vi.fn().mockResolvedValue(manyValues),
@@ -577,6 +577,31 @@ describe('useAppStore', () => {
       await vi.waitFor(() => {
         expect(useAppStore.getState().categoryWarning).toContain('1001')
       })
+      // Colors repeat warning — coloring proceeds (dispatch is called)
+      expect(mockDispatch).toHaveBeenCalled()
+    })
+
+    it('blocks coloring and warns when unique values exceed the colorable ceiling', async () => {
+      const hugeValues = Array.from({ length: 65536 }, (_, i) => `val_${i}`)
+      const mockAdata = {
+        obsColumn: vi.fn().mockResolvedValue(hugeValues),
+      }
+      useAppStore.setState({
+        adata: mockAdata as any,
+        embeddingData: {
+          positions: new Float32Array(65536 * 2),
+          numPoints: 65536,
+          bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
+        },
+        colorMode: 'category',
+      })
+      mockDispatch.mockClear()
+
+      useAppStore.getState().selectObsColumn('id_col')
+
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().categoryWarning).toContain('too many to color')
+      })
       // Should NOT dispatch a color buffer build
       expect(mockDispatch).not.toHaveBeenCalled()
     })
@@ -592,7 +617,7 @@ describe('useAppStore', () => {
         },
         colorMode: 'category',
         selectedObsColumn: 'cluster',
-        _categoryCodes: new Uint8Array([0, 1]),
+        _categoryCodes: new Uint16Array([0, 1]),
         categoryMap: [{ label: 'A', color: [0, 0, 0] }],
         categoryWarning: 'some warning',
       })
@@ -1335,7 +1360,7 @@ describe('useAppStore', () => {
         } as any,
         summaryObsData: new Map([
           ["cell_type", {
-            codes: new Uint8Array([0, 0, 1, 1]),
+            codes: new Uint16Array([0, 0, 1, 1]),
             categoryMap: [
               { label: "T", color: [255, 0, 0] as [number, number, number] },
               { label: "B", color: [0, 255, 0] as [number, number, number] },

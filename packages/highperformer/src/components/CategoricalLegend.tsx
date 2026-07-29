@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Input } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import useAppStore from '../store/useAppStore'
+import { CATEGORY_LEGEND_LIST_CAP } from '../utils/categoryEncoding'
 
 const MAX_LIST_HEIGHT = 150
 
@@ -13,6 +14,19 @@ export default function CategoricalLegend() {
   const [search, setSearch] = useState('')
 
   if (categoryMap.length === 0) return null
+
+  if (categoryMap.length > CATEGORY_LEGEND_LIST_CAP) {
+    return (
+      <div style={{ marginTop: 8 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', marginBottom: 4 }}>
+          Legend
+        </div>
+        <div style={{ fontSize: 12, color: '#999', padding: '4px 0' }}>
+          {categoryMap.length} categories (colors repeat) — too many to list
+        </div>
+      </div>
+    )
+  }
 
   const filtered = search
     ? categoryMap

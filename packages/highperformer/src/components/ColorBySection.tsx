@@ -74,6 +74,7 @@ export default function ColorBySection() {
   const selectGene = useAppStore((s) => s.selectGene)
   const clearGene = useAppStore((s) => s.clearGene)
   const categoryWarning = useAppStore((s) => s.categoryWarning)
+  const categoryMap = useAppStore((s) => s.categoryMap)
   const geneLabelMap = useAppStore((s) => s.geneLabelMap)
   const showCategoryLabels = useAppStore((s) => s.showCategoryLabels)
   const setShowCategoryLabels = useAppStore((s) => s.setShowCategoryLabels)
@@ -158,7 +159,7 @@ export default function ColorBySection() {
           {categoryWarning && (
             <Alert
               title={categoryWarning}
-              type="warning"
+              type={categoryMap.length > 0 ? 'info' : 'warning'}
               showIcon
               style={{ marginTop: 8, fontSize: 12 }}
             />

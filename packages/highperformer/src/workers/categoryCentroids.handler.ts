@@ -13,7 +13,7 @@ import type { CategoryCentroidsResult } from "./categoryCentroids.schemas";
  */
 export function computeCategoryCentroids(
   positions: Float32Array,
-  codes: Uint8Array,
+  codes: Uint16Array,
   numCategories: number,
 ): CategoryCentroidsResult {
   const numPoints = codes.length;
