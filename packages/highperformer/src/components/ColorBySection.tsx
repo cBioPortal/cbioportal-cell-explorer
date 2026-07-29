@@ -3,7 +3,7 @@ import { Segmented, Select, Tag, Alert, Button, Popover, Space, Switch } from 'a
 import { SettingOutlined } from '@ant-design/icons'
 import useAppStore from '../store/useAppStore'
 import type { ColorMode } from '../store/useAppStore'
-import { COLOR_SCALES } from '../utils/colors'
+import { COLOR_SCALES, OBS_CONTINUOUS_SCALE_NAME } from '../utils/colors'
 import CategoricalLegend from './CategoricalLegend'
 import ContinuousLegend from './ContinuousLegend'
 
@@ -80,6 +80,9 @@ export default function ColorBySection() {
   const setShowCategoryLabels = useAppStore((s) => s.setShowCategoryLabels)
   const categoryLabelsObsColumn = useAppStore((s) => s.categoryLabelsObsColumn)
   const setCategoryLabelsObsColumn = useAppStore((s) => s.setCategoryLabelsObsColumn)
+  const expressionRange = useAppStore((s) => s.expressionRange)
+  const colorScaleName = useAppStore((s) => s.colorScaleName)
+  const obsContinuousRange = useAppStore((s) => s.obsContinuousRange)
 
   // Mirror View.tsx's effectiveLabelColumn so the hint logic stays in sync.
   const effectiveLabelColumn =
@@ -117,14 +120,22 @@ export default function ColorBySection() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: '#666', textTransform: 'uppercase' }}>Color By</div>
         <Segmented
-          value={colorMode}
-          onChange={(value) => setColorMode(value as ColorMode)}
+          value={colorMode === 'gene' ? 'gene' : 'category'}
+          onChange={(value) => {
+            if (value === 'gene') {
+              setColorMode('gene')
+            } else if (selectedObsColumn) {
+              selectObsColumn(selectedObsColumn)
+            } else {
+              setColorMode('category')
+            }
+          }}
           size="small"
           options={[{ value: 'category', label: 'Category' }, { value: 'gene', label: 'Gene' }]}
         />
       </div>
 
-      {colorMode === 'category' && (
+      {colorMode !== 'gene' && (
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', marginBottom: 4 }}>
             Category {selectedObsColumn && <span style={{ fontWeight: 400, textTransform: 'none' }}>(max 1)</span>}
@@ -256,7 +267,20 @@ export default function ColorBySection() {
       </div>
 
       {colorMode === 'category' && <CategoricalLegend />}
-      {colorMode === 'gene' && <ContinuousLegend />}
+      {colorMode === 'obs-continuous' && (
+        <ContinuousLegend
+          range={obsContinuousRange}
+          scale={COLOR_SCALES[OBS_CONTINUOUS_SCALE_NAME]}
+          label={selectedObsColumn ?? ''}
+        />
+      )}
+      {colorMode === 'gene' && (
+        <ContinuousLegend
+          range={expressionRange}
+          scale={COLOR_SCALES[colorScaleName] || COLOR_SCALES.viridis}
+          label={colorScaleName.charAt(0).toUpperCase() + colorScaleName.slice(1)}
+        />
+      )}
     </div>
   )
 }

@@ -28,7 +28,7 @@ export function classifyCardinality(uniqueCount: number): CardinalityClass {
   }
   return {
     colorable: false,
-    note: `${uniqueCount} distinct values — too many to color; likely an ID or continuous column`,
+    note: `${uniqueCount} distinct values — too many to color`,
   }
 }
 

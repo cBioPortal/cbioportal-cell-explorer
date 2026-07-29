@@ -99,4 +99,10 @@ describe('classifyCardinality', () => {
     expect(MAX_COLORABLE_CATEGORIES).toBe(65535)
     expect(CATEGORY_LEGEND_LIST_CAP).toBe(500)
   })
+
+  it('block message does not mention "continuous" (numeric cols are handled elsewhere)', () => {
+    const r = classifyCardinality(MAX_COLORABLE_CATEGORIES + 1)
+    expect(r.colorable).toBe(false)
+    expect(r.note).not.toContain('continuous')
+  })
 })

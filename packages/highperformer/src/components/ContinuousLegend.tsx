@@ -1,13 +1,14 @@
-import useAppStore from '../store/useAppStore'
-import { COLOR_SCALES } from '../utils/colors'
+import type { ColorScale } from '../utils/colors'
 
-export default function ContinuousLegend() {
-  const expressionRange = useAppStore((s) => s.expressionRange)
-  const colorScaleName = useAppStore((s) => s.colorScaleName)
+interface ContinuousLegendProps {
+  range: { min: number; max: number } | null
+  scale: ColorScale
+  label: string
+}
 
-  if (!expressionRange) return null
+export default function ContinuousLegend({ range, scale, label }: ContinuousLegendProps) {
+  if (!range) return null
 
-  const scale = COLOR_SCALES[colorScaleName] || COLOR_SCALES.viridis
   // Sample 5 evenly spaced stops for the CSS gradient
   const stops = [0, 0.25, 0.5, 0.75, 1].map((t) => {
     const idx = t * (scale.length - 1)
@@ -24,19 +25,11 @@ export default function ContinuousLegend() {
 
   return (
     <div style={{ marginTop: 8 }}>
-      <div style={{ fontSize: 11, marginBottom: 4, color: '#888' }}>
-        {colorScaleName.charAt(0).toUpperCase() + colorScaleName.slice(1)}
-      </div>
-      <div
-        style={{
-          height: 12,
-          borderRadius: 3,
-          background: gradient,
-        }}
-      />
+      <div style={{ fontSize: 11, marginBottom: 4, color: '#888' }}>{label}</div>
+      <div style={{ height: 12, borderRadius: 3, background: gradient }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginTop: 2 }}>
-        <span>{expressionRange.min.toFixed(2)}</span>
-        <span>{expressionRange.max.toFixed(2)}</span>
+        <span>{range.min.toFixed(2)}</span>
+        <span>{range.max.toFixed(2)}</span>
       </div>
     </div>
   )

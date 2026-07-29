@@ -126,3 +126,29 @@ describe('ColorBySection — cardinality note', () => {
     expect(container.querySelector('.ant-alert-info')).toBeNull()
   })
 })
+
+describe('ColorBySection — obs-continuous', () => {
+  beforeEach(() => {
+    useAppStore.setState(useAppStore.getInitialState())
+    useAppStore.setState({
+      obsColumnNames: ['percent.rb'],
+      colorMode: 'obs-continuous',
+      selectedObsColumn: 'percent.rb',
+      obsContinuousRange: { min: 0, max: 5 },
+      _obsContinuousData: new Float32Array([0, 5]),
+    } as any)
+  })
+
+  it('shows the continuous legend with the obs column label and range', () => {
+    render(<ColorBySection />)
+    expect(screen.getAllByText('percent.rb').length).toBeGreaterThan(0)
+    expect(screen.getByText('0.00')).toBeDefined()
+    expect(screen.getByText('5.00')).toBeDefined()
+  })
+
+  it('keeps the Category toggle active (not Gene) in obs-continuous mode', () => {
+    const { container } = render(<ColorBySection />)
+    const selected = container.querySelector('.ant-segmented-item-selected')
+    expect(selected?.textContent).toContain('Category')
+  })
+})

@@ -602,8 +602,9 @@ describe('useAppStore', () => {
       await vi.waitFor(() => {
         expect(useAppStore.getState().categoryWarning).toContain('too many to color')
       })
-      // Should NOT dispatch a color buffer build
-      expect(mockDispatch).not.toHaveBeenCalled()
+      // Resets the plot to the default (uncolored) render so the view matches the
+      // warning instead of lingering on the previous coloring.
+      expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'buildDefault' }))
     })
   })
 
