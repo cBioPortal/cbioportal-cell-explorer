@@ -224,6 +224,17 @@ export interface AppState {
   fetchCatalog: () => Promise<void>
   openCatalogDataset: (slug: string) => Promise<void>
 
+  // Collections
+  collections: Array<{
+    slug: string
+    name: string
+    description: string | null
+    publication_url: string | null
+    publication_citation: string | null
+    dataset_count: number
+  }>
+  fetchCollections: () => Promise<void>
+
   // UI visibility toggles (for embedded mode)
   showHeader: boolean
   showLeftSidebar: boolean
@@ -514,6 +525,17 @@ const useAppStore = create<AppState>((set, get) => ({
       if (data?.datasets) set({ catalogDatasets: data.datasets })
     } catch {
       // Backend unavailable or request failed — keep existing catalog
+    }
+  },
+
+  collections: [],
+  fetchCollections: async () => {
+    try {
+      const { api } = await import('../api')
+      const { data } = await api.GET('/api/collections')
+      if (data?.collections) set({ collections: data.collections })
+    } catch {
+      // Backend unavailable or request failed — keep existing collections
     }
   },
 
