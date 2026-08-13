@@ -220,6 +220,7 @@ export interface AppState {
     url: string | null
     chat_enabled: boolean
     default_view?: Record<string, unknown> | null
+    collection?: { slug: string; name: string } | null
   }>
   fetchCatalog: () => Promise<void>
   openCatalogDataset: (slug: string) => Promise<void>

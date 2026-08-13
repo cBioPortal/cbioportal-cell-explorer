@@ -48,6 +48,59 @@ function StatusLine({ probe, isPublic }: { probe?: ProbeResult; isPublic: boolea
   )
 }
 
+export function CollectionsTab() {
+  const collections = useAppStore((s) => s.collections)
+  const catalogDatasets = useAppStore((s) => s.catalogDatasets)
+  const fetchCollections = useAppStore((s) => s.fetchCollections)
+
+  useEffect(() => {
+    fetchCollections()
+  }, [fetchCollections])
+
+  const ungrouped = catalogDatasets.filter((d) => !d.collection)
+
+  return (
+    <div>
+      {collections.length > 0 ? (
+        <List
+          bordered
+          dataSource={collections}
+          renderItem={(item) => (
+            <List.Item>
+              <div style={{ flex: 1 }}>
+                <Link to={`/collections/${encodeURIComponent(item.slug)}`}>
+                  <Typography.Text strong>{item.name}</Typography.Text>
+                </Link>
+                {item.description && (
+                  <div>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      {item.description}
+                    </Typography.Text>
+                  </div>
+                )}
+                <div style={{ fontSize: 11, marginTop: 4 }}>
+                  <Typography.Text type="secondary">
+                    {item.dataset_count} dataset{item.dataset_count === 1 ? '' : 's'}
+                  </Typography.Text>
+                </div>
+              </div>
+            </List.Item>
+          )}
+        />
+      ) : (
+        <Typography.Text type="secondary">No collections available</Typography.Text>
+      )}
+
+      {ungrouped.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          <Typography.Title level={5}>Ungrouped</Typography.Title>
+          <DatasetList datasets={ungrouped} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CatalogTab() {
   const catalogDatasets = useAppStore((s) => s.catalogDatasets)
   const backendInfo = useAppStore((s) => s.backendInfo)
@@ -193,7 +246,7 @@ function MyUrlsTab() {
 function Home() {
   const backendInfo = useAppStore((s) => s.backendInfo)
   const backendProbed = useAppStore((s) => s.backendProbed)
-  const [activeTab, setActiveTab] = useState('catalog')
+  const [activeTab, setActiveTab] = useState('collections')
 
   if (!backendProbed) {
     return (
@@ -217,7 +270,8 @@ function Home() {
           activeKey={activeTab}
           onChange={setActiveTab}
           items={[
-            { key: 'catalog', label: 'Catalog', children: <CatalogTab /> },
+            { key: 'collections', label: 'Collections', children: <CollectionsTab /> },
+            { key: 'catalog', label: 'All datasets', children: <CatalogTab /> },
             { key: 'urls', label: 'My URLs', children: <MyUrlsTab /> },
           ]}
         />
