@@ -225,6 +225,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Collections Admin */
+        get: operations["list_collections_admin_api_admin_collections_get"];
+        put?: never;
+        /** Create Collection */
+        post: operations["create_collection_api_admin_collections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/collections/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Collection */
+        put: operations["update_collection_api_admin_collections__slug__put"];
+        post?: never;
+        /** Delete Collection */
+        delete: operations["delete_collection_api_admin_collections__slug__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -313,6 +349,46 @@ export interface paths {
          * @description Get access credentials for a dataset.
          */
         post: operations["access_dataset_api_datasets__slug__access_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Collections
+         * @description List collections containing at least one dataset the caller can access.
+         */
+        get: operations["list_collections_api_collections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/collections/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Collection
+         * @description Get one collection and the datasets in it the caller can access.
+         */
+        get: operations["get_collection_api_collections__slug__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -427,6 +503,89 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /** CollectionAdminListResponse */
+        CollectionAdminListResponse: {
+            /** Collections */
+            collections: components["schemas"]["CollectionAdminResponse"][];
+        };
+        /** CollectionAdminResponse */
+        CollectionAdminResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Description */
+            description: string | null;
+            /** Publication Url */
+            publication_url: string | null;
+            /** Publication Citation */
+            publication_citation: string | null;
+        };
+        /** CollectionCreate */
+        CollectionCreate: {
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Description */
+            description?: string | null;
+            /** Publication Url */
+            publication_url?: string | null;
+            /** Publication Citation */
+            publication_citation?: string | null;
+        };
+        /** CollectionDetail */
+        CollectionDetail: {
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Publication Url */
+            publication_url: string | null;
+            /** Publication Citation */
+            publication_citation: string | null;
+            /** Dataset Count */
+            dataset_count: number;
+            /** Datasets */
+            datasets: components["schemas"]["DatasetResponse"][];
+        };
+        /** CollectionListResponse */
+        CollectionListResponse: {
+            /** Collections */
+            collections: components["schemas"]["CollectionSummary"][];
+        };
+        /** CollectionSummary */
+        CollectionSummary: {
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Publication Url */
+            publication_url: string | null;
+            /** Publication Citation */
+            publication_citation: string | null;
+            /** Dataset Count */
+            dataset_count: number;
+        };
+        /** CollectionUpdate */
+        CollectionUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Slug */
+            slug?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Publication Url */
+            publication_url?: string | null;
+            /** Publication Citation */
+            publication_citation?: string | null;
+        };
         /** ContextResponse */
         ContextResponse: {
             /** Slug */
@@ -458,6 +617,8 @@ export interface components {
             id: string;
             /** Datasource Id */
             datasource_id: string;
+            /** Collection Id */
+            collection_id: string | null;
             /** Name */
             name: string;
             /** Slug */
@@ -479,10 +640,19 @@ export interface components {
             /** Chat Enabled */
             chat_enabled: boolean;
         };
+        /** DatasetCollectionRef */
+        DatasetCollectionRef: {
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+        };
         /** DatasetCreate */
         DatasetCreate: {
             /** Datasource Id */
             datasource_id: string;
+            /** Collection Id */
+            collection_id?: string | null;
             /** Name */
             name: string;
             /** Slug */
@@ -536,6 +706,7 @@ export interface components {
             default_view?: {
                 [key: string]: unknown;
             } | null;
+            collection?: components["schemas"]["DatasetCollectionRef"] | null;
         };
         /** DatasetUpdate */
         DatasetUpdate: {
@@ -557,6 +728,8 @@ export interface components {
             } | null;
             /** Chat Enabled */
             chat_enabled?: boolean | null;
+            /** Collection Id */
+            collection_id?: string | null;
         };
         /** DatasourceCreate */
         DatasourceCreate: {
@@ -1151,6 +1324,123 @@ export interface operations {
             };
         };
     };
+    list_collections_admin_api_admin_collections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionAdminListResponse"];
+                };
+            };
+        };
+    };
+    create_collection_api_admin_collections_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionAdminResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_collection_api_admin_collections__slug__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionAdminResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_collection_api_admin_collections__slug__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_api_health_get: {
         parameters: {
             query?: never;
@@ -1262,6 +1552,57 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_collections_api_collections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionListResponse"];
+                };
+            };
+        };
+    };
+    get_collection_api_collections__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionDetail"];
                 };
             };
             /** @description Validation Error */

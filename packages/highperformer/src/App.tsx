@@ -3,6 +3,7 @@ import { Layout } from 'antd'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ProfilePage } from '@cbioportal-cell-explorer/profiler'
 import Home from './pages/Home'
+import Collection from './pages/Collection'
 import View from './pages/View'
 import ZarrView from './pages/ZarrView'
 import useAppStore from './store/useAppStore'
@@ -43,6 +44,13 @@ function App() {
           <Layout style={{ minHeight: '100vh', background: '#fff' }}>
             <Content style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px' }}>
               <Home />
+            </Content>
+          </Layout>
+        } />
+        <Route path="/collections/:slug" element={
+          <Layout style={{ minHeight: '100vh', background: '#fff' }}>
+            <Content style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px' }}>
+              <Collection />
             </Content>
           </Layout>
         } />
