@@ -1,6 +1,6 @@
 ---
-"@cbioportal-cell-explorer/highperformer": minor
-"@cbioportal-cell-explorer/api-client": minor
+"@cbioportal-cell-explorer/highperformer": patch
+"@cbioportal-cell-explorer/api-client": patch
 ---
 
 Group datasets by collection in the catalog.
