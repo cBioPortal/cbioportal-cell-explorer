@@ -1,5 +1,26 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.5.3
+
+### Patch Changes
+
+- [#296](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/296) [`451f4c0`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/451f4c02e5b42d14ae7658e483b8eaa3b93d8fa3) Thanks [@hweej](https://github.com/hweej)! - Group datasets by collection in the catalog.
+
+  The catalog now opens on a Collections tab listing studies rather than a flat
+  list of every dataset, with `/collections/:slug` giving each study its own page
+  showing its description, publication link, and datasets. Datasets belonging to
+  no collection remain reachable under an "Ungrouped" heading, and the previous
+  flat list is still available under "All datasets".
+
+  The dataset list moved out of `Home` into a reusable `DatasetList` component so
+  the collection page and the catalog share one implementation of store probing
+  and access resolution.
+
+  `api-client` is regenerated against the backend's collection endpoints.
+
+- Updated dependencies [[`451f4c0`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/451f4c02e5b42d14ae7658e483b8eaa3b93d8fa3)]:
+  - @cbioportal-cell-explorer/api-client@0.2.2
+
 ## 0.5.2
 
 ### Patch Changes
