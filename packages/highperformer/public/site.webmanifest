@@ -1,0 +1,14 @@
+{
+  "name": "cBioPortal Cell Explorer",
+  "short_name": "Cell Explorer",
+  "description": "Single-cell viewer",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0d2c48",
+  "theme_color": "#123a5e",
+  "icons": [
+    { "src": "./favicon-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./favicon-512x512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "./favicon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
