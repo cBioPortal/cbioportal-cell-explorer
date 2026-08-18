@@ -1,0 +1,30 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<clipPath id="l"><circle cx="222" cy="222" r="104"/></clipPath>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1b4c78"/><stop offset="1" stop-color="#0d2c48"/></linearGradient>
+<filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="11"/></filter>
+<radialGradient id="gB" cx="38%" cy="34%" r="72%"><stop offset="0" stop-color="#8fb2ec"/><stop offset="1" stop-color="#3b6fd0"/></radialGradient>
+<radialGradient id="gG" cx="38%" cy="34%" r="72%"><stop offset="0" stop-color="#7fcf9c"/><stop offset="1" stop-color="#2f9e5b"/></radialGradient>
+<radialGradient id="gR" cx="38%" cy="34%" r="72%"><stop offset="0" stop-color="#ec8981"/><stop offset="1" stop-color="#d9433b"/></radialGradient>
+</defs>
+<rect width="512" height="512" rx="116" fill="url(#bg)"/>
+<g transform="translate(256 256) scale(1.24) translate(-256 -256)">
+<g filter="url(#sh)" opacity="0.32"><circle cx="230" cy="234" r="145" fill="#000000"/><rect x="308" y="308" width="150" height="52" rx="26" transform="rotate(45 330 334)" fill="#000000"/></g>
+<circle cx="222" cy="222" r="104" fill="#eef4fb"/>
+<g clip-path="url(#l)">
+<g stroke="#9fb3c7" stroke-width="3" opacity="0.30"><path d="M152 222 h140"/><path d="M222 152 v140"/><path d="M152 187 h140"/><path d="M152 257 h140"/><path d="M187 152 v140"/><path d="M257 152 v140"/></g>
+<circle cx="180" cy="186" r="38" fill="url(#gB)"/>
+<circle cx="262" cy="190" r="33" fill="url(#gG)"/>
+<circle cx="214" cy="262" r="36" fill="url(#gR)"/>
+<circle cx="167" cy="173" r="10" fill="#ffffff" opacity="0.55"/>
+<circle cx="251" cy="179" r="9" fill="#ffffff" opacity="0.55"/>
+<circle cx="202" cy="250" r="10" fill="#ffffff" opacity="0.55"/>
+<path d="M118 222 a104 104 0 0 1 208 0 Z" fill="#ffffff" opacity="0.22"/>
+<circle cx="222" cy="222" r="104" fill="none" stroke="#0e2c47" stroke-width="10" opacity="0.15"/>
+</g>
+<circle cx="222" cy="222" r="128" fill="none" stroke="#ffffff" stroke-width="34"/>
+<circle cx="222" cy="222" r="111" fill="none" stroke="#9fb3c7" stroke-width="5"/>
+<rect x="300" y="300" width="150" height="52" rx="26" transform="rotate(45 322 322)" fill="#ffffff"/>
+<rect x="308" y="303" width="132" height="12" rx="6" transform="rotate(45 322 322)" fill="#d7dee6"/>
+</g>
+</svg>
