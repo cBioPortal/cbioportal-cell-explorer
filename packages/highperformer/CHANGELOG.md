@@ -1,5 +1,27 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.5.4
+
+### Patch Changes
+
+- [#303](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/303) [`469c9d3`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/469c9d35aacf4b79d94385629d335764a2ca19e0) Thanks [@hweej](https://github.com/hweej)! - Add the reverse ("glyph") icon variant as static assets.
+
+  A tile-less, transparent version of the Cell Explorer mark, served from `public/`
+  under `icon-glyph-*` names. The SVG adapts to `prefers-color-scheme`; the PNGs are
+  baked in the light palette.
+
+  Nothing references these yet — they are available for use, not wired into `index.html`.
+
+- [#301](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/301) [`efa6257`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/efa62578f1f65d9c623f89fa56858776eec82c4b) Thanks [@hweej](https://github.com/hweej)! - Replace the default Vite favicon with the Cell Explorer icon set.
+
+  Adds an SVG favicon, a multi-resolution `favicon.ico` (16/32/48), PNGs at
+  16/32/48/180/192/512, an apple-touch icon, and a web app manifest, and points
+  `index.html` at them alongside a `theme-color`.
+
+  Manifest paths are relative rather than absolute so they resolve under the
+  GitHub Pages base path — files in `public/` are copied verbatim by Vite, so
+  absolute paths there would 404 in production.
+
 ## 0.5.3
 
 ### Patch Changes
