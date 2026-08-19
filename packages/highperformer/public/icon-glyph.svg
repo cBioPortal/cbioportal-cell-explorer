@@ -1,0 +1,30 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<clipPath id="l"><circle cx="222" cy="222" r="104"/></clipPath>
+<radialGradient id="gB" cx="38%" cy="34%" r="72%"><stop offset="0" stop-color="#8fb2ec"/><stop offset="1" stop-color="#3b6fd0"/></radialGradient>
+<radialGradient id="gG" cx="38%" cy="34%" r="72%"><stop offset="0" stop-color="#7fcf9c"/><stop offset="1" stop-color="#2f9e5b"/></radialGradient>
+<radialGradient id="gR" cx="38%" cy="34%" r="72%"><stop offset="0" stop-color="#ec8981"/><stop offset="1" stop-color="#d9433b"/></radialGradient>
+<style>
+  :root{ --frame:#123a5e; --glass:#ffffff; --grid:#9fb3c7; --edge:#0e2c47; --bezel:#4a6f92; }
+  @media (prefers-color-scheme: dark){
+    :root{ --frame:#eaf1f8; --glass:#12304e; --grid:#4a6f92; --edge:#cfe0f0; --bezel:#9fb3c7; }
+  }
+</style>
+</defs>
+<g transform="translate(-82 -82) scale(1.28)">
+<circle cx="222" cy="222" r="104" fill="var(--glass)"/>
+<g clip-path="url(#l)">
+<g stroke="var(--grid)" stroke-width="3" opacity="0.35"><path d="M152 222 h140"/><path d="M222 152 v140"/><path d="M152 187 h140"/><path d="M152 257 h140"/><path d="M187 152 v140"/><path d="M257 152 v140"/></g>
+<circle cx="180" cy="186" r="38" fill="url(#gB)"/>
+<circle cx="262" cy="190" r="33" fill="url(#gG)"/>
+<circle cx="214" cy="262" r="36" fill="url(#gR)"/>
+<circle cx="167" cy="173" r="10" fill="#ffffff" opacity="0.55"/>
+<circle cx="251" cy="179" r="9" fill="#ffffff" opacity="0.55"/>
+<circle cx="202" cy="250" r="10" fill="#ffffff" opacity="0.55"/>
+<circle cx="222" cy="222" r="104" fill="none" stroke="var(--edge)" stroke-width="8" opacity="0.18"/>
+</g>
+<circle cx="222" cy="222" r="128" fill="none" stroke="var(--frame)" stroke-width="34"/>
+<circle cx="222" cy="222" r="111" fill="none" stroke="var(--bezel)" stroke-width="5" opacity="0.5"/>
+<rect x="300" y="300" width="150" height="52" rx="26" transform="rotate(45 322 322)" fill="var(--frame)"/>
+</g>
+</svg>

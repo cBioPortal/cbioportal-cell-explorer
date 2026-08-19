@@ -33,3 +33,29 @@ top will regress them:
   (`"."`, `"./favicon-…"`), which resolve correctly under both the local and deployed base.
 
 Everything else copies across unchanged.
+
+## `cell-explorer-icon-reverse.zip`
+
+A reverse ("glyph") variant of the same mark: no tile, transparent background. Extracted
+verbatim into `public/` under its own `icon-glyph-*` names, so it sits alongside the
+favicon set above without colliding. Contents:
+
+```
+icon-glyph.svg              icon-glyph-180x180.png    apple-touch-icon-glyph.png
+favicon-glyph.ico           icon-glyph-192x192.png
+icon-glyph-16x16.png        icon-glyph-512x512.png
+icon-glyph-32x32.png
+icon-glyph-48x48.png
+```
+
+Nothing references these yet — they are available for use, not wired into `index.html`.
+
+Two things to know before using them:
+
+- **Only the SVG adapts to theme.** `icon-glyph.svg` carries a `prefers-color-scheme: dark`
+  block that swaps the frame from `#123a5e` to `#eaf1f8` and the glass from white to
+  `#12304e`, so it inverts itself on dark backgrounds. The PNGs are baked in the light
+  palette — on a dark background the navy frame nearly disappears. Prefer the SVG wherever
+  the surface can be either theme.
+- **`favicon-glyph.ico` carries a single 16×16 entry**, like the other packs. If it is ever
+  used as a real favicon, rebuild it multi-resolution the same way as above.
