@@ -1,7 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Typography } from 'antd'
-import DatasetList from '../components/DatasetList'
+import DatasetTable from '../components/DatasetTable'
+import OverviewStats, { type Stat } from '../components/OverviewStats'
+import UserAvatar from '../components/UserAvatar'
+import { labelStyle } from '../components/landingTokens'
+import { catalogToEntry } from '../utils/datasetEntries'
+import { formatCount } from '../utils/formatCount'
+import useDatasetProbes from '../hooks/useDatasetProbes'
 import useAppStore from '../store/useAppStore'
 
 type CatalogDataset = ReturnType<typeof useAppStore.getState>['catalogDatasets'][number]
@@ -14,6 +19,30 @@ interface CollectionDetail {
   publication_citation: string | null
   dataset_count: number
   datasets: CatalogDataset[]
+}
+
+/**
+ * The band, without the landing page's point field. That field is the front
+ * door's signature; repeating it on every detail page would spend it.
+ */
+function DetailBand({ children }: { children: React.ReactNode }) {
+  return (
+    <header className="ce-header ce-header-slim">
+      <div className="ce-header-inner">
+        <div className="ce-header-row">
+          <div className="ce-detail-main">
+            <Link to="/" className="ce-back" style={labelStyle}>
+              ← All datasets
+            </Link>
+            {children}
+          </div>
+          <div className="ce-header-actions">
+            <UserAvatar onDark />
+          </div>
+        </div>
+      </div>
+    </header>
+  )
 }
 
 export default function Collection() {
@@ -48,36 +77,92 @@ export default function Collection() {
     }
   }, [slug])
 
+  // Stable identity matters: useDatasetProbes keys off `entries` changing, so a
+  // fresh array every render would re-probe forever.
+  const entries = useMemo(
+    () => (collection?.datasets ?? []).map(catalogToEntry),
+    [collection],
+  )
+
+  const { probes, resolved } = useDatasetProbes(entries)
+
+  const stats = useMemo<Stat[]>(() => {
+    let cells = 0
+    let counted = 0
+    let pending = 0
+    for (const entry of entries) {
+      const probe = probes.get(entry.key)
+      if (!probe || probe.status === 'pending') pending++
+      if (probe?.shape) {
+        cells += probe.shape.nObs
+        counted++
+      }
+    }
+    return [
+      { label: 'Datasets', value: String(entries.length) },
+      {
+        label: 'Cells',
+        value: counted > 0 ? formatCount(cells) : '—',
+        note: pending > 0 ? `counting ${counted}/${entries.length}` : undefined,
+      },
+    ]
+  }, [entries, probes])
+
   if (notFound) {
     return (
-      <div>
-        <Link to="/">← Back to datasets</Link>
-        <Typography.Paragraph style={{ marginTop: 24 }}>
-          Collection not found.
-        </Typography.Paragraph>
+      <div className="ce-landing">
+        <DetailBand>
+          <h1 className="ce-detail-title">Collection not found</h1>
+          <p className="ce-detail-desc">
+            It may have been removed, or you may not have access to it.
+          </p>
+        </DetailBand>
       </div>
     )
   }
 
   if (!collection) {
-    return <div />
+    // Render the band alone rather than a blank page, so the layout does not
+    // jump once the request lands.
+    return (
+      <div className="ce-landing">
+        <DetailBand>
+          <h1 className="ce-detail-title">&nbsp;</h1>
+        </DetailBand>
+      </div>
+    )
   }
 
   return (
-    <div>
-      <Link to="/">← Back to datasets</Link>
-      <h2 style={{ marginTop: 16, marginBottom: 8 }}>{collection.name}</h2>
-      {collection.description && (
-        <Typography.Paragraph type="secondary">{collection.description}</Typography.Paragraph>
-      )}
-      {collection.publication_url && (
-        <Typography.Paragraph>
-          <a href={collection.publication_url} target="_blank" rel="noreferrer">
+    <div className="ce-landing">
+      <DetailBand>
+        <h1 className="ce-detail-title">{collection.name}</h1>
+        {collection.description && (
+          <p className="ce-detail-desc">{collection.description}</p>
+        )}
+        {collection.publication_url && (
+          <a
+            className="ce-citation"
+            href={collection.publication_url}
+            target="_blank"
+            rel="noreferrer"
+          >
             {collection.publication_citation ?? collection.publication_url}
+            <span aria-hidden="true"> ↗</span>
           </a>
-        </Typography.Paragraph>
-      )}
-      <DatasetList datasets={collection.datasets} emptyText="No datasets available" />
+        )}
+        <OverviewStats stats={stats} />
+      </DetailBand>
+
+      <main className="ce-main">
+        <DatasetTable
+          entries={entries}
+          probes={probes}
+          resolved={resolved}
+          emptyText="No datasets in this collection yet."
+          showCollection={false}
+        />
+      </main>
     </div>
   )
 }

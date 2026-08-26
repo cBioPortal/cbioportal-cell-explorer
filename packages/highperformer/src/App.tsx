@@ -7,6 +7,7 @@ import Collection from './pages/Collection'
 import View from './pages/View'
 import ZarrView from './pages/ZarrView'
 import useAppStore from './store/useAppStore'
+import { installMockCatalog, MOCK_CATALOG_ENABLED } from './utils/mockCatalog'
 import { useTokenRefresh } from './hooks/useTokenRefresh'
 
 const { Content } = Layout
@@ -21,6 +22,10 @@ function App() {
   const user = useAppStore((s) => s.user)
 
   useEffect(() => {
+    // Dev fixture, when enabled, stands in for the backend entirely — probing
+    // would only overwrite it with an empty catalog.
+    if (installMockCatalog()) return
+
     probeBackend().then(() => {
       const { backendInfo } = useAppStore.getState()
       if (backendInfo) fetchCatalog()
@@ -30,6 +35,7 @@ function App() {
 
   // Re-fetch catalog when auth state changes
   useEffect(() => {
+    if (MOCK_CATALOG_ENABLED) return
     const { backendInfo } = useAppStore.getState()
     if (backendInfo) fetchCatalog()
   }, [user, fetchCatalog])
@@ -40,20 +46,11 @@ function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
-        <Route path="/" element={
-          <Layout style={{ minHeight: '100vh', background: '#fff' }}>
-            <Content style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px' }}>
-              <Home />
-            </Content>
-          </Layout>
-        } />
-        <Route path="/collections/:slug" element={
-          <Layout style={{ minHeight: '100vh', background: '#fff' }}>
-            <Content style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px' }}>
-              <Collection />
-            </Content>
-          </Layout>
-        } />
+        {/* Home owns its own full-bleed layout — the header band spans the
+            viewport, so it must not sit inside a width-capped Content. */}
+        <Route path="/" element={<Home />} />
+        {/* Like Home, Collection owns its own full-bleed layout. */}
+        <Route path="/collections/:slug" element={<Collection />} />
         <Route path="/view" element={<View />} />
         {ENABLE_ZARR_VIEW && (
           <Route path="/zarr_view" element={<ZarrView />} />
@@ -61,7 +58,7 @@ function App() {
         {ENABLE_PROFILER && (
           <Route path="/profile" element={
             <Layout style={{ minHeight: '100vh', background: '#fff' }}>
-              <Content style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px', overflow: 'auto' }}>
+              <Content style={{ width: 'min(100% - 96px, 1440px)', margin: '0 auto', padding: '32px 0', overflow: 'auto' }}>
                 <ProfilePage />
               </Content>
             </Layout>
