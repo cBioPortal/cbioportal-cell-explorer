@@ -35,8 +35,8 @@ export default function StatusLine({
   return (
     <div
       style={{
-        fontFamily: t.mono,
-        fontSize: 11,
+        fontSize: 11.5,
+        fontVariantNumeric: 'tabular-nums',
         letterSpacing: '0.02em',
         marginTop: 6,
         // Access and reachability are one statement; never break it across lines.

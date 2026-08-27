@@ -33,17 +33,22 @@ export const t = {
   bad: '#d9433b',
 
   /**
-   * Monospace carries both the identity (wordmark) and the structure (eyebrows,
-   * counts, badges, status). The UI stack carries content — dataset names and
-   * descriptions. Two faces, two jobs, no overlap.
+   * Reserved for literal machine text — the raw .zarr URL under a dataset name,
+   * where telling l from 1 and O from 0 matters. Everything else uses the sans,
+   * which is the same face cbioportal.org renders.
    */
   mono: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, "Cascadia Mono", "DejaVu Sans Mono", monospace',
   sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 } as const
 
-/** Uppercase mono label used for eyebrows and section headings. */
+/**
+ * Uppercase label used for eyebrows and section headings.
+ *
+ * No font-family: it inherits the page's sans, which is the same face
+ * cbioportal.org renders. The label reads as a label through case, size and
+ * tracking rather than through a different typeface.
+ */
 export const labelStyle: React.CSSProperties = {
-  fontFamily: t.mono,
   fontSize: 10.5,
   fontWeight: 500,
   letterSpacing: '0.16em',

@@ -109,9 +109,8 @@ body {
 
 .ce-wordmark {
   margin: 0;
-  font-family: var(--mono);
   font-size: 38px;
-  font-weight: 500;
+  font-weight: 700;
   line-height: 1.05;
   letter-spacing: -0.022em;
   color: var(--on-ink);
@@ -155,9 +154,8 @@ body {
 
 .ce-detail-title {
   margin: 0;
-  font-family: var(--mono);
   font-size: 27px;
-  font-weight: 500;
+  font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.018em;
   color: var(--on-ink);
@@ -210,9 +208,8 @@ body {
 
 .ce-stat-value {
   margin: 0;
-  font-family: var(--mono);
   font-size: 32px;
-  font-weight: 500;
+  font-weight: 700;
   line-height: 1;
   letter-spacing: -0.02em;
   /* Figures must not jitter in width as counts arrive. */
@@ -232,8 +229,7 @@ body {
   left: 0;
   margin-top: 22px;
   white-space: nowrap;
-  font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.04em;
   color: var(--on-ink-muted);
   opacity: 0.75;
@@ -360,8 +356,8 @@ body {
 }
 
 .ce-tab-count {
-  font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
   color: var(--text-faint);
   margin-left: 6px;
 }
@@ -413,8 +409,8 @@ body {
 /* Coverage is the honest counterpart to a filter: it says up front how many
    datasets can answer this question at all. */
 .ce-facet-coverage {
-  font-family: var(--mono);
-  font-size: 10px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
   color: var(--text-faint);
   white-space: nowrap;
 }
@@ -423,8 +419,7 @@ body {
   border: 0;
   background: none;
   padding: 0;
-  font-family: var(--mono);
-  font-size: 10px;
+  font-size: 10.5px;
   letter-spacing: 0.06em;
   color: var(--text-muted);
   text-decoration: underline;
@@ -463,8 +458,7 @@ body {
 }
 
 .ce-facet-value-count {
-  font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
 }
@@ -520,10 +514,9 @@ body {
 /* ── Result table ──────────────────────────────────────────────────────── */
 
 /* antd draws the chrome; these rules cover only what its theme tokens cannot
-   reach — the mono type system and the hover-revealed actions. */
+   reach — the label treatment and the hover-revealed actions. */
 
 .ce-table .ant-table-thead > tr > th {
-  font-family: var(--mono);
   font-size: 10.5px;
   font-weight: 500;
   letter-spacing: 0.16em;
@@ -552,7 +545,6 @@ body {
 }
 
 .ce-col-metric {
-  font-family: var(--mono);
   font-size: 14px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

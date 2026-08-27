@@ -38,8 +38,7 @@ export default function UserAvatar({ showName = false, onDark = false }: UserAva
           fontSize: 12,
           color: onDark ? '#eaf1f8' : '#1677ff',
           padding: 0,
-          fontFamily: onDark ? t.mono : undefined,
-          letterSpacing: onDark ? '0.06em' : undefined,
+          letterSpacing: onDark ? '0.02em' : undefined,
         }}
       >
         Sign in
