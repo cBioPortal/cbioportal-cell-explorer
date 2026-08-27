@@ -16,7 +16,7 @@ import { formatCount } from '../utils/formatCount'
 import {
   catalogToEntry,
   countsFor,
-  localToEntry,
+  mergeSavedUrls,
   matchesSearch,
   type DatasetEntry,
 } from '../utils/datasetEntries'
@@ -64,13 +64,15 @@ function Home() {
   }, [localUrls])
 
   const removeEntry = (entry: DatasetEntry) => {
-    setLocalUrls((prev) => prev.filter((u) => u !== entry.key))
+    // Keyed by slug once merged, so remove by the saved URL, not the key.
+    const target = entry.savedUrl ?? entry.key
+    setLocalUrls((prev) => prev.filter((u) => u !== target))
   }
 
-  // Catalog and local URLs share one list. Local entries lead, because a URL
-  // you just pasted is the one you came here to open.
+  // One row per store: a saved URL pointing at a catalogue dataset merges into
+  // it rather than listing again, which would also double it in every total.
   const allEntries = useMemo<DatasetEntry[]>(
-    () => [...localUrls.map(localToEntry), ...catalogDatasets.map(catalogToEntry)],
+    () => mergeSavedUrls(localUrls, catalogDatasets.map(catalogToEntry)),
     [localUrls, catalogDatasets],
   )
 

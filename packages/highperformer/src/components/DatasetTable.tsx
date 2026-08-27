@@ -82,7 +82,7 @@ export default function DatasetTable({
           <>
             <div className="ce-row-title">
               <span className="ce-row-name">{entry.name}</span>
-              {entry.kind === 'local' && (
+              {entry.savedUrl && (
                 <span className="ce-tag ce-tag-local" style={labelStyle}>Local</span>
               )}
             </div>
@@ -170,7 +170,7 @@ export default function DatasetTable({
                 />
               </Tooltip>
             )}
-            {onRemove && entry.kind === 'local' && (
+            {onRemove && entry.savedUrl && (
               <Tooltip title="Remove URL">
                 <Button
                   type="text"

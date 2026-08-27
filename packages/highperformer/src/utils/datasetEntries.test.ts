@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { countsFor, catalogToEntry, localToEntry, type DatasetEntry } from './datasetEntries'
+import {
+  countsFor,
+  catalogToEntry,
+  localToEntry,
+  mergeSavedUrls,
+  type DatasetEntry,
+} from './datasetEntries'
 import type { ProbeResult } from '../hooks/useDatasetProbes'
 
 const entry = (over: Partial<DatasetEntry> = {}): DatasetEntry => ({
@@ -70,5 +76,68 @@ describe('catalogToEntry', () => {
 describe('localToEntry', () => {
   it('has no counts — a pasted URL has no catalog row to read them from', () => {
     expect(localToEntry('https://example.com/x.zarr').counts).toBeUndefined()
+  })
+})
+
+describe('mergeSavedUrls', () => {
+  const catalog = [
+    catalogToEntry({
+      slug: 'spectrum',
+      name: 'MSK SPECTRUM TME 2022',
+      description: 'Curated',
+      is_public: true,
+      url: 'https://cdn/spectrum.zarr',
+      chat_enabled: false,
+      metadata: { n_obs: 927205, n_vars: 31815 },
+    }),
+    catalogToEntry({
+      slug: 'other',
+      name: 'Other',
+      description: null,
+      is_public: true,
+      url: 'https://cdn/other.zarr',
+      chat_enabled: false,
+    }),
+  ]
+
+  it('lists a store once when a saved URL points at a catalogue dataset', () => {
+    const out = mergeSavedUrls(['https://cdn/spectrum.zarr'], catalog)
+    expect(out).toHaveLength(2)
+    expect(out.map((e) => e.key)).toEqual(['spectrum', 'other'])
+  })
+
+  it('keeps the catalogue row, not the bare URL row', () => {
+    const [merged] = mergeSavedUrls(['https://cdn/spectrum.zarr'], catalog)
+    expect(merged.name).toBe('MSK SPECTRUM TME 2022')
+    expect(merged.description).toBe('Curated')
+    expect(merged.counts).toEqual({ nObs: 927205, nVar: 31815 })
+  })
+
+  it('carries savedUrl onto the merged row so it stays removable', () => {
+    const [merged] = mergeSavedUrls(['https://cdn/spectrum.zarr'], catalog)
+    expect(merged.savedUrl).toBe('https://cdn/spectrum.zarr')
+    expect(merged.kind).toBe('catalog')
+  })
+
+  it('treats a trailing slash as the same store', () => {
+    const out = mergeSavedUrls(['https://cdn/spectrum.zarr/'], catalog)
+    expect(out).toHaveLength(2)
+    expect(out[0].savedUrl).toBe('https://cdn/spectrum.zarr/')
+  })
+
+  it('keeps a saved URL that matches nothing, and leads with it', () => {
+    const out = mergeSavedUrls(['https://cdn/mine.zarr'], catalog)
+    expect(out.map((e) => e.key)).toEqual(['https://cdn/mine.zarr', 'spectrum', 'other'])
+    expect(out[0].kind).toBe('local')
+  })
+
+  it('does not double-count cells once merged', () => {
+    const out = mergeSavedUrls(['https://cdn/spectrum.zarr'], catalog)
+    const total = out.reduce((n, e) => n + (e.counts?.nObs ?? 0), 0)
+    expect(total).toBe(927205)
+  })
+
+  it('leaves the catalogue alone when nothing is saved', () => {
+    expect(mergeSavedUrls([], catalog).map((e) => e.key)).toEqual(['spectrum', 'other'])
   })
 })

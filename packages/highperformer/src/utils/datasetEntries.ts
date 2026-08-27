@@ -38,6 +38,14 @@ export interface DatasetEntry {
    * all. See `isAnnotated` in `./facets`.
    */
   facets?: Record<string, string[]> | null
+  /**
+   * The locally saved URL this row also represents, if any.
+   *
+   * Set on pasted URLs, and on catalogue datasets a pasted URL turned out to
+   * point at. Carries the removal target: a merged catalogue row is keyed by
+   * slug, but what gets removed from storage is the URL.
+   */
+  savedUrl?: string
 }
 
 export function catalogToEntry(d: CatalogDataset): DatasetEntry {
@@ -83,7 +91,62 @@ export function localToEntry(url: string): DatasetEntry {
     description: null,
     url,
     isPublic: true,
+    savedUrl: url,
   }
+}
+
+/**
+ * `…/store.zarr` and `…/store.zarr/` are the same store — `probeStore` already
+ * treats them so. Only the trailing slash is normalised: the rest of a URL is
+ * case- and character-sensitive, and guessing further would merge stores that
+ * are genuinely distinct.
+ */
+export function normalizeStoreUrl(url: string): string {
+  return url.replace(/\/+$/, '')
+}
+
+/**
+ * One row per store.
+ *
+ * A saved URL frequently points at something already in the catalogue — every
+ * one of them did, in the catalogue this was written against. Listed twice, the
+ * same store appeared once with its machine filename and once with its curated
+ * name, and every total counted it twice.
+ *
+ * Where they coincide the catalogue row wins, since it carries the name,
+ * description, collection and harvested counts, and inherits `savedUrl` so the
+ * badge and the remove action survive the merge.
+ */
+export function mergeSavedUrls(
+  savedUrls: string[],
+  catalog: DatasetEntry[],
+): DatasetEntry[] {
+  const byUrl = new Map<string, DatasetEntry>()
+  for (const entry of catalog) {
+    if (entry.url) byUrl.set(normalizeStoreUrl(entry.url), entry)
+  }
+
+  const merged = new Set<string>()
+  const standalone: DatasetEntry[] = []
+  for (const url of savedUrls) {
+    const match = byUrl.get(normalizeStoreUrl(url))
+    if (match) {
+      merged.add(match.key)
+      byUrl.set(normalizeStoreUrl(url), { ...match, savedUrl: url })
+    } else {
+      standalone.push(localToEntry(url))
+    }
+  }
+
+  // Saved-but-uncatalogued URLs lead: one you added yourself is the one you
+  // came here to open.
+  return [
+    ...standalone,
+    ...catalog.map((entry) => {
+      if (!merged.has(entry.key) || !entry.url) return entry
+      return byUrl.get(normalizeStoreUrl(entry.url)) ?? entry
+    }),
+  ]
 }
 
 export function displayNameForUrl(url: string): string {
