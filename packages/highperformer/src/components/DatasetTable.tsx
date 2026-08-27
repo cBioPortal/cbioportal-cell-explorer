@@ -99,7 +99,7 @@ export default function DatasetTable({
       title: 'Collection',
       key: 'collection',
       className: 'ce-col-collection',
-      width: 220,
+      width: 190,
       sorter: compareByCollection,
       render: (_, entry) =>
         entry.collectionName
@@ -139,7 +139,7 @@ export default function DatasetTable({
     {
       title: 'Status',
       key: 'status',
-      width: 190,
+      width: 170,
       render: (_, entry) => (
         <StatusLine probe={probes.get(entry.key)} isPublic={entry.isPublic} />
       ),

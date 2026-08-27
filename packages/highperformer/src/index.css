@@ -55,12 +55,18 @@ body {
   /* Fluid up to a cap, so a six-column table gets the room a wide monitor has
      without prose stretching across it — the tagline and row descriptions are
      capped separately in ch units. */
+  /* Matches the --radius: .5rem that about. and curation.cbioportal.org both
+     set, so the family resemblance is exact rather than a near-miss. */
+  --radius: 8px;
   --gutter: 96px;
   --content: min(100% - var(--gutter), 1440px);
 
   min-height: 100vh;
   background: var(--paper);
   color: var(--text);
+  /* 16/24, as both cBioPortal sites set for body copy. */
+  font-size: 16px;
+  line-height: 1.5;
   /* Plain elements here are not antd components, so they inherit from <body>,
      which sets no family — without this they fall back to the browser serif. */
   font-family: var(--sans);
@@ -113,7 +119,7 @@ body {
 
 .ce-tagline {
   margin: 16px 0 0;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
   color: var(--on-ink-muted);
   max-width: 40ch;
@@ -272,7 +278,7 @@ body {
   padding: 16px;
   background: var(--mist);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 
 .ce-addurl .ant-input {
@@ -360,7 +366,7 @@ body {
   margin-bottom: -1px;
   border-bottom: 2px solid transparent;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 14.5px;
   color: var(--text-muted);
   cursor: pointer;
 }
@@ -384,7 +390,7 @@ body {
 
 .ce-results {
   display: flex;
-  gap: 32px;
+  gap: 28px;
   align-items: flex-start;
 }
 
@@ -395,7 +401,7 @@ body {
 }
 
 .ce-facets {
-  width: 200px;
+  width: 186px;
   flex-shrink: 0;
   margin-top: 40px;
   position: sticky;
@@ -456,7 +462,7 @@ body {
   align-items: baseline;
   gap: 7px;
   padding: 3px 0;
-  font-size: 12.5px;
+  font-size: 13.5px;
   line-height: 1.35;
   cursor: pointer;
 }
@@ -561,7 +567,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 
@@ -588,7 +594,7 @@ body {
 }
 
 .ce-row-name {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 550;
   letter-spacing: -0.005em;
 }
@@ -596,7 +602,7 @@ body {
 .ce-tag {
   color: var(--text-muted);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: calc(var(--radius) / 2);
   padding: 2px 7px;
   line-height: 1.5;
 }
@@ -608,7 +614,7 @@ body {
 
 .ce-row-desc {
   margin-top: 5px;
-  font-size: 13px;
+  font-size: 14.5px;
   line-height: 1.5;
   color: var(--text-muted);
   max-width: 52ch;
@@ -644,7 +650,7 @@ body {
   padding: 28px 14px;
   border-top: 1px solid var(--line);
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .ce-empty-hint {

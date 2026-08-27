@@ -3,6 +3,7 @@ import { Layout } from 'antd'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ProfilePage } from '@cbioportal-cell-explorer/profiler'
 import Home from './pages/Home'
+import LandingTheme from './components/LandingTheme'
 import Collection from './pages/Collection'
 import View from './pages/View'
 import ZarrView from './pages/ZarrView'
@@ -48,9 +49,9 @@ function App() {
       <Routes>
         {/* Home owns its own full-bleed layout — the header band spans the
             viewport, so it must not sit inside a width-capped Content. */}
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<LandingTheme><Home /></LandingTheme>} />
         {/* Like Home, Collection owns its own full-bleed layout. */}
-        <Route path="/collections/:slug" element={<Collection />} />
+        <Route path="/collections/:slug" element={<LandingTheme><Collection /></LandingTheme>} />
         <Route path="/view" element={<View />} />
         {ENABLE_ZARR_VIEW && (
           <Route path="/zarr_view" element={<ZarrView />} />
