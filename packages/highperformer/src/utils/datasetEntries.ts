@@ -29,6 +29,15 @@ export interface DatasetEntry {
    * the fallback to the probe belongs in one place.
    */
   counts?: StoreShape
+  /**
+   * Facet values this dataset declares, keyed by facet.
+   *
+   * Three states, not interchangeable: `null` means ingestion has not run,
+   * `{}` means it ran and found nothing indexable, and a populated object means
+   * values were found. `undefined` is a pasted URL, which has no catalog row at
+   * all. See `isAnnotated` in `./facets`.
+   */
+  facets?: Record<string, string[]> | null
 }
 
 export function catalogToEntry(d: CatalogDataset): DatasetEntry {
@@ -42,6 +51,7 @@ export function catalogToEntry(d: CatalogDataset): DatasetEntry {
     slug: d.slug,
     collectionName: d.collection?.name ?? null,
     counts: d.metadata ? { nObs: d.metadata.n_obs, nVar: d.metadata.n_vars } : undefined,
+    facets: d.facets,
   }
 }
 
