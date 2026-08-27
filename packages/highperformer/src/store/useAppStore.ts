@@ -7,7 +7,7 @@ import UniversalWorker from '../workers/universal.worker.ts?worker'
 import type { ColorBufferResponse } from '../workers/colorBuffer.schemas'
 import type { RGB } from '../utils/colors'
 import type { FacetDef } from '../utils/facets'
-import { MOCK_FACETS_ENABLED, MOCK_FACET_DEFS, withMockFacets } from '../utils/mockFacets'
+import { facetValuesFor, facetDefsFrom, type ObsColumn } from '../utils/facetsFromMetadata'
 import { OBS_CONTINUOUS_SCALE_NAME } from '../utils/colors'
 import { encodeCategories, MAX_CATEGORIES, classifyCardinality, CATEGORY_LEGEND_LIST_CAP } from '../utils/categoryEncoding'
 
@@ -227,7 +227,11 @@ export interface AppState {
      * Store facts the backend harvested. Null until a harvest has succeeded,
      * so the absence of this object means "we don't know", never "zero".
      */
-    metadata?: { n_obs: number; n_vars: number; obs_columns?: string[] } | null
+    metadata?: {
+      n_obs: number
+      n_vars: number
+      obs_columns?: ObsColumn[]
+    } | null
     /**
      * Facet values, keyed by facet. Three states: null means ingestion has not
      * run, {} means it ran and found nothing indexable, populated means values
@@ -543,17 +547,18 @@ const useAppStore = create<AppState>((set, get) => ({
       const { data } = await api.GET('/api/datasets')
       if (!data?.datasets) return
 
-      // Dev only: the catalogue carries obs column *names* but not their
-      // values, so facets cannot be built from it yet. This fills in the
-      // missing half over the real datasets. See utils/mockFacets.
-      if (MOCK_FACETS_ENABLED) {
-        set({
-          catalogDatasets: withMockFacets(data.datasets),
-          facetDefs: MOCK_FACET_DEFS,
-        })
-        return
-      }
-      set({ catalogDatasets: data.datasets })
+      // Facet values ride along with the harvested metadata. `facets` is
+      // three-state and the states are not interchangeable: null means the
+      // harvest has not run, {} means it ran and found nothing filterable.
+      const datasets = data.datasets.map((d) => ({
+        ...d,
+        facets: d.metadata ? facetValuesFor(d.metadata.obs_columns ?? []) : null,
+      }))
+
+      set({
+        catalogDatasets: datasets,
+        facetDefs: facetDefsFrom(datasets.map((d) => d.facets).filter((f) => f != null)),
+      })
     } catch {
       // Backend unavailable or request failed — keep existing catalog
     }

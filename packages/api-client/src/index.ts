@@ -189,6 +189,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/facets/unmapped": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Unmapped Columns
+         * @description Obs columns that matched no facet definition, most common first.
+         *
+         *     An unmapped column is a dataset quietly missing a facet it should have.
+         *     Surfacing it is what turns "add an alias" into a decision someone can make,
+         *     rather than a silence nobody notices.
+         */
+        get: operations["list_unmapped_columns_api_admin_facets_unmapped_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/datasets": {
         parameters: {
             query?: never;
@@ -526,6 +550,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/{path}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Spa Catchall */
+        get: operations["spa_catchall__path__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -766,7 +807,7 @@ export interface components {
             /** Obsm Keys */
             obsm_keys: string[];
             /** Obs Columns */
-            obs_columns: string[];
+            obs_columns: components["schemas"]["ObsColumnInfo"][];
             /** Var Columns */
             var_columns: string[];
             /** Layers */
@@ -805,7 +846,7 @@ export interface components {
             /** Obsm Keys */
             obsm_keys: string[];
             /** Obs Columns */
-            obs_columns: string[];
+            obs_columns: components["schemas"]["ObsColumnInfo"][];
             /** Var Columns */
             var_columns: string[];
             /** Layers */
@@ -955,7 +996,24 @@ export interface components {
             /** Chat Enabled */
             chat_enabled: boolean;
         };
-        /** ObsColumnInfo */
+        /**
+         * ObsColumnInfo
+         * @description One obs column as described to API callers.
+         *
+         *     `name` is always the column's real name in the file. `facet` is the
+         *     canonical facet it was resolved to, or None when it matched no definition —
+         *     the interpretation, kept separate from the fact.
+         *
+         *     `values` and `cardinality` are produced by two different paths with
+         *     different limits, not one shared computation: the catalogue
+         *     (`/api/datasets`) serves values harvested and capped at
+         *     `FACET_VALUE_CAP` (100) at store-discovery time, while chat
+         *     (`/api/chat/{slug}/context`) derives them live from the open store under
+         *     its own separate cap. The two routes can legitimately disagree — e.g. a
+         *     column may report values on one route and not the other, or ontology
+         *     columns may appear on chat's response but never the catalogue's. Do not
+         *     assume the two routes describe the same column identically.
+         */
         ObsColumnInfo: {
             /** Name */
             name: string;
@@ -968,6 +1026,8 @@ export interface components {
             cardinality?: number | null;
             /** Values */
             values?: string[] | null;
+            /** Facet */
+            facet?: string | null;
         };
         /** RefreshResult */
         RefreshResult: {
@@ -1058,6 +1118,18 @@ export interface components {
             } | null;
             /** Thread Id */
             thread_id?: string | null;
+        };
+        /** UnmappedColumn */
+        UnmappedColumn: {
+            /** Name */
+            name: string;
+            /** Dataset Count */
+            dataset_count: number;
+        };
+        /** UnmappedFacetsResponse */
+        UnmappedFacetsResponse: {
+            /** Columns */
+            columns: components["schemas"]["UnmappedColumn"][];
         };
         /**
          * User
@@ -1345,6 +1417,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_unmapped_columns_api_admin_facets_unmapped_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnmappedFacetsResponse"];
                 };
             };
         };
@@ -2035,6 +2127,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    spa_catchall__path__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                path: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
             };
             /** @description Validation Error */
             422: {
