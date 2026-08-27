@@ -1,5 +1,105 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.6.0
+
+### Minor Changes
+
+- [#304](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/304) [`d2a4dac`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/d2a4dac3742f9fe8d5c20bda442e619d57eff7fc) Thanks [@hweej](https://github.com/hweej)! - Filter the catalogue by real facet values.
+
+  The backend now ships `ObsColumnInfo[]` on `DatasetMetadataResponse`, with each
+  column carrying a canonical `facet` key, so the sidebar runs on harvested values
+  instead of the development fixture. `VITE_MOCK_FACETS` and `mockFacets.ts` are
+  removed.
+
+  Three judgements the frontend applies on top of the backend's designation:
+
+  - Where several columns claim one facet, the column named like the facet wins.
+    `cell_type` arrives from both `cell_type` (ontology labels) and
+    `author_cell_type` (author shorthand); unioned they made 157 values of mixed
+    vocabulary, and `disease` picked up `condition`'s "TST" and "fresh".
+  - Facets whose catalogue-wide vocabulary exceeds 100 values are dropped, which
+    excludes `donor` at 276 — identifiers, not filters.
+  - `development_stage` is excluded by name. At 90 values of "1-month-old stage" /
+    "10-year-old stage" it passes the ceiling but is a continuous axis expressed
+    as strings, unusable as a checklist.
+
+- [#304](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/304) [`32ed0f8`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/32ed0f8b9d548cf5d901b18bb32f474b3377bc70) Thanks [@hweej](https://github.com/hweej)! - Redesign the landing page around search, and bring the collection page with it.
+
+  The dataset browser was an unbranded heading above three tabs. It is now a
+  branded header band over a single searchable, sortable table — Dataset,
+  Collection, Cells, Genes, Status — with two-line rows carrying each dataset's
+  description, and each Collection cell linking through to that collection.
+
+  Cell and gene counts come from the catalog itself: the API harvests each store's
+  shape server-side and serves it on `/api/datasets`, so rows sort and the header's
+  overview figures total up on first paint rather than after every store has
+  answered. Pasted URLs have no catalog row, so they still read their counts from
+  the reachability probe, which continues to run for status either way.
+
+  The collection page gains the same treatment and surfaces the publication
+  citation the API has always returned but nothing displayed.
+
+  Content width is now one value, `min(100% - 96px, 1440px)`, replacing three
+  different ones across the routes.
+
+  Adds the official cBioPortal 2024 brand pack, uses its mark in the header, and
+  rebuilds the favicon set from it — including a properly padded maskable variant,
+  which the manifest previously pointed at an icon Android would have cropped.
+
+  **Removes the Add URL control.** Previously saved `.zarr` URLs still load, still
+  list, and can still be removed, but there is no longer a way to add one from the
+  landing page. With no backend configured this leaves the page with nothing to
+  open — the old "My URLs" tab was the only entry point in that configuration.
+
+  `VITE_MOCK_CATALOG` seeds a sample catalog for frontend work without a backend;
+  it is gated on `import.meta.env.DEV` and cannot reach a production build.
+
+- [#304](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/304) [`3d9f6c7`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/3d9f6c7de8318541dc92b929eea20ac22587b2aa) Thanks [@hweej](https://github.com/hweej)! - Filter the dataset catalogue with a facet sidebar.
+
+  Column filter dropdowns are replaced by a sidebar showing the whole filterable
+  vocabulary at once, with a dataset count beside every value and a coverage line
+  per facet (`Cell type · 41 of 57`) so sparse annotation is visible before it
+  narrows anything. Values within a facet combine as OR, facets as AND, and
+  "not annotated" is itself selectable so gaps can be found rather than silently
+  excluded.
+
+  Annotated and unannotated datasets get their own tabs, since a facet sidebar has
+  nothing to offer a dataset that declares no values. Tabs appear only when both
+  halves exist, so a catalogue with no facets is unchanged from before.
+
+  Search, active tab and facet selections are held in the URL, so a filtered view
+  is shareable and survives a reload.
+
+  The collections chip row is removed — Collection is a facet now, and each row's
+  Collection cell links through to that collection's page.
+
+  Facets are not yet served by the backend: `DatasetMetadataResponse.obs_columns`
+  carries column names but not values. `VITE_MOCK_FACETS` synthesises values over
+  the real catalogue for development until it does.
+
+### Patch Changes
+
+- [#303](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/303) [`469c9d3`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/469c9d35aacf4b79d94385629d335764a2ca19e0) Thanks [@hweej](https://github.com/hweej)! - Add the reverse ("glyph") icon variant as static assets.
+
+  A tile-less, transparent version of the Cell Explorer mark, served from `public/`
+  under `icon-glyph-*` names. The SVG adapts to `prefers-color-scheme`; the PNGs are
+  baked in the light palette.
+
+  Nothing references these yet — they are available for use, not wired into `index.html`.
+
+- [#301](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/301) [`efa6257`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/efa62578f1f65d9c623f89fa56858776eec82c4b) Thanks [@hweej](https://github.com/hweej)! - Replace the default Vite favicon with the Cell Explorer icon set.
+
+  Adds an SVG favicon, a multi-resolution `favicon.ico` (16/32/48), PNGs at
+  16/32/48/180/192/512, an apple-touch icon, and a web app manifest, and points
+  `index.html` at them alongside a `theme-color`.
+
+  Manifest paths are relative rather than absolute so they resolve under the
+  GitHub Pages base path — files in `public/` are copied verbatim by Vite, so
+  absolute paths there would 404 in production.
+
+- Updated dependencies [[`d2a4dac`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/d2a4dac3742f9fe8d5c20bda442e619d57eff7fc), [`ef91f05`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/ef91f0582143de5a6b6934a604da2e3e7e552a0f)]:
+  - @cbioportal-cell-explorer/api-client@0.2.3
+
 ## 0.5.3
 
 ### Patch Changes
