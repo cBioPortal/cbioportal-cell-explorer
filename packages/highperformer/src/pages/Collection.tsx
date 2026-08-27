@@ -4,7 +4,7 @@ import DatasetTable from '../components/DatasetTable'
 import OverviewStats, { type Stat } from '../components/OverviewStats'
 import UserAvatar from '../components/UserAvatar'
 import { labelStyle } from '../components/landingTokens'
-import { catalogToEntry } from '../utils/datasetEntries'
+import { catalogToEntry, countsFor } from '../utils/datasetEntries'
 import { formatCount } from '../utils/formatCount'
 import useDatasetProbes from '../hooks/useDatasetProbes'
 import useAppStore from '../store/useAppStore'
@@ -92,10 +92,13 @@ export default function Collection() {
     let pending = 0
     for (const entry of entries) {
       const probe = probes.get(entry.key)
-      if (!probe || probe.status === 'pending') pending++
-      if (probe?.shape) {
-        cells += probe.shape.nObs
+      const counts = countsFor(entry, probe)
+      if (counts) {
+        cells += counts.nObs
         counted++
+      } else if (!probe || probe.status === 'pending') {
+        // Only a row still waiting on a probe can gain a count later.
+        pending++
       }
     }
     return [

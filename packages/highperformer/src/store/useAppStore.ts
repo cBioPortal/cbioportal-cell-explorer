@@ -221,6 +221,11 @@ export interface AppState {
     chat_enabled: boolean
     default_view?: Record<string, unknown> | null
     collection?: { slug: string; name: string } | null
+    /**
+     * Store facts the backend harvested. Null until a harvest has succeeded,
+     * so the absence of this object means "we don't know", never "zero".
+     */
+    metadata?: { n_obs: number; n_vars: number } | null
   }>
   fetchCatalog: () => Promise<void>
   openCatalogDataset: (slug: string) => Promise<void>

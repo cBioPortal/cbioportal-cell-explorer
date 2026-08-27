@@ -9,10 +9,11 @@ branded header band over a single searchable table — Dataset, Collection, Cell
 Genes, Status — sortable, with column filters, and two-line rows carrying each
 dataset's description.
 
-Cell and gene counts come from a request already being made: `probeStore` fetched
-each store's consolidated metadata to decide reachability and discarded the body,
-and now reads `X.shape` out of it. Those counts also feed overview figures in the
-header.
+Cell and gene counts come from the catalog itself: the API harvests each store's
+shape server-side and serves it on `/api/datasets`, so rows sort and the header's
+overview figures total up on first paint rather than after every store has
+answered. Pasted URLs have no catalog row, so they still read their counts from
+the reachability probe, which continues to run for status either way.
 
 The collection page gains the same treatment and surfaces the publication
 citation the API has always returned but nothing displayed.

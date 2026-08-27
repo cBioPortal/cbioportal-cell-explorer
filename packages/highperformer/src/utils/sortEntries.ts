@@ -1,4 +1,4 @@
-import type { DatasetEntry } from './datasetEntries'
+import { countsFor, type DatasetEntry } from './datasetEntries'
 import type { ProbeResult } from '../hooks/useDatasetProbes'
 
 export type SortOrder = 'ascend' | 'descend' | null | undefined
@@ -33,14 +33,19 @@ export function compareByCollection(
   return collator.compare(av, bv)
 }
 
-/** Comparator over a probed dimension — `nObs` (cells) or `nVar` (genes). */
+/**
+ * Comparator over a size dimension — `nObs` (cells) or `nVar` (genes).
+ *
+ * Reads through `countsFor`, so catalog datasets sort on the counts the API
+ * already supplied and only pasted URLs depend on their probe having answered.
+ */
 export function makeShapeComparator(
   probes: Map<string, ProbeResult>,
   field: 'nObs' | 'nVar',
 ) {
   return (a: DatasetEntry, b: DatasetEntry, order?: SortOrder): number => {
-    const av = probes.get(a.key)?.shape?.[field]
-    const bv = probes.get(b.key)?.shape?.[field]
+    const av = countsFor(a, probes.get(a.key))?.[field]
+    const bv = countsFor(b, probes.get(b.key))?.[field]
     if (av == null || bv == null) {
       if (av == null && bv == null) return 0
       return (av == null ? 1 : -1) * unknownFactor(order)

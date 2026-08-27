@@ -77,3 +77,40 @@ describe('makeShapeComparator', () => {
     expect(byCells(UNKNOWN, other, 'ascend')).toBe(0)
   })
 })
+
+describe('makeShapeComparator with catalog-supplied counts', () => {
+  // The point of harvesting counts server-side: the column sorts on first paint
+  // instead of waiting for every store to answer a probe.
+  const CATALOG_BIG = entry({ key: 'cbig', name: 'Big', counts: { nObs: 900_000, nVar: 30_000 } })
+  const CATALOG_SMALL = entry({ key: 'csmall', name: 'Small', counts: { nObs: 2_700, nVar: 33_000 } })
+  const noProbes = new Map<string, ProbeResult>()
+
+  it('sorts by cells with no probe results at all', () => {
+    const sorted = applySort([CATALOG_SMALL, CATALOG_BIG], makeShapeComparator(noProbes, 'nObs'), 'descend')
+    expect(sorted.map((e) => e.key)).toEqual(['cbig', 'csmall'])
+  })
+
+  it('sorts by genes with no probe results at all', () => {
+    const sorted = applySort([CATALOG_BIG, CATALOG_SMALL], makeShapeComparator(noProbes, 'nVar'), 'descend')
+    expect(sorted.map((e) => e.key)).toEqual(['csmall', 'cbig'])
+  })
+
+  it('ranks a catalog dataset against a pasted URL that only the probe measured', () => {
+    // Mixed sources must be comparable — the list interleaves both kinds.
+    const pasted = entry({ key: 'pasted', name: 'Pasted', kind: 'local' })
+    const mixed = new Map<string, ProbeResult>([['pasted', { status: 'ok', shape: { nObs: 500_000 } }]])
+    const sorted = applySort(
+      [CATALOG_SMALL, pasted, CATALOG_BIG],
+      makeShapeComparator(mixed, 'nObs'),
+      'descend',
+    )
+    expect(sorted.map((e) => e.key)).toEqual(['cbig', 'pasted', 'csmall'])
+  })
+
+  it('still pins a dataset with neither source to the bottom in both directions', () => {
+    const cmp = makeShapeComparator(noProbes, 'nObs')
+    const unknown = entry({ key: 'none', name: 'None' })
+    expect(applySort([unknown, CATALOG_BIG], cmp, 'descend').map((e) => e.key)).toEqual(['cbig', 'none'])
+    expect(applySort([unknown, CATALOG_BIG], cmp, 'ascend').map((e) => e.key)).toEqual(['cbig', 'none'])
+  })
+})

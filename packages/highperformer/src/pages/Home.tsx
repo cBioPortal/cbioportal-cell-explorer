@@ -14,6 +14,7 @@ import { MOCK_CATALOG_ENABLED } from '../utils/mockCatalog'
 import { formatCount } from '../utils/formatCount'
 import {
   catalogToEntry,
+  countsFor,
   localToEntry,
   matchesSearch,
   type DatasetEntry,
@@ -153,18 +154,24 @@ function Home() {
     let pending = 0
     for (const entry of allEntries) {
       const probe = probes.get(entry.key)
-      if (!probe || probe.status === 'pending') pending++
-      if (probe?.shape) {
-        cells += probe.shape.nObs
+      const counts = countsFor(entry, probe)
+      if (counts) {
+        cells += counts.nObs
         counted++
+      } else if (!probe || probe.status === 'pending') {
+        // Only a row still waiting on a probe can gain a count later. Catalog
+        // rows already have theirs, and a resolved probe with no shape never
+        // will — neither should make the figure look unfinished.
+        pending++
       }
     }
     const figures: Stat[] = [
       { label: 'Datasets', value: String(allEntries.length) },
       {
         label: 'Cells',
-        // Sums whatever has landed so far and says so, rather than withholding
-        // the figure until the slowest store answers.
+        // Catalog counts arrive with the catalog itself, so this is complete on
+        // first paint unless pasted URLs are still being probed. The note covers
+        // that remainder rather than withholding the figure.
         value: counted > 0 ? formatCount(cells) : '—',
         note: pending > 0 ? `counting ${counted}/${allEntries.length}` : undefined,
       },

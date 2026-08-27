@@ -1,4 +1,6 @@
 import type useAppStore from '../store/useAppStore'
+import type { StoreShape } from './datasetProbe'
+import type { ProbeResult } from '../hooks/useDatasetProbes'
 
 type CatalogDataset = ReturnType<typeof useAppStore.getState>['catalogDatasets'][number]
 
@@ -18,6 +20,15 @@ export interface DatasetEntry {
   isPublic: boolean
   slug?: string
   collectionName?: string | null
+  /**
+   * Cell and gene counts the API already harvested for this dataset.
+   *
+   * Present for catalog datasets the backend has successfully read; absent for
+   * pasted URLs, which have no catalog row, and for catalog datasets whose
+   * harvest has not succeeded. Read it through `countsFor`, never directly —
+   * the fallback to the probe belongs in one place.
+   */
+  counts?: StoreShape
 }
 
 export function catalogToEntry(d: CatalogDataset): DatasetEntry {
@@ -30,7 +41,24 @@ export function catalogToEntry(d: CatalogDataset): DatasetEntry {
     isPublic: d.is_public,
     slug: d.slug,
     collectionName: d.collection?.name ?? null,
+    counts: d.metadata ? { nObs: d.metadata.n_obs, nVar: d.metadata.n_vars } : undefined,
   }
+}
+
+/**
+ * The counts to display for a row, from whichever source has them.
+ *
+ * Catalog datasets carry counts the backend harvested, so they resolve with the
+ * catalog fetch — the row sorts and sums immediately instead of waiting on a
+ * per-dataset round trip. Pasted URLs have no catalog row, so the liveness
+ * probe stays their only source.
+ *
+ * The probe's `status` is deliberately not consulted: a store we cannot reach
+ * right now still has a known size. Reachability and size are separate facts,
+ * shown separately.
+ */
+export function countsFor(entry: DatasetEntry, probe?: ProbeResult): StoreShape | undefined {
+  return entry.counts ?? probe?.shape
 }
 
 /**
