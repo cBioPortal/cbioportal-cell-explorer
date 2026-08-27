@@ -719,7 +719,10 @@ body {
 .ce-active-chip:focus-visible,
 .ce-active-clear:focus-visible,
 .ce-tab:focus-visible,
-.ce-facet-value:focus-within,
+/* :has(:focus-visible) rather than :focus-within — the focusable element is the
+   nested checkbox, but :focus-within also matches a mouse click, which drew a
+   box around the row every time a filter was ticked. */
+.ce-facet-value:has(:focus-visible),
 .ce-facet-clear:focus-visible,
 .ce-facet-more:focus-visible,
 .ce-cross-tab:focus-visible,
