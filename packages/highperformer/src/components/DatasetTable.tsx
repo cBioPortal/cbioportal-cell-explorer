@@ -8,7 +8,7 @@ import { t, labelStyle } from './landingTokens'
 import { formatCount } from '../utils/formatCount'
 import { compareByName, compareByCollection, makeShapeComparator } from '../utils/sortEntries'
 import type { ProbeResult, ResolvedAccess } from '../hooks/useDatasetProbes'
-import type { DatasetEntry } from '../utils/datasetEntries'
+import { countsFor, type DatasetEntry } from '../utils/datasetEntries'
 
 const ENABLE_ZARR_VIEW = import.meta.env.VITE_ENABLE_ZARR_VIEW === 'true'
 
@@ -150,7 +150,7 @@ export default function DatasetTable({
       // column is "which is the big atlas?", so open on the largest.
       sortDirections: ['descend', 'ascend'],
       render: (_, entry) => {
-        const n = probes.get(entry.key)?.shape?.nObs
+        const n = countsFor(entry, probes.get(entry.key))?.nObs
         return n != null
           ? <span className="ce-col-metric">{formatCount(n)}</span>
           : <span className="ce-dash">—</span>
@@ -164,7 +164,7 @@ export default function DatasetTable({
       sorter: makeShapeComparator(probes, 'nVar'),
       sortDirections: ['descend', 'ascend'],
       render: (_, entry) => {
-        const n = probes.get(entry.key)?.shape?.nVar
+        const n = countsFor(entry, probes.get(entry.key))?.nVar
         return n != null
           ? <span className="ce-col-metric">{formatCount(n)}</span>
           : <span className="ce-dash">—</span>

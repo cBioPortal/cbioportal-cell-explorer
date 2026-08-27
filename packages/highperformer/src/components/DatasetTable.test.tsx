@@ -179,3 +179,34 @@ describe('DatasetTable', () => {
     expect(onRemove).toHaveBeenCalledWith(expect.objectContaining({ key: 'https://cdn/mine.zarr' }))
   })
 })
+
+describe('DatasetTable counts', () => {
+  // Guards the split that is easy to reintroduce: the sorter and the cell must
+  // read the same source, or a row sorts by one number and shows another.
+  const HARVESTED = {
+    ...DATASET,
+    slug: 'harvested',
+    name: 'Harvested',
+    metadata: { n_obs: 927205, n_vars: 31815 },
+  } as Parameters<typeof catalogToEntry>[0]
+
+  it('renders catalog counts with no probe result at all', () => {
+    renderTable({ entries: [catalogToEntry(HARVESTED)], probes: new Map() })
+    expect(screen.getByText('927K')).toBeDefined()
+    expect(screen.getByText('32K')).toBeDefined()
+  })
+
+  it('still renders probe counts for a pasted URL, which has no catalog row', () => {
+    const url = 'https://example.org/pasted.zarr'
+    renderTable({
+      entries: [localToEntry(url)],
+      probes: new Map([[url, { status: 'ok' as const, shape: { nObs: 4321, nVar: 99 } }]]),
+    })
+    expect(screen.getByText('4.3K')).toBeDefined()
+  })
+
+  it('shows a dash when neither source has counts', () => {
+    renderTable({ entries: [catalogToEntry(DATASET)], probes: new Map() })
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+})
