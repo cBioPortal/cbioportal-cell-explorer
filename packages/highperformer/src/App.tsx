@@ -20,6 +20,7 @@ function App() {
   const probeBackend = useAppStore((s) => s.probeBackend)
   const checkAuth = useAppStore((s) => s.checkAuth)
   const fetchCatalog = useAppStore((s) => s.fetchCatalog)
+  const fetchCollections = useAppStore((s) => s.fetchCollections)
   const user = useAppStore((s) => s.user)
 
   useEffect(() => {
@@ -29,17 +30,26 @@ function App() {
 
     probeBackend().then(() => {
       const { backendInfo } = useAppStore.getState()
-      if (backendInfo) fetchCatalog()
+      if (backendInfo) {
+        fetchCatalog()
+        // Collections feed the overview figure. This used to ride along with
+        // the chips row on the landing page; that row is gone, so the fetch
+        // belongs here with the rest of the bootstrap.
+        fetchCollections()
+      }
       if (backendInfo?.auth_enabled) checkAuth()
     })
-  }, [probeBackend, checkAuth, fetchCatalog])
+  }, [probeBackend, checkAuth, fetchCatalog, fetchCollections])
 
   // Re-fetch catalog when auth state changes
   useEffect(() => {
     if (MOCK_CATALOG_ENABLED) return
     const { backendInfo } = useAppStore.getState()
-    if (backendInfo) fetchCatalog()
-  }, [user, fetchCatalog])
+    if (backendInfo) {
+      fetchCatalog()
+      fetchCollections()
+    }
+  }, [user, fetchCatalog, fetchCollections])
 
   // Keep the access cookie fresh while signed in. Sidesteps the rotation
   // race that surfaces as 'Session expired' on long-lived chat streams.
