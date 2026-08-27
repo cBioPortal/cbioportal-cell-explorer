@@ -151,6 +151,35 @@ describe('Home', () => {
     expect(within(stat).getByText('1')).toBeDefined()
   })
 
+  it('names the active filters beside the results, not only in the sidebar', async () => {
+    setStore({ catalogDatasets: [LUNG, BREAST] })
+    const { container } = renderHome()
+    const sidebar = within(container.querySelector('.ce-facets') as HTMLElement)
+    fireEvent.click(sidebar.getByText('lung'))
+
+    const active = await waitFor(() => container.querySelector('.ce-active') as HTMLElement)
+    expect(within(active).getByText('Tissue')).toBeDefined()
+    expect(within(active).getByText('lung')).toBeDefined()
+  })
+
+  it('removes a filter from its chip', async () => {
+    setStore({ catalogDatasets: [LUNG, BREAST] })
+    const { container } = renderHome()
+    const sidebar = within(container.querySelector('.ce-facets') as HTMLElement)
+    fireEvent.click(sidebar.getByText('lung'))
+    await waitFor(() => expect(screen.queryByText('Breast Atlas')).toBeNull())
+
+    fireEvent.click(screen.getByRole('button', { name: /Remove filter Tissue: lung/ }))
+    await waitFor(() => expect(screen.getByText('Breast Atlas')).toBeDefined())
+    expect(container.querySelector('.ce-active')).toBeNull()
+  })
+
+  it('shows no filter chips when nothing is filtering', () => {
+    setStore({ catalogDatasets: [LUNG, BREAST] })
+    const { container } = renderHome()
+    expect(container.querySelector('.ce-active')).toBeNull()
+  })
+
   it('offers no way to add a URL from the search bar', () => {
     renderHome()
     expect(screen.queryByRole('button', { name: /Add URL/ })).toBeNull()

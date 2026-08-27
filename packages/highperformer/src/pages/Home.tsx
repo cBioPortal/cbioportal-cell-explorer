@@ -10,6 +10,7 @@ import type { Stat } from '../components/OverviewStats'
 import useDatasetProbes from '../hooks/useDatasetProbes'
 import useCatalogQuery from '../hooks/useCatalogQuery'
 import FacetSidebar from '../components/FacetSidebar'
+import ActiveFilters from '../components/ActiveFilters'
 import { applyFacetFilters, partitionByAnnotation, countActiveFilters } from '../utils/facets'
 import { MOCK_CATALOG_ENABLED } from '../utils/mockCatalog'
 import { formatCount } from '../utils/formatCount'
@@ -233,6 +234,12 @@ function Home() {
           )}
 
           <section className="ce-results-main">
+          <ActiveFilters
+            defs={facetDefs}
+            filters={filters}
+            onToggle={toggleValue}
+            onClearAll={clearAll}
+          />
           <SectionLabel rule={false}>
             {visibleCount} {visibleCount === 1 ? 'dataset' : 'datasets'}
           </SectionLabel>

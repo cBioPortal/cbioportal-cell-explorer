@@ -442,6 +442,15 @@ body {
   cursor: pointer;
 }
 
+.ce-facet-value:has(input:checked) .ce-facet-value-name {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ce-facet-value:has(input:checked) .ce-facet-value-count {
+  color: var(--ink);
+}
+
 .ce-facet-value input {
   margin: 0;
   flex-shrink: 0;
@@ -510,6 +519,67 @@ body {
 }
 
 .ce-cross-tab:hover { color: var(--text); }
+
+/* ── Active filters ────────────────────────────────────────────────────── */
+
+.ce-active {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.ce-active-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--mist);
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.ce-active-chip:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.ce-active-key {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.ce-active-x {
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.55;
+}
+
+.ce-active-chip:hover .ce-active-x {
+  opacity: 1;
+}
+
+.ce-active-clear {
+  border: 0;
+  background: none;
+  padding: 4px 2px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ce-active-clear:hover {
+  color: var(--text);
+}
 
 /* ── Result table ──────────────────────────────────────────────────────── */
 
@@ -636,6 +706,8 @@ body {
 /* antd inputs and buttons ship their own focus ring; only the elements this
    page builds by hand need one. */
 .ce-chip:focus-visible,
+.ce-active-chip:focus-visible,
+.ce-active-clear:focus-visible,
 .ce-tab:focus-visible,
 .ce-facet-value:focus-within,
 .ce-facet-clear:focus-visible,
