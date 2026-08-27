@@ -5,9 +5,9 @@
 Redesign the landing page around search, and bring the collection page with it.
 
 The dataset browser was an unbranded heading above three tabs. It is now a
-branded header band over a single searchable table — Dataset, Collection, Cells,
-Genes, Status — sortable, with column filters, and two-line rows carrying each
-dataset's description.
+branded header band over a single searchable, sortable table — Dataset,
+Collection, Cells, Genes, Status — with two-line rows carrying each dataset's
+description, and each Collection cell linking through to that collection.
 
 Cell and gene counts come from the catalog itself: the API harvests each store's
 shape server-side and serves it on `/api/datasets`, so rows sort and the header's
@@ -24,6 +24,11 @@ different ones across the routes.
 Adds the official cBioPortal 2024 brand pack, uses its mark in the header, and
 rebuilds the favicon set from it — including a properly padded maskable variant,
 which the manifest previously pointed at an icon Android would have cropped.
+
+**Removes the Add URL control.** Previously saved `.zarr` URLs still load, still
+list, and can still be removed, but there is no longer a way to add one from the
+landing page. With no backend configured this leaves the page with nothing to
+open — the old "My URLs" tab was the only entry point in that configuration.
 
 `VITE_MOCK_CATALOG` seeds a sample catalog for frontend work without a backend;
 it is gated on `import.meta.env.DEV` and cannot reach a production build.
