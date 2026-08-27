@@ -1,5 +1,31 @@
 # @cbioportal-cell-explorer/api-client
 
+## 0.2.3
+
+### Patch Changes
+
+- [#304](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/304) [`d2a4dac`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/d2a4dac3742f9fe8d5c20bda442e619d57eff7fc) Thanks [@hweej](https://github.com/hweej)! - Filter the catalogue by real facet values.
+
+  The backend now ships `ObsColumnInfo[]` on `DatasetMetadataResponse`, with each
+  column carrying a canonical `facet` key, so the sidebar runs on harvested values
+  instead of the development fixture. `VITE_MOCK_FACETS` and `mockFacets.ts` are
+  removed.
+
+  Three judgements the frontend applies on top of the backend's designation:
+
+  - Where several columns claim one facet, the column named like the facet wins.
+    `cell_type` arrives from both `cell_type` (ontology labels) and
+    `author_cell_type` (author shorthand); unioned they made 157 values of mixed
+    vocabulary, and `disease` picked up `condition`'s "TST" and "fresh".
+  - Facets whose catalogue-wide vocabulary exceeds 100 values are dropped, which
+    excludes `donor` at 276 — identifiers, not filters.
+  - `development_stage` is excluded by name. At 90 values of "1-month-old stage" /
+    "10-year-old stage" it passes the ceiling but is a continuous axis expressed
+    as strings, unusable as a checklist.
+
+- [#304](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/304) [`ef91f05`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/ef91f0582143de5a6b6934a604da2e3e7e552a0f) Thanks [@hweej](https://github.com/hweej)! - Regenerate types against the current API spec, which now carries harvested store
+  metadata (`n_obs`, `n_vars`, embedding keys) on the dataset responses.
+
 ## 0.2.2
 
 ### Patch Changes
