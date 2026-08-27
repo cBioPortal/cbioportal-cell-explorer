@@ -266,26 +266,6 @@ body {
   margin-right: 6px;
 }
 
-.ce-addurl-toggle {
-  flex-shrink: 0;
-}
-
-.ce-addurl {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  margin-top: 12px;
-  padding: 16px;
-  background: var(--mist);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-
-.ce-addurl .ant-input {
-  font-family: var(--mono);
-  font-size: 13px;
-}
-
 /* ── Sections ──────────────────────────────────────────────────────────── */
 
 .ce-section {
@@ -738,11 +718,6 @@ body {
 
   .ce-search-row .ce-search {
     flex-basis: 100%;
-  }
-
-  .ce-addurl {
-    flex-direction: column;
-    align-items: stretch;
   }
 
 }

@@ -78,8 +78,9 @@ describe('Home', () => {
     expect(overview.getByText('2')).toBeDefined()
     // Both datasets probe at 3000 cells each.
     await waitFor(() => expect(overview.getByText('6K')).toBeDefined())
-    expect(overview.getByText('Collections')).toBeDefined()
-    expect(overview.getByText('1')).toBeDefined()
+    // Scope to the Collections stat: "1" also appears as the dataset count.
+    const stat = overview.getByText('Collections').closest('.ce-stat') as HTMLElement
+    expect(within(stat).getByText('1')).toBeDefined()
   })
 
   it('omits the collections figure when no backend serves them', () => {
@@ -141,15 +142,18 @@ describe('Home', () => {
     expect(screen.getByText('Local')).toBeDefined()
   })
 
-  it('adds a pasted URL to the list and persists it', async () => {
-    renderHome()
-    fireEvent.click(screen.getByRole('button', { name: /Add URL/ }))
-    const box = screen.getByPlaceholderText(/atlas\.zarr/)
-    fireEvent.change(box, { target: { value: 'https://cdn/new.zarr' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add URL' }))
+  it('reports the collection count even though the chips row is gone', () => {
+    setStore({ catalogDatasets: [LUNG], collections: [COLLECTION] })
+    const { container } = renderHome()
+    const overview = within(container.querySelector('.ce-stats') as HTMLElement)
+    // Scope to the Collections stat: "1" also appears as the dataset count.
+    const stat = overview.getByText('Collections').closest('.ce-stat') as HTMLElement
+    expect(within(stat).getByText('1')).toBeDefined()
+  })
 
-    await waitFor(() => expect(screen.getByText('new.zarr')).toBeDefined())
-    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toEqual(['https://cdn/new.zarr'])
+  it('offers no way to add a URL from the search bar', () => {
+    renderHome()
+    expect(screen.queryByRole('button', { name: /Add URL/ })).toBeNull()
   })
 
   it('removing a local URL drops it from storage', async () => {
@@ -208,13 +212,12 @@ describe('Home', () => {
     expect(screen.getByText('1 dataset')).toBeDefined()
   })
 
-  it('without a backend, still offers search and Add URL and hides collections', () => {
+  it('without a backend, still offers search and hides collections', () => {
     setStore({ backendInfo: null, collections: [COLLECTION] })
     renderHome()
     expect(screen.getByLabelText('Search datasets')).toBeDefined()
-    expect(screen.getByRole('button', { name: /Add URL/ })).toBeDefined()
     expect(screen.queryByRole('link', { name: /Lung/ })).toBeNull()
-    expect(screen.getByText(/Add a \.zarr URL to open your own dataset/)).toBeDefined()
+    expect(screen.getByText(/No datasets available/)).toBeDefined()
   })
 
   it('invites a signed-out user to sign in when auth is on and the catalog is empty', () => {

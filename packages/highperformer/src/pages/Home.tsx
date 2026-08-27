@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
-import { Input, Button } from 'antd'
-import type { TextAreaRef } from 'antd/es/input/TextArea'
-import { SearchOutlined, PlusOutlined, CloseOutlined } from '@ant-design/icons'
+import { useState, useEffect, useMemo } from 'react'
+import { Input } from 'antd'
+import { SearchOutlined } from '@ant-design/icons'
 import { loadDatasets, saveDatasets } from '../utils/datasets'
 import useAppStore from '../store/useAppStore'
 import SiteHeader from '../components/SiteHeader'
@@ -35,42 +34,6 @@ function SectionLabel({ children, rule = true }: { children: React.ReactNode; ru
   )
 }
 
-function AddUrlPanel({ onAdd }: { onAdd: (urls: string[]) => void }) {
-  const [value, setValue] = useState('')
-  const ref = useRef<TextAreaRef>(null)
-
-  useEffect(() => {
-    ref.current?.focus()
-  }, [])
-
-  const submit = () => {
-    const urls = value.split(/[\n,]+/).map((u) => u.trim()).filter(Boolean)
-    if (urls.length > 0) onAdd(urls)
-    setValue('')
-  }
-
-  return (
-    <div className="ce-addurl">
-      <Input.TextArea
-        ref={ref}
-        placeholder="https://example.org/atlas.zarr — one per line to add several"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onPressEnter={(e) => {
-          if (!e.shiftKey) {
-            e.preventDefault()
-            submit()
-          }
-        }}
-        autoSize={{ minRows: 2, maxRows: 5 }}
-      />
-      <Button type="primary" onClick={submit} disabled={value.trim().length === 0}>
-        Add URL
-      </Button>
-    </div>
-  )
-}
-
 function Home() {
   const backendInfo = useAppStore((s) => s.backendInfo)
   const backendProbed = useAppStore((s) => s.backendProbed)
@@ -79,7 +42,6 @@ function Home() {
   const facetDefs = useAppStore((s) => s.facetDefs)
   const user = useAppStore((s) => s.user)
 
-  const [addOpen, setAddOpen] = useState(false)
 
   const facetKeys = useMemo(() => facetDefs.map((f) => f.key), [facetDefs])
   const { filters, query: urlQuery, tab, setQuery, setTab, toggleValue, clearFacet, clearAll } =
@@ -100,11 +62,6 @@ function Home() {
   useEffect(() => {
     saveDatasets(localUrls)
   }, [localUrls])
-
-  const addUrls = (urls: string[]) => {
-    setLocalUrls((prev) => [...urls.filter((u) => !prev.includes(u)), ...prev])
-    setAddOpen(false)
-  }
 
   const removeEntry = (entry: DatasetEntry) => {
     setLocalUrls((prev) => prev.filter((u) => u !== entry.key))
@@ -209,15 +166,15 @@ function Home() {
     emptyText = (
       <>
         No datasets match “{query.trim()}”.
-        <span className="ce-empty-hint">Try a shorter search, or add a .zarr URL.</span>
+        <span className="ce-empty-hint">Try a shorter or more general search.</span>
       </>
     )
   } else if (!backendInfo) {
-    emptyText = 'Add a .zarr URL to open your own dataset.'
+    emptyText = 'No datasets available. Connect a backend to browse a catalog.'
   } else if (!user && backendInfo.auth_enabled) {
-    emptyText = 'Sign in to see the datasets available to you, or add a .zarr URL.'
+    emptyText = 'Sign in to see the datasets available to you.'
   } else {
-    emptyText = 'No datasets yet. Add a .zarr URL to open your own.'
+    emptyText = 'No datasets yet.'
   }
 
   return (
@@ -236,18 +193,7 @@ function Home() {
             value={query}
             onChange={(e) => setDraft(e.target.value)}
           />
-          <Button
-            size="large"
-            className="ce-addurl-toggle"
-            icon={addOpen ? <CloseOutlined /> : <PlusOutlined />}
-            onClick={() => setAddOpen((o) => !o)}
-            aria-expanded={addOpen}
-          >
-            {addOpen ? 'Cancel' : 'Add URL'}
-          </Button>
         </div>
-
-        {addOpen && <AddUrlPanel onAdd={addUrls} />}
 
         {showTabs && (
           <div className="ce-tabs" role="tablist" aria-label="Catalog">
