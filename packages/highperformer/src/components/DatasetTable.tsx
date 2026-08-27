@@ -102,9 +102,18 @@ export default function DatasetTable({
       width: 190,
       sorter: compareByCollection,
       render: (_, entry) =>
-        entry.collectionName
-          ? <span title={entry.collectionName}>{entry.collectionName}</span>
-          : <span className="ce-dash">—</span>,
+        entry.collectionSlug && entry.collectionName ? (
+          // The only route to the collection page since the chips row went.
+          <Link
+            to={`/collections/${encodeURIComponent(entry.collectionSlug)}`}
+            title={entry.collectionName}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {entry.collectionName}
+          </Link>
+        ) : (
+          <span className="ce-dash">—</span>
+        ),
     },
     {
       title: 'Cells',
@@ -151,7 +160,14 @@ export default function DatasetTable({
       render: (_, entry) => {
         const displayUrl = entry.url ?? resolved.get(entry.key)?.url
         return (
-          <div className="ce-row-actions" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="ce-row-actions"
+            onClick={(e) => e.stopPropagation()}
+            // The row handles Enter/Space to open the dataset. Without this,
+            // Space on the copy button opens the dataset instead of copying,
+            // and Enter does both.
+            onKeyDown={(e) => e.stopPropagation()}
+          >
             {ENABLE_ZARR_VIEW && displayUrl && (
               <Tooltip title="Inspect Zarr structure">
                 <Link to={`/zarr_view?url=${encodeURIComponent(displayUrl)}`}>

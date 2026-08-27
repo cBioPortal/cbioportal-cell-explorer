@@ -20,6 +20,7 @@ export interface DatasetEntry {
   isPublic: boolean
   slug?: string
   collectionName?: string | null
+  collectionSlug?: string | null
   /**
    * Cell and gene counts the API already harvested for this dataset.
    *
@@ -58,6 +59,7 @@ export function catalogToEntry(d: CatalogDataset): DatasetEntry {
     isPublic: d.is_public,
     slug: d.slug,
     collectionName: d.collection?.name ?? null,
+    collectionSlug: d.collection?.slug ?? null,
     counts: d.metadata ? { nObs: d.metadata.n_obs, nVar: d.metadata.n_vars } : undefined,
     facets: d.facets,
   }

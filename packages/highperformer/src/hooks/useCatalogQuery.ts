@@ -22,17 +22,20 @@ const TAB_PARAM = 'tab'
 export default function useCatalogQuery(facetKeys: string[]) {
   const [params, setParams] = useSearchParams()
 
-  // Keys arrive as a fresh array each render; compare by content.
-  const keySignature = facetKeys.join(' ')
+  // Keys arrive as a fresh array each render, so compare by content — but via
+  // JSON, not a delimiter: a backend facet key containing the delimiter would
+  // silently split into two keys and its filters would stop applying.
+  const keySignature = JSON.stringify(facetKeys)
+  const keys = useMemo<string[]>(() => JSON.parse(keySignature), [keySignature])
 
   const filters = useMemo<FacetFilters>(() => {
     const next: FacetFilters = {}
-    for (const key of keySignature ? keySignature.split(' ') : []) {
+    for (const key of keys) {
       const values = params.getAll(key)
       if (values.length > 0) next[key] = values
     }
     return next
-  }, [params, keySignature])
+  }, [params, keys])
 
   const query = params.get(SEARCH_PARAM) ?? ''
   const tab: CatalogTab = params.get(TAB_PARAM) === 'unannotated' ? 'unannotated' : 'annotated'
@@ -48,7 +51,6 @@ export default function useCatalogQuery(facetKeys: string[]) {
     (next: (current: FacetFilters) => FacetFilters) => {
       setParams(
         (prev) => {
-          const keys = keySignature ? keySignature.split(' ') : []
           const current: FacetFilters = {}
           for (const key of keys) {
             const values = prev.getAll(key)
@@ -65,7 +67,7 @@ export default function useCatalogQuery(facetKeys: string[]) {
         { replace: true },
       )
     },
-    [setParams, keySignature],
+    [setParams, keys],
   )
 
   const setOne = useCallback(

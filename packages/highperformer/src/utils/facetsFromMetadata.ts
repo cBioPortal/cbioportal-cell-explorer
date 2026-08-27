@@ -118,11 +118,9 @@ export function facetDefsFrom(perDataset: Record<string, string[]>[]): FacetDef[
     .filter(([key, values]) => !NOT_A_CHOICE.has(key) && values.size <= MAX_FACET_VALUES)
     .map(([key]) => {
       const index = PREFERRED_ORDER.indexOf(key)
-      return {
-        key,
-        label: labelForFacet(key),
-        order: index === -1 ? 1000 + key.charCodeAt(0) : index * 10,
-      }
+      return { key, label: labelForFacet(key), order: index === -1 ? 1000 : index * 10 }
     })
-    .sort((a, b) => a.order - b.order)
+    // Unknown facets share one order and are separated alphabetically here,
+    // rather than by first character, which collided.
+    .sort((a, b) => a.order - b.order || a.key.localeCompare(b.key))
 }

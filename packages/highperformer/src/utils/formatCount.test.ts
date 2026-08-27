@@ -23,6 +23,13 @@ describe('formatCount', () => {
     expect(formatCount(2_400_000_000)).toBe('2.4B')
   })
 
+  it('promotes to the next unit when rounding carries', () => {
+    // Picking the unit before rounding rendered these as "1000K" / "1000M".
+    expect(formatCount(999999)).toBe('1M')
+    expect(formatCount(999_999_999)).toBe('1B')
+    expect(formatCount(999_500)).toBe('1M')
+  })
+
   it('renders a dash for values that are not real counts', () => {
     expect(formatCount(NaN)).toBe('—')
     expect(formatCount(-5)).toBe('—')

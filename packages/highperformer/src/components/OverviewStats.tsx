@@ -16,8 +16,11 @@ export default function OverviewStats({ stats }: { stats: Stat[] }) {
     <dl className="ce-stats" aria-label="Overview">
       {stats.map((s) => (
         <div className="ce-stat" key={s.label}>
-          <dd className="ce-stat-value">{s.value}</dd>
+          {/* dt before dd, as the content model requires — otherwise a screen
+              reader pairs each figure with the preceding group's label. The
+              visual order is restored with column-reverse. */}
           <dt className="ce-stat-label" style={labelStyle}>{s.label}</dt>
+          <dd className="ce-stat-value">{s.value}</dd>
           {s.note && <span className="ce-stat-note">{s.note}</span>}
         </div>
       ))}

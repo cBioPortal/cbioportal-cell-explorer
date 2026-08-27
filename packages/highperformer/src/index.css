@@ -204,6 +204,11 @@ body {
 
 .ce-stat {
   position: relative;
+  /* Source order is dt then dd for assistive tech; the figure still reads
+     above its label. */
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-start;
 }
 
 .ce-stat-value {
@@ -382,6 +387,11 @@ body {
   margin-top: 40px;
   position: sticky;
   top: 16px;
+  /* "Show all 92" makes this taller than the viewport; without its own scroll
+     the lower values sit permanently below the fold once it sticks. */
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .ce-facets-head,
@@ -766,6 +776,25 @@ body {
 
   .ce-stat-note {
     display: none;
+  }
+
+  /* A fixed 186px sidebar beside the table on a phone leaves the results a
+     sliver behind a horizontal scrollbar. */
+  .ce-results {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .ce-facets {
+    width: 100%;
+    position: static;
+    max-height: none;
+    margin-top: 24px;
+  }
+
+  .ce-results-main {
+    width: 100%;
+    margin-top: 20px;
   }
 
   .ce-col-metric {

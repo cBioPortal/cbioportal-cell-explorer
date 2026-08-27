@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Layout } from 'antd'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ProfilePage } from '@cbioportal-cell-explorer/profiler'
@@ -41,8 +41,15 @@ function App() {
     })
   }, [probeBackend, checkAuth, fetchCatalog, fetchCollections])
 
-  // Re-fetch catalog when auth state changes
+  // Re-fetch when auth state changes, so a sign-in reveals private datasets.
+  // Skipped on the first run: the bootstrap above already fetched, and
+  // checkAuth setting `user` would otherwise fire a duplicate of both requests.
+  const bootstrapped = useRef(false)
   useEffect(() => {
+    if (!bootstrapped.current) {
+      bootstrapped.current = true
+      return
+    }
     if (MOCK_CATALOG_ENABLED) return
     const { backendInfo } = useAppStore.getState()
     if (backendInfo) {

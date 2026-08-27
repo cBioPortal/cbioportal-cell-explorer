@@ -63,8 +63,10 @@ function Facet({
     [entries, def.key, filters],
   )
 
-  // A facet where every dataset answers the same offers nothing to choose.
-  if (!isDiscriminating(counts)) return null
+  // A facet where every dataset answers the same offers nothing to choose —
+  // unless it is currently filtering, in which case hiding it would remove the
+  // only in-place way to undo that.
+  if (selected.length === 0 && !isDiscriminating(counts)) return null
 
   const sorted = sortFacetValues(counts)
   const coverage = facetCoverage(entries, def.key)

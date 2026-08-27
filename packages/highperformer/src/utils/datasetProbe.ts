@@ -104,6 +104,15 @@ export async function probeStore(
   url: string,
   signal: AbortSignal,
   headers?: Record<string, string>,
+  /**
+   * Read the body to extract cell and gene counts.
+   *
+   * Off for catalogue rows, whose counts arrive with the catalogue: these
+   * documents run to megabytes and are parsed on the main thread, once per
+   * dataset, in parallel. Only pasted URLs — which have no catalogue row — need
+   * the parse.
+   */
+  needShape = true,
 ): Promise<ProbeStoreResult> {
   const base = url.endsWith('/') ? url : url + '/'
   const opts: RequestInit = { method: 'GET', signal }
@@ -112,13 +121,13 @@ export async function probeStore(
   // Try zarr.json (v3), then .zmetadata (v2) — simple GET, no preflight
   const v3 = await fetch(base + 'zarr.json', opts)
   if (v3.ok) {
-    const shape = await shapeOf(v3, 3)
+    const shape = needShape ? await shapeOf(v3, 3) : undefined
     return shape ? { ok: true, version: 3, shape } : { ok: true, version: 3 }
   }
 
   const v2 = await fetch(base + '.zmetadata', opts)
   if (v2.ok) {
-    const shape = await shapeOf(v2, 2)
+    const shape = needShape ? await shapeOf(v2, 2) : undefined
     return shape ? { ok: true, version: 2, shape } : { ok: true, version: 2 }
   }
 

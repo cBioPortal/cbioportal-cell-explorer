@@ -202,3 +202,16 @@ describe('countActiveFilters', () => {
     expect(countActiveFilters({ tissue: ['a', 'b'], cell_type: ['c'] })).toBe(3)
   })
 })
+
+describe('NOT_ANNOTATED sentinel', () => {
+  it('is plain ASCII, so the source stays text and URLs stay valid', () => {
+    // A NUL-prefixed sentinel made git treat this file as binary and put %00
+    // into shareable filter URLs.
+    expect(NOT_ANNOTATED).toMatch(/^[\x20-\x7e]+$/)
+    expect(encodeURIComponent(NOT_ANNOTATED)).not.toContain('%00')
+  })
+
+  it('cannot collide with a real facet value', () => {
+    expect(hasFacetValue(SPECTRUM, 'tissue', NOT_ANNOTATED)).toBe(false)
+  })
+})

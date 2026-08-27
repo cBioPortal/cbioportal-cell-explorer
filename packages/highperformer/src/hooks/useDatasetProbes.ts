@@ -46,7 +46,8 @@ export default function useDatasetProbes(entries: DatasetEntry[]) {
       setProbes((prev) => (prev.has(entry.key) ? prev : new Map(prev).set(entry.key, { status: 'pending' })))
       setResolved((prev) => (prev.get(entry.key)?.url === url ? prev : new Map(prev).set(entry.key, { url })))
 
-      probeStore(url, controller.signal)
+      // Catalogue rows already carry counts; only pasted URLs need the parse.
+      probeStore(url, controller.signal, undefined, entry.counts == null)
         .then((r) => record(entry.key, toResult(r)))
         .catch(() => record(entry.key, { status: 'error' }))
     }
@@ -75,7 +76,10 @@ export default function useDatasetProbes(entries: DatasetEntry[]) {
 
           const headers = access.token ? { Authorization: `Bearer ${access.token}` } : undefined
           try {
-            record(entry.key, toResult(await probeStore(access.url, controller.signal, headers)))
+            record(
+              entry.key,
+              toResult(await probeStore(access.url, controller.signal, headers, entry.counts == null)),
+            )
           } catch {
             record(entry.key, { status: 'error' })
           }
