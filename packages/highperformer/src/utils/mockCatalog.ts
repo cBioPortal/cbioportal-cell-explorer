@@ -1,4 +1,5 @@
 import useAppStore from '../store/useAppStore'
+import type { FacetDef } from './facets'
 
 /**
  * A dev-only catalog fixture, so the collection chips, the Collection column,
@@ -16,7 +17,10 @@ import useAppStore from '../store/useAppStore'
  *   the Private label render against a reachable store instead of an error.
  *
  * Two entries point at hosts that do not exist, on purpose — the unreachable
- * state is part of what needs designing.
+ * state is part of what needs designing. So are the annotation states: one
+ * dataset is partially annotated, one is `facets: {}`, one is `facets: null`,
+ * and `organism` is deliberately the same value everywhere so the
+ * "hide facets that cannot discriminate" rule has something to hide.
  *
  * Every caller that fetches catalog or collections must check
  * `MOCK_CATALOG_ENABLED` and skip. A real backend on the proxied `/api` port
@@ -26,6 +30,18 @@ import useAppStore from '../store/useAppStore'
 
 const REACHABLE = 'https://cbioportal-public-imaging.assets.cbioportal.org/msk_spectrum_tme_2022/zarr/spectrum_all_cells-f16-zstd-c1s30-v3.zarr'
 const MISSING = 'https://example.invalid/not-here.zarr'
+
+/**
+ * Stands in for `GET /api/facets`, which does not exist yet. Order is the order
+ * the sidebar renders in.
+ */
+const FACETS: FacetDef[] = [
+  { key: 'tissue', label: 'Tissue', order: 10 },
+  { key: 'cell_type', label: 'Cell type', order: 20 },
+  { key: 'disease', label: 'Disease', order: 30 },
+  { key: 'assay', label: 'Assay', order: 40 },
+  { key: 'organism', label: 'Organism', order: 50 },
+]
 
 const COLLECTIONS = [
   {
@@ -62,9 +78,11 @@ const COLLECTIONS = [
   },
 ]
 
+type CatalogDataset = ReturnType<typeof useAppStore.getState>['catalogDatasets'][number]
+
 const ref = (slug: string, name: string) => ({ slug, name })
 
-const DATASETS = [
+const DATASETS: CatalogDataset[] = [
   {
     slug: 'spectrum-all-cells',
     name: 'SPECTRUM — all cells',
@@ -73,6 +91,13 @@ const DATASETS = [
     url: REACHABLE,
     chat_enabled: true,
     collection: ref('msk-spectrum-tme-2022', 'MSK SPECTRUM'),
+    facets: {
+      tissue: ['lymph node', 'large intestine', 'omentum', 'ovary'],
+      cell_type: ['fibroblast', 'T cell', 'mast cell', 'endothelial cell'],
+      disease: ['malignant ovarian serous tumor'],
+      assay: ["10x 3' v3"],
+      organism: ['Homo sapiens'],
+    },
   },
   {
     slug: 'spectrum-t-cells',
@@ -82,6 +107,13 @@ const DATASETS = [
     url: REACHABLE,
     chat_enabled: true,
     collection: ref('msk-spectrum-tme-2022', 'MSK SPECTRUM'),
+    facets: {
+      tissue: ['lymph node', 'ovary'],
+      cell_type: ['T cell'],
+      disease: ['malignant ovarian serous tumor'],
+      assay: ["10x 3' v3"],
+      organism: ['Homo sapiens'],
+    },
   },
   {
     slug: 'spectrum-myeloid',
@@ -91,6 +123,13 @@ const DATASETS = [
     url: REACHABLE,
     chat_enabled: false,
     collection: ref('msk-spectrum-tme-2022', 'MSK SPECTRUM'),
+    facets: {
+      tissue: ['omentum'],
+      cell_type: ['macrophage', 'monocyte', 'dendritic cell'],
+      disease: ['malignant ovarian serous tumor'],
+      assay: ["10x 3' v3"],
+      organism: ['Homo sapiens'],
+    },
   },
   {
     slug: 'luad-primary',
@@ -100,6 +139,13 @@ const DATASETS = [
     url: REACHABLE,
     chat_enabled: false,
     collection: ref('lung-adenocarcinoma', 'Lung adenocarcinoma'),
+    facets: {
+      tissue: ['lung'],
+      cell_type: ['epithelial cell', 'T cell', 'macrophage'],
+      disease: ['lung adenocarcinoma'],
+      assay: ["10x 5' v2"],
+      organism: ['Homo sapiens'],
+    },
   },
   {
     slug: 'luad-normal',
@@ -109,6 +155,14 @@ const DATASETS = [
     url: MISSING,
     chat_enabled: false,
     collection: ref('lung-adenocarcinoma', 'Lung adenocarcinoma'),
+    // Partially annotated: technical fields harvested, no biological labels.
+    // Lands in Annotated, then vanishes if you filter by cell type — which is
+    // exactly the case the coverage line and "not annotated" value exist for.
+    facets: {
+      tissue: ['lung'],
+      assay: ["10x 5' v2"],
+      organism: ['Homo sapiens'],
+    },
   },
   {
     slug: 'crc-atlas-full',
@@ -118,6 +172,13 @@ const DATASETS = [
     url: REACHABLE,
     chat_enabled: true,
     collection: ref('colorectal-atlas', 'Colorectal atlas'),
+    facets: {
+      tissue: ['large intestine', 'caecum'],
+      cell_type: ['epithelial cell', 'T cell', 'fibroblast'],
+      disease: ['colorectal cancer'],
+      assay: ["10x 3' v3"],
+      organism: ['Homo sapiens'],
+    },
   },
   {
     slug: 'crc-atlas-epithelial',
@@ -127,6 +188,8 @@ const DATASETS = [
     url: MISSING,
     chat_enabled: false,
     collection: ref('colorectal-atlas', 'Colorectal atlas'),
+    // Harvest has not run. Renders in Unannotated, marked "not indexed".
+    facets: null,
   },
   {
     slug: 'pbmc-reference',
@@ -136,6 +199,13 @@ const DATASETS = [
     url: REACHABLE,
     chat_enabled: false,
     collection: ref('immune-reference', 'Immune reference'),
+    facets: {
+      tissue: ['blood'],
+      cell_type: ['T cell', 'B cell', 'natural killer cell', 'monocyte'],
+      disease: ['normal'],
+      assay: ["10x 3' v3"],
+      organism: ['Homo sapiens'],
+    },
   },
   {
     slug: 'ungrouped-pilot',
@@ -145,11 +215,18 @@ const DATASETS = [
     url: REACHABLE,
     chat_enabled: false,
     collection: null,
+    // Harvested, nothing indexable. Genuinely unannotated — the case this
+    // product exists to support.
+    facets: {},
   },
 ]
 
 export const MOCK_CATALOG_ENABLED =
-  import.meta.env.DEV && import.meta.env.VITE_MOCK_CATALOG === 'true'
+  import.meta.env.DEV &&
+  // Vitest runs with DEV true and loads .env.local; without this a developer
+  // toggling the fixture would silently change test results.
+  import.meta.env.MODE !== 'test' &&
+  import.meta.env.VITE_MOCK_CATALOG === 'true'
 
 /**
  * Seeds the store and reports whether it did, so the caller can skip the real
@@ -163,6 +240,7 @@ export function installMockCatalog(): boolean {
     backendProbed: true,
     collections: COLLECTIONS,
     catalogDatasets: DATASETS,
+    facetDefs: FACETS,
   })
   return true
 }
