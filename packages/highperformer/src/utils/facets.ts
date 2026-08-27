@@ -1,0 +1,176 @@
+import type { DatasetEntry } from './datasetEntries'
+
+/** One filterable field, as declared by the backend. */
+export interface FacetDef {
+  key: string
+  label: string
+  order: number
+}
+
+/** facet key → the values selected for it. An absent or empty key filters nothing. */
+export type FacetFilters = Record<string, string[]>
+
+/**
+ * Stands for "this dataset has no value for this field", so absence is a thing
+ * you can see and select rather than a silent exclusion.
+ *
+ * Plain ASCII, deliberately. This was a NUL-prefixed string, which made git
+ * classify the whole file as binary — unreviewable in a diff, unmergeable on
+ * conflict — and put a raw %00 into shareable filter URLs, which some CDNs and
+ * WAFs reject outright. The underscores keep it clear of any real term.
+ */
+export const NOT_ANNOTATED = '__not_annotated__'
+
+/**
+ * A dataset counts as annotated once it declares any facet value at all.
+ *
+ * `facets` is three-state and the states are not interchangeable: `null` means
+ * ingestion has not run, `{}` means it ran and found nothing indexable, and a
+ * populated object means values were found. The first two look identical to
+ * someone browsing — neither offers anything to filter by — but only one of
+ * them will ever change, so the distinction is kept in the data.
+ */
+export function isAnnotated(entry: DatasetEntry): boolean {
+  const f = entry.facets
+  if (f == null) return false
+  return Object.values(f).some((values) => values.length > 0)
+}
+
+export function partitionByAnnotation(entries: DatasetEntry[]): {
+  annotated: DatasetEntry[]
+  unannotated: DatasetEntry[]
+} {
+  const annotated: DatasetEntry[] = []
+  const unannotated: DatasetEntry[] = []
+  for (const entry of entries) {
+    ;(isAnnotated(entry) ? annotated : unannotated).push(entry)
+  }
+  return { annotated, unannotated }
+}
+
+function valuesFor(entry: DatasetEntry, key: string): string[] {
+  return entry.facets?.[key] ?? []
+}
+
+/** `NOT_ANNOTATED` matches exactly those entries carrying no value for the key. */
+export function hasFacetValue(entry: DatasetEntry, key: string, value: string): boolean {
+  const values = valuesFor(entry, key)
+  return value === NOT_ANNOTATED ? values.length === 0 : values.includes(value)
+}
+
+/**
+ * Within a facet, selected values are OR. Across facets, AND.
+ *
+ * `exceptKey` drops one facet from the test, which is what makes a facet's own
+ * counts usable: counted with its selection applied, every unselected value in
+ * it would read zero and the facet would become a dead end you could only
+ * escape by clearing.
+ */
+export function matchesFilters(
+  entry: DatasetEntry,
+  filters: FacetFilters,
+  exceptKey?: string,
+): boolean {
+  for (const [key, selected] of Object.entries(filters)) {
+    if (key === exceptKey || selected.length === 0) continue
+    if (!selected.some((value) => hasFacetValue(entry, key, value))) return false
+  }
+  return true
+}
+
+export function applyFacetFilters(
+  entries: DatasetEntry[],
+  filters: FacetFilters,
+): DatasetEntry[] {
+  return entries.filter((entry) => matchesFilters(entry, filters))
+}
+
+export interface FacetValueCount {
+  value: string
+  count: number
+}
+
+/**
+ * Counts for one facet, over entries passing every *other* active filter.
+ *
+ * A dataset spanning 19 tissues contributes to all 19 counts — these are
+ * cell-level attributes, so membership is a set, not a single value.
+ */
+export function countFacetValues(
+  entries: DatasetEntry[],
+  key: string,
+  filters: FacetFilters,
+): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const entry of entries) {
+    if (!matchesFilters(entry, filters, key)) continue
+    const values = valuesFor(entry, key)
+    if (values.length === 0) {
+      counts.set(NOT_ANNOTATED, (counts.get(NOT_ANNOTATED) ?? 0) + 1)
+      continue
+    }
+    for (const value of values) {
+      counts.set(value, (counts.get(value) ?? 0) + 1)
+    }
+  }
+  return counts
+}
+
+/**
+ * Most useful first, ties alphabetical, absence last.
+ *
+ * Zero-count values keep their place rather than disappearing: a vocabulary
+ * that changes shape while you filter cannot be learned. Sorting by count sinks
+ * them without removing them.
+ */
+export function sortFacetValues(counts: Map<string, number>): FacetValueCount[] {
+  return [...counts.entries()]
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) => {
+      if (a.value === NOT_ANNOTATED) return 1
+      if (b.value === NOT_ANNOTATED) return -1
+      if (a.count !== b.count) return b.count - a.count
+      return a.value.localeCompare(b.value, undefined, { sensitivity: 'base' })
+    })
+}
+
+/** How many entries declare any value for this facet — shown as "41 of 57". */
+export function facetCoverage(entries: DatasetEntry[], key: string): number {
+  return entries.reduce((n, entry) => n + (valuesFor(entry, key).length > 0 ? 1 : 0), 0)
+}
+
+/**
+ * A facet offering fewer than two real values cannot discriminate — every
+ * dataset would answer the same way — so it is not worth the row it occupies.
+ * `NOT_ANNOTATED` is excluded from that test: a facet nobody has values for is
+ * not made useful by everyone lacking them.
+ */
+export function isDiscriminating(counts: Map<string, number>): boolean {
+  let real = 0
+  for (const value of counts.keys()) {
+    if (value !== NOT_ANNOTATED) real++
+    if (real >= 2) return true
+  }
+  return false
+}
+
+export function countActiveFilters(filters: FacetFilters): number {
+  return Object.values(filters).reduce((n, values) => n + values.length, 0)
+}
+
+/** Toggling a value off removes the key entirely, so "no filter" has one shape. */
+export function toggleFacetValue(
+  filters: FacetFilters,
+  key: string,
+  value: string,
+): FacetFilters {
+  const current = filters[key] ?? []
+  const next = current.includes(value)
+    ? current.filter((v) => v !== value)
+    : [...current, value]
+
+  const result = { ...filters }
+  if (next.length === 0) delete result[key]
+  else result[key] = next
+  return result
+}

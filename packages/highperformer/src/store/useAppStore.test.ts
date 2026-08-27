@@ -1268,7 +1268,46 @@ describe('useAppStore', () => {
 
       await useAppStore.getState().fetchCatalog()
       expect(mockGET).toHaveBeenCalledWith('/api/datasets')
-      expect(useAppStore.getState().catalogDatasets).toEqual(mockDatasets)
+      // Facets are derived on the way in, so the stored rows carry one more
+      // field than the API sent. Null here because neither dataset has been
+      // harvested — which is not the same as harvested-and-unannotated.
+      expect(useAppStore.getState().catalogDatasets).toEqual(
+        mockDatasets.map((d) => ({ ...d, facets: null })),
+      )
+    })
+
+    it('fetchCatalog derives facet values and definitions from obs columns', async () => {
+      mockGET.mockResolvedValueOnce({
+        data: {
+          datasets: [
+            {
+              slug: 'annotated', name: 'Annotated', description: null,
+              is_public: true, url: 'https://cdn/a.zarr', chat_enabled: false,
+              metadata: {
+                n_obs: 10, n_vars: 5,
+                obs_columns: [
+                  { name: 'tissue', dtype: 'categorical', cardinality: 2, values: ['lung', 'breast'], facet: 'tissue' },
+                  { name: 'percent.mt', dtype: 'numeric', cardinality: null, values: null, facet: null },
+                ],
+              },
+            },
+            {
+              slug: 'bare', name: 'Bare', description: null,
+              is_public: true, url: 'https://cdn/b.zarr', chat_enabled: false,
+              metadata: { n_obs: 3, n_vars: 2, obs_columns: [] },
+            },
+          ],
+        },
+      })
+
+      await useAppStore.getState().fetchCatalog()
+      const [annotated, bare] = useAppStore.getState().catalogDatasets
+      expect(annotated.facets).toEqual({ tissue: ['lung', 'breast'] })
+      // Harvested but nothing filterable: {} , not null.
+      expect(bare.facets).toEqual({})
+      expect(useAppStore.getState().facetDefs).toEqual([
+        { key: 'tissue', label: 'Tissue', order: 0 },
+      ])
     })
 
     it('fetchCatalog handles API failure gracefully', async () => {

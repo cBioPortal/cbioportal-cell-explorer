@@ -1,12 +1,14 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Layout } from 'antd'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ProfilePage } from '@cbioportal-cell-explorer/profiler'
 import Home from './pages/Home'
+import LandingTheme from './components/LandingTheme'
 import Collection from './pages/Collection'
 import View from './pages/View'
 import ZarrView from './pages/ZarrView'
 import useAppStore from './store/useAppStore'
+import { installMockCatalog, MOCK_CATALOG_ENABLED } from './utils/mockCatalog'
 import { useTokenRefresh } from './hooks/useTokenRefresh'
 
 const { Content } = Layout
@@ -18,21 +20,43 @@ function App() {
   const probeBackend = useAppStore((s) => s.probeBackend)
   const checkAuth = useAppStore((s) => s.checkAuth)
   const fetchCatalog = useAppStore((s) => s.fetchCatalog)
+  const fetchCollections = useAppStore((s) => s.fetchCollections)
   const user = useAppStore((s) => s.user)
 
   useEffect(() => {
+    // Dev fixture, when enabled, stands in for the backend entirely — probing
+    // would only overwrite it with an empty catalog.
+    if (installMockCatalog()) return
+
     probeBackend().then(() => {
       const { backendInfo } = useAppStore.getState()
-      if (backendInfo) fetchCatalog()
+      if (backendInfo) {
+        fetchCatalog()
+        // Collections feed the overview figure. This used to ride along with
+        // the chips row on the landing page; that row is gone, so the fetch
+        // belongs here with the rest of the bootstrap.
+        fetchCollections()
+      }
       if (backendInfo?.auth_enabled) checkAuth()
     })
-  }, [probeBackend, checkAuth, fetchCatalog])
+  }, [probeBackend, checkAuth, fetchCatalog, fetchCollections])
 
-  // Re-fetch catalog when auth state changes
+  // Re-fetch when auth state changes, so a sign-in reveals private datasets.
+  // Skipped on the first run: the bootstrap above already fetched, and
+  // checkAuth setting `user` would otherwise fire a duplicate of both requests.
+  const bootstrapped = useRef(false)
   useEffect(() => {
+    if (!bootstrapped.current) {
+      bootstrapped.current = true
+      return
+    }
+    if (MOCK_CATALOG_ENABLED) return
     const { backendInfo } = useAppStore.getState()
-    if (backendInfo) fetchCatalog()
-  }, [user, fetchCatalog])
+    if (backendInfo) {
+      fetchCatalog()
+      fetchCollections()
+    }
+  }, [user, fetchCatalog, fetchCollections])
 
   // Keep the access cookie fresh while signed in. Sidesteps the rotation
   // race that surfaces as 'Session expired' on long-lived chat streams.
@@ -40,20 +64,11 @@ function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
-        <Route path="/" element={
-          <Layout style={{ minHeight: '100vh', background: '#fff' }}>
-            <Content style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px' }}>
-              <Home />
-            </Content>
-          </Layout>
-        } />
-        <Route path="/collections/:slug" element={
-          <Layout style={{ minHeight: '100vh', background: '#fff' }}>
-            <Content style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px' }}>
-              <Collection />
-            </Content>
-          </Layout>
-        } />
+        {/* Home owns its own full-bleed layout — the header band spans the
+            viewport, so it must not sit inside a width-capped Content. */}
+        <Route path="/" element={<LandingTheme><Home /></LandingTheme>} />
+        {/* Like Home, Collection owns its own full-bleed layout. */}
+        <Route path="/collections/:slug" element={<LandingTheme><Collection /></LandingTheme>} />
         <Route path="/view" element={<View />} />
         {ENABLE_ZARR_VIEW && (
           <Route path="/zarr_view" element={<ZarrView />} />
@@ -61,7 +76,7 @@ function App() {
         {ENABLE_PROFILER && (
           <Route path="/profile" element={
             <Layout style={{ minHeight: '100vh', background: '#fff' }}>
-              <Content style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px', overflow: 'auto' }}>
+              <Content style={{ width: 'min(100% - 96px, 1440px)', margin: '0 auto', padding: '32px 0', overflow: 'auto' }}>
                 <ProfilePage />
               </Content>
             </Layout>

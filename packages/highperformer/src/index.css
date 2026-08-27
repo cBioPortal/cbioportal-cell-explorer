@@ -30,3 +30,794 @@ body {
 .chat-tool-pulse {
   animation: chat-tool-pulse 1.4s ease-in-out infinite;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Landing page (`/`). Tokens mirror src/components/landingTokens.ts — that
+   file is the source of truth for anything referenced from inline styles.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.ce-landing {
+  --ink: #0d2c48;
+  --ink-deep: #061a2c;
+  --paper: #ffffff;
+  --mist: #f5f8fb;
+  --line: #e2e9f0;
+  --text: #12283c;
+  --text-muted: #5c7186;
+  --text-faint: #8fa2b4;
+  --on-ink: #eaf1f8;
+  --on-ink-muted: #93aec9;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "Cascadia Mono",
+    "DejaVu Sans Mono", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  /* Fluid up to a cap, so a six-column table gets the room a wide monitor has
+     without prose stretching across it — the tagline and row descriptions are
+     capped separately in ch units. */
+  /* Matches the --radius: .5rem that about. and curation.cbioportal.org both
+     set, so the family resemblance is exact rather than a near-miss. */
+  --radius: 8px;
+  --gutter: 96px;
+  --content: min(100% - var(--gutter), 1440px);
+
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--text);
+  /* 16/24, as both cBioPortal sites set for body copy. */
+  font-size: 16px;
+  line-height: 1.5;
+  /* Plain elements here are not antd components, so they inherit from <body>,
+     which sets no family — without this they fall back to the browser serif. */
+  font-family: var(--sans);
+}
+
+/* ── Header band ───────────────────────────────────────────────────────── */
+
+.ce-header {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(120deg, var(--ink) 0%, var(--ink-deep) 100%);
+}
+
+.ce-field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.ce-header-inner {
+  position: relative;
+  width: var(--content);
+  margin-inline: auto;
+  padding: 64px 0 68px;
+}
+
+.ce-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.ce-lockup {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ce-wordmark {
+  margin: 0;
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.022em;
+  color: var(--on-ink);
+}
+
+.ce-tagline {
+  margin: 16px 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--on-ink-muted);
+  max-width: 40ch;
+}
+
+.ce-header-actions {
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+/* ── Detail band (collection pages) ────────────────────────────────────── */
+
+/* Shallower than the landing band, and without the point field. */
+.ce-header-slim .ce-header-inner {
+  padding: 32px 0 40px;
+}
+
+.ce-detail-main {
+  min-width: 0;
+}
+
+.ce-back {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: var(--on-ink-muted);
+  text-decoration: none;
+}
+
+.ce-back:hover,
+.ce-back:focus-visible {
+  color: var(--on-ink);
+}
+
+.ce-detail-title {
+  margin: 0;
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.018em;
+  color: var(--on-ink);
+}
+
+.ce-detail-desc {
+  margin: 12px 0 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--on-ink-muted);
+  max-width: 62ch;
+}
+
+/* The publication is the collection's provenance — give it its own line and
+   make it obviously a link out. */
+.ce-citation {
+  display: inline-block;
+  margin-top: 14px;
+  font-size: 13.5px;
+  color: var(--on-ink);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(234, 241, 248, 0.35);
+  padding-bottom: 1px;
+}
+
+.ce-citation:hover,
+.ce-citation:focus-visible {
+  color: var(--on-ink);
+  border-bottom-color: var(--on-ink);
+}
+
+.ce-header-slim .ce-stats {
+  margin-top: 32px;
+}
+
+/* ── Overview figures ──────────────────────────────────────────────────── */
+
+.ce-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 56px;
+  margin: 44px 0 0;
+  /* Reserved for the counting note, so figures do not shift when it appears. */
+  padding-bottom: 20px;
+}
+
+.ce-stat {
+  position: relative;
+  /* Source order is dt then dd for assistive tech; the figure still reads
+     above its label. */
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-start;
+}
+
+.ce-stat-value {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  /* Figures must not jitter in width as counts arrive. */
+  font-variant-numeric: tabular-nums;
+  color: var(--on-ink);
+}
+
+.ce-stat-label {
+  display: block;
+  margin-top: 8px;
+  color: var(--on-ink-muted);
+}
+
+.ce-stat-note {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 22px;
+  white-space: nowrap;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--on-ink-muted);
+  opacity: 0.75;
+}
+
+/* ── Body ──────────────────────────────────────────────────────────────── */
+
+.ce-main {
+  width: var(--content);
+  margin-inline: auto;
+  padding: 36px 0 96px;
+}
+
+.ce-search-row {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.ce-search-row .ce-search {
+  flex: 1;
+}
+
+.ce-search-row .ce-search .ant-input {
+  font-size: 15px;
+}
+
+.ce-search-icon {
+  color: var(--text-faint);
+  margin-right: 6px;
+}
+
+/* ── Sections ──────────────────────────────────────────────────────────── */
+
+.ce-section {
+  margin-top: 40px;
+}
+
+.ce-section-label {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.ce-rule {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* ── Collection chips ──────────────────────────────────────────────────── */
+
+.ce-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ce-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--paper);
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.ce-chip:hover,
+.ce-chip:focus-visible {
+  border-color: var(--ink);
+  background: var(--mist);
+  color: var(--text);
+}
+
+.ce-chip-name {
+  font-size: 14px;
+}
+
+.ce-chip-count {
+  color: var(--text-muted);
+  background: var(--mist);
+  border-radius: 999px;
+  padding: 2px 8px;
+  letter-spacing: 0.04em;
+}
+
+.ce-chip:hover .ce-chip-count {
+  background: var(--paper);
+}
+
+/* ── Tabs ──────────────────────────────────────────────────────────────── */
+
+.ce-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ce-tab {
+  border: 0;
+  background: none;
+  padding: 8px 14px 10px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  font-size: 14.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ce-tab:hover { color: var(--text); }
+
+.ce-tab.is-active {
+  color: var(--text);
+  font-weight: 550;
+  border-bottom-color: var(--ink);
+}
+
+.ce-tab-count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  margin-left: 6px;
+}
+
+/* ── Facet sidebar ─────────────────────────────────────────────────────── */
+
+.ce-results {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+.ce-results-main {
+  flex: 1;
+  min-width: 0;
+  margin-top: 40px;
+}
+
+.ce-facets {
+  width: 186px;
+  flex-shrink: 0;
+  margin-top: 40px;
+  position: sticky;
+  top: 16px;
+  /* "Show all 92" makes this taller than the viewport; without its own scroll
+     the lower values sit permanently below the fold once it sticks. */
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.ce-facets-head,
+.ce-facet-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.ce-facets-head {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ce-facet {
+  margin-top: 20px;
+}
+
+.ce-facet-head {
+  margin-bottom: 7px;
+}
+
+/* Coverage is the honest counterpart to a filter: it says up front how many
+   datasets can answer this question at all. */
+.ce-facet-coverage {
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.ce-facet-clear {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ce-facet-clear:hover { color: var(--text); }
+
+.ce-facet-search {
+  margin-bottom: 6px;
+}
+
+.ce-facet-value {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 3px 0;
+  font-size: 13.5px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.ce-facet-value:has(input:checked) .ce-facet-value-name {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ce-facet-value:has(input:checked) .ce-facet-value-count {
+  color: var(--ink);
+}
+
+.ce-facet-value input {
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+.ce-facet-value-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ce-facet-value-count {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Absence is a value you can select, not a gap. Set apart so it does not read
+   as one of the biological terms. */
+.ce-facet-value.is-absent {
+  font-style: italic;
+  color: var(--text-muted);
+  border-top: 1px dashed var(--line);
+  margin-top: 5px;
+  padding-top: 6px;
+}
+
+/* Kept in place rather than removed: a vocabulary that changes shape while you
+   filter cannot be learned. */
+.ce-facet-value.is-empty .ce-facet-value-name,
+.ce-facet-value.is-empty .ce-facet-value-count {
+  color: var(--text-faint);
+}
+
+.ce-facet-more {
+  border: 0;
+  background: none;
+  padding: 3px 0 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ce-facet-more:hover { color: var(--text); }
+
+.ce-facet-none {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.ce-cross-tab {
+  margin-top: 14px;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ce-cross-tab:hover { color: var(--text); }
+
+/* ── Active filters ────────────────────────────────────────────────────── */
+
+.ce-active {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.ce-active-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--mist);
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.ce-active-chip:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.ce-active-key {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.ce-active-x {
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.55;
+}
+
+.ce-active-chip:hover .ce-active-x {
+  opacity: 1;
+}
+
+.ce-active-clear {
+  border: 0;
+  background: none;
+  padding: 4px 2px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ce-active-clear:hover {
+  color: var(--text);
+}
+
+/* ── Result table ──────────────────────────────────────────────────────── */
+
+/* antd draws the chrome; these rules cover only what its theme tokens cannot
+   reach — the label treatment and the hover-revealed actions. */
+
+.ce-table .ant-table-thead > tr > th {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ce-table .ant-table-tbody > tr > td {
+  vertical-align: top;
+}
+
+.ce-table .ant-table-cell {
+  transition: none;
+}
+
+/* A collection name is a label, not prose — wrapping it just makes the row
+   taller. The table scrolls sideways if the names get long. */
+.ce-table td.ce-col-collection {
+  /* Collection names run long ("HTAN HTAPP Breast Cancer Metastatic
+     Microenvironment"); truncate rather than letting one widen every row. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.ce-col-metric {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ce-dash {
+  color: var(--text-faint);
+}
+
+.ce-tr {
+  cursor: pointer;
+}
+
+.ce-row-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ce-row-name {
+  font-size: 16px;
+  font-weight: 550;
+  letter-spacing: -0.005em;
+}
+
+.ce-tag {
+  color: var(--text-muted);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) / 2);
+  padding: 2px 7px;
+  line-height: 1.5;
+}
+
+.ce-tag-local {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.ce-row-desc {
+  margin-top: 5px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: 52ch;
+}
+
+.ce-row-url {
+  margin-top: 5px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-faint);
+  max-width: 52ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ce-row-actions {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  /* Reserved so revealing the actions never reflows the row. */
+  min-width: 68px;
+}
+
+.ce-tr:hover .ce-row-actions,
+.ce-tr:focus-within .ce-row-actions {
+  opacity: 1;
+}
+
+.ce-empty {
+  padding: 28px 14px;
+  border-top: 1px solid var(--line);
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.ce-empty-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-faint);
+}
+
+/* ── Quality floor ─────────────────────────────────────────────────────── */
+
+/* antd inputs and buttons ship their own focus ring; only the elements this
+   page builds by hand need one. */
+.ce-chip:focus-visible,
+.ce-active-chip:focus-visible,
+.ce-active-clear:focus-visible,
+.ce-tab:focus-visible,
+.ce-facet-value:focus-within,
+.ce-facet-clear:focus-visible,
+.ce-facet-more:focus-visible,
+.ce-cross-tab:focus-visible,
+.ce-tr:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+/* Actions are hover-revealed on pointer devices only — on touch there is no
+   hover, so they must always be visible. */
+@media (hover: none) {
+  .ce-row-actions {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .ce-landing {
+    --gutter: 40px;
+  }
+
+  .ce-header-inner {
+    padding: 36px 0 40px;
+  }
+
+  .ce-wordmark {
+    font-size: 28px;
+  }
+
+  .ce-detail-title {
+    font-size: 21px;
+  }
+
+  .ce-header-slim .ce-header-inner {
+    padding: 24px 0 30px;
+  }
+
+  .ce-tagline {
+    font-size: 14px;
+  }
+
+  .ce-field {
+    opacity: 0.5;
+  }
+
+  .ce-stats {
+    gap: 10px 32px;
+    margin-top: 28px;
+  }
+
+  .ce-stat-value {
+    font-size: 24px;
+  }
+
+  .ce-stat-note {
+    display: none;
+  }
+
+  /* A fixed 186px sidebar beside the table on a phone leaves the results a
+     sliver behind a horizontal scrollbar. */
+  .ce-results {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .ce-facets {
+    width: 100%;
+    position: static;
+    max-height: none;
+    margin-top: 24px;
+  }
+
+  .ce-results-main {
+    width: 100%;
+    margin-top: 20px;
+  }
+
+  .ce-col-metric {
+    font-size: 13px;
+  }
+
+  .ce-main {
+    padding: 28px 0 72px;
+  }
+
+  .ce-search-row {
+    flex-wrap: wrap;
+  }
+
+  .ce-search-row .ce-search {
+    flex-basis: 100%;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ce-chip,
+  .ce-row-actions {
+    transition: none;
+  }
+}
