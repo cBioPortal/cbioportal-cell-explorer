@@ -207,6 +207,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/datasets/metadata/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh All Dataset Metadata
+         * @description Re-harvest metadata for every dataset, or only the stale ones.
+         *
+         *     Sequential by design: catalogs hold dozens of datasets, and serial
+         *     execution keeps the report ordered and datasource load predictable. This is
+         *     also the endpoint a scheduled job calls for periodic refresh.
+         */
+        post: operations["refresh_all_dataset_metadata_api_admin_datasets_metadata_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/datasets/{slug}/metadata/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Dataset Metadata
+         * @description Re-harvest metadata for one dataset.
+         */
+        post: operations["refresh_dataset_metadata_api_admin_datasets__slug__metadata_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/datasets/{slug}": {
         parameters: {
             query?: never;
@@ -486,6 +530,23 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** BulkRefreshRequest */
+        BulkRefreshRequest: {
+            /**
+             * Only Stale
+             * @default true
+             */
+            only_stale: boolean;
+            /** Older Than Hours */
+            older_than_hours?: number | null;
+        };
+        /** BulkRefreshResponse */
+        BulkRefreshResponse: {
+            /** Refreshed */
+            refreshed: number;
+            /** Results */
+            results: components["schemas"]["RefreshResult"][];
+        };
         /** ChatMessage */
         ChatMessage: {
             /**
@@ -639,6 +700,7 @@ export interface components {
             } | null;
             /** Chat Enabled */
             chat_enabled: boolean;
+            metadata?: components["schemas"]["DatasetMetadataAdminResponse"] | null;
         };
         /** DatasetCollectionRef */
         DatasetCollectionRef: {
@@ -688,6 +750,76 @@ export interface components {
             /** Datasets */
             datasets: components["schemas"]["DatasetResponse"][];
         };
+        /**
+         * DatasetMetadataAdminResponse
+         * @description Harvested store metadata, including harvest bookkeeping.
+         *
+         *     Admin-only: `error` can contain the datasource's internal_base_url.
+         */
+        DatasetMetadataAdminResponse: {
+            /** N Obs */
+            n_obs: number | null;
+            /** N Vars */
+            n_vars: number | null;
+            /** Zarr Version */
+            zarr_version: number | null;
+            /** Obsm Keys */
+            obsm_keys: string[];
+            /** Obs Columns */
+            obs_columns: string[];
+            /** Var Columns */
+            var_columns: string[];
+            /** Layers */
+            layers: string[];
+            /** X Dtype */
+            x_dtype: string | null;
+            /** X Encoding */
+            x_encoding: string | null;
+            /** Fetched At */
+            fetched_at: string | null;
+            /**
+             * Last Attempt At
+             * Format: date-time
+             */
+            last_attempt_at: string;
+            /** Status */
+            status: string;
+            /** Error */
+            error: string | null;
+        };
+        /**
+         * DatasetMetadataResponse
+         * @description Harvested store facts. Present only once a harvest has succeeded.
+         *
+         *     Deliberately excludes `status` and `error` — error strings can contain the
+         *     datasource's internal_base_url, which must not reach anonymous callers.
+         *     Those live on the admin response instead.
+         */
+        DatasetMetadataResponse: {
+            /** N Obs */
+            n_obs: number;
+            /** N Vars */
+            n_vars: number;
+            /** Zarr Version */
+            zarr_version: number;
+            /** Obsm Keys */
+            obsm_keys: string[];
+            /** Obs Columns */
+            obs_columns: string[];
+            /** Var Columns */
+            var_columns: string[];
+            /** Layers */
+            layers: string[];
+            /** X Dtype */
+            x_dtype: string | null;
+            /** X Encoding */
+            x_encoding: string | null;
+            /**
+             * Fetched At
+             * Format: date-time
+             */
+            fetched_at: string;
+        };
         /** DatasetResponse */
         DatasetResponse: {
             /** Slug */
@@ -707,6 +839,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             collection?: components["schemas"]["DatasetCollectionRef"] | null;
+            metadata?: components["schemas"]["DatasetMetadataResponse"] | null;
         };
         /** DatasetUpdate */
         DatasetUpdate: {
@@ -835,6 +968,15 @@ export interface components {
             cardinality?: number | null;
             /** Values */
             values?: string[] | null;
+        };
+        /** RefreshResult */
+        RefreshResult: {
+            /** Slug */
+            slug: string;
+            /** Status */
+            status: string;
+            /** Error */
+            error?: string | null;
         };
         /** ThreadDetailResponse */
         ThreadDetailResponse: {
@@ -1242,6 +1384,70 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetAdminResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_all_dataset_metadata_api_admin_datasets_metadata_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkRefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkRefreshResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_dataset_metadata_api_admin_datasets__slug__metadata_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
