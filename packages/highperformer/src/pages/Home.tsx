@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Link } from 'react-router-dom'
 import { Input, Button } from 'antd'
 import type { TextAreaRef } from 'antd/es/input/TextArea'
 import { SearchOutlined, PlusOutlined, CloseOutlined } from '@ant-design/icons'
@@ -10,6 +9,9 @@ import DatasetTable from '../components/DatasetTable'
 import { labelStyle } from '../components/landingTokens'
 import type { Stat } from '../components/OverviewStats'
 import useDatasetProbes from '../hooks/useDatasetProbes'
+import useCatalogQuery from '../hooks/useCatalogQuery'
+import FacetSidebar from '../components/FacetSidebar'
+import { applyFacetFilters, partitionByAnnotation, countActiveFilters } from '../utils/facets'
 import { MOCK_CATALOG_ENABLED } from '../utils/mockCatalog'
 import { formatCount } from '../utils/formatCount'
 import {
@@ -30,39 +32,6 @@ function SectionLabel({ children, rule = true }: { children: React.ReactNode; ru
       <span style={labelStyle}>{children}</span>
       {rule && <span className="ce-rule" />}
     </div>
-  )
-}
-
-function CollectionChips() {
-  const collections = useAppStore((s) => s.collections)
-  const fetchCollections = useAppStore((s) => s.fetchCollections)
-
-  useEffect(() => {
-    // The dev fixture already seeded collections; fetching would overwrite them
-    // with whatever a locally running backend happens to serve.
-    if (MOCK_CATALOG_ENABLED) return
-    fetchCollections()
-  }, [fetchCollections])
-
-  if (collections.length === 0) return null
-
-  return (
-    <section className="ce-section">
-      <SectionLabel>Collections</SectionLabel>
-      <div className="ce-chips">
-        {collections.map((c) => (
-          <Link
-            key={c.slug}
-            to={`/collections/${encodeURIComponent(c.slug)}`}
-            className="ce-chip"
-            title={c.description ?? undefined}
-          >
-            <span className="ce-chip-name">{c.name}</span>
-            <span className="ce-chip-count" style={labelStyle}>{c.dataset_count}</span>
-          </Link>
-        ))}
-      </div>
-    </section>
   )
 }
 
@@ -107,10 +76,25 @@ function Home() {
   const backendProbed = useAppStore((s) => s.backendProbed)
   const catalogDatasets = useAppStore((s) => s.catalogDatasets)
   const collectionCount = useAppStore((s) => s.collections.length)
+  const facetDefs = useAppStore((s) => s.facetDefs)
   const user = useAppStore((s) => s.user)
 
-  const [query, setQuery] = useState('')
   const [addOpen, setAddOpen] = useState(false)
+
+  const facetKeys = useMemo(() => facetDefs.map((f) => f.key), [facetDefs])
+  const { filters, query: urlQuery, tab, setQuery, setTab, toggleValue, clearFacet, clearAll } =
+    useCatalogQuery(facetKeys)
+
+  // The input is driven locally and mirrored to the URL after a pause. Driving
+  // it from the URL directly loses keystrokes: each one round-trips through the
+  // router, and the next lands before the value comes back.
+  const [query, setDraft] = useState(urlQuery)
+  useEffect(() => setDraft(urlQuery), [urlQuery])
+  useEffect(() => {
+    if (query === urlQuery) return
+    const timer = setTimeout(() => setQuery(query), 250)
+    return () => clearTimeout(timer)
+  }, [query, urlQuery, setQuery])
   const [localUrls, setLocalUrls] = useState<string[]>(loadDatasets)
 
   useEffect(() => {
@@ -133,20 +117,47 @@ function Home() {
     [localUrls, catalogDatasets],
   )
 
-  const entries = useMemo(
-    () => allEntries.filter((e) => matchesSearch(e, query)),
-    [allEntries, query],
+  // Split before filtering: facets only apply to datasets that declare values,
+  // and the unannotated half must stay reachable however the facets are set.
+  const { annotated, unannotated } = useMemo(
+    () => partitionByAnnotation(allEntries),
+    [allEntries],
   )
+
+  const searched = useMemo(
+    () => ({
+      annotated: annotated.filter((e) => matchesSearch(e, query)),
+      unannotated: unannotated.filter((e) => matchesSearch(e, query)),
+    }),
+    [annotated, unannotated, query],
+  )
+
+  const facetted = useMemo(
+    () => applyFacetFilters(searched.annotated, filters),
+    [searched.annotated, filters],
+  )
+
+  // Tabs only appear when there is a split to represent. With no facets at all
+  // — which is every catalogue the backend has not indexed — everything is
+  // "unannotated", and a default Annotated tab would render empty.
+  const showTabs = annotated.length > 0 && unannotated.length > 0
+  const activeTab = showTabs ? tab : annotated.length > 0 ? 'annotated' : 'unannotated'
+
+  // `activeTab` already resolves the no-tabs case to whichever half exists.
+  const entries = activeTab === 'annotated' ? facetted : searched.unannotated
+
+  const otherTabMatches = !showTabs
+    ? 0
+    : activeTab === 'annotated'
+      ? searched.unannotated.length
+      : searched.annotated.length
 
   // Probing is driven by the full set, not the filtered one — the overview
   // figures describe everything available, and typing a search must not cancel
   // and re-issue every request.
   const { probes, resolved } = useDatasetProbes(allEntries)
 
-  // The table's own column filters narrow further than `entries` knows about.
-  const [filteredCount, setFilteredCount] = useState<number | null>(null)
-  useEffect(() => setFilteredCount(null), [entries])
-  const visibleCount = filteredCount ?? entries.length
+  const visibleCount = entries.length
 
   const stats = useMemo<Stat[]>(() => {
     let cells = 0
@@ -182,8 +193,19 @@ function Home() {
   }, [allEntries, probes, collectionCount, backendInfo])
 
   // Every empty state names a next step — there is always something to do here.
+  const activeFilters = countActiveFilters(filters)
+
   let emptyText: React.ReactNode
-  if (query.trim()) {
+  if (activeFilters > 0) {
+    emptyText = (
+      <>
+        No datasets match these filters.
+        <span className="ce-empty-hint">
+          Clear a filter to widen the search{query.trim() ? ', or try a shorter search' : ''}.
+        </span>
+      </>
+    )
+  } else if (query.trim()) {
     emptyText = (
       <>
         No datasets match “{query.trim()}”.
@@ -212,7 +234,7 @@ function Home() {
             placeholder="Search datasets"
             aria-label="Search datasets"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => setDraft(e.target.value)}
           />
           <Button
             size="large"
@@ -227,9 +249,42 @@ function Home() {
 
         {addOpen && <AddUrlPanel onAdd={addUrls} />}
 
-        {backendProbed && backendInfo && <CollectionChips />}
+        {showTabs && (
+          <div className="ce-tabs" role="tablist" aria-label="Catalog">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'annotated'}
+              className={`ce-tab${activeTab === 'annotated' ? ' is-active' : ''}`}
+              onClick={() => setTab('annotated')}
+            >
+              Annotated <span className="ce-tab-count">{annotated.length}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'unannotated'}
+              className={`ce-tab${activeTab === 'unannotated' ? ' is-active' : ''}`}
+              onClick={() => setTab('unannotated')}
+            >
+              Unannotated <span className="ce-tab-count">{unannotated.length}</span>
+            </button>
+          </div>
+        )}
 
-        <section className="ce-section">
+        <div className="ce-results">
+          {activeTab === 'annotated' && facetDefs.length > 0 && annotated.length > 0 && (
+            <FacetSidebar
+              defs={facetDefs}
+              entries={searched.annotated}
+              filters={filters}
+              onToggle={toggleValue}
+              onClear={clearFacet}
+              onClearAll={clearAll}
+            />
+          )}
+
+          <section className="ce-results-main">
           <SectionLabel rule={false}>
             {visibleCount} {visibleCount === 1 ? 'dataset' : 'datasets'}
           </SectionLabel>
@@ -239,9 +294,21 @@ function Home() {
             resolved={resolved}
             emptyText={emptyText}
             onRemove={removeEntry}
-            onVisibleCountChange={setFilteredCount}
           />
-        </section>
+
+          {/* A split catalogue must never make the other half look absent. */}
+          {query.trim() && otherTabMatches > 0 && (
+            <button
+              type="button"
+              className="ce-cross-tab"
+              onClick={() => setTab(activeTab === 'annotated' ? 'unannotated' : 'annotated')}
+            >
+              {otherTabMatches} more {otherTabMatches === 1 ? 'match' : 'matches'} in{' '}
+              {activeTab === 'annotated' ? 'Unannotated' : 'Annotated'} →
+            </button>
+          )}
+          </section>
+        </div>
       </main>
     </div>
   )

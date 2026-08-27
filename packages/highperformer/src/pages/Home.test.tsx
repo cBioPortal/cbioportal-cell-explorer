@@ -21,6 +21,7 @@ const LUNG = {
   url: 'https://cdn/lung.zarr',
   chat_enabled: false,
   collection: { slug: 'lung', name: 'Lung' },
+  facets: { tissue: ['lung'], cell_type: ['T cell'] },
 }
 
 const BREAST = {
@@ -31,6 +32,7 @@ const BREAST = {
   url: 'https://cdn/breast.zarr',
   chat_enabled: false,
   collection: null,
+  facets: { tissue: ['breast'], cell_type: ['epithelial cell'] },
 }
 
 const COLLECTION = {
@@ -50,6 +52,10 @@ function setStore(overrides: Record<string, unknown>) {
     catalogDatasets: [],
     collections: [],
     fetchCollections: vi.fn(),
+    facetDefs: [
+      { key: 'tissue', label: 'Tissue', order: 10 },
+      { key: 'cell_type', label: 'Cell type', order: 20 },
+    ],
     ...overrides,
   })
 }
@@ -120,19 +126,18 @@ describe('Home', () => {
     expect(screen.getByText(/kidney/)).toBeDefined()
   })
 
-  it('links each collection chip to its detail page', () => {
-    setStore({ collections: [COLLECTION] })
-    renderHome()
-    const link = screen.getByRole('link', { name: /Lung/ })
-    expect(link.getAttribute('href')).toBe('/collections/lung')
-  })
-
-  it('lists locally saved URLs alongside catalog datasets', () => {
+  it('puts locally saved URLs in the Unannotated tab, not alongside catalog rows', async () => {
+    // A pasted URL has no catalog row and so declares no facets. It belongs
+    // with the unannotated half rather than vanishing when a facet is picked.
     localStorage.setItem(STORAGE_KEY, JSON.stringify(['https://cdn/mine.zarr']))
     setStore({ catalogDatasets: [LUNG] })
     renderHome()
-    expect(screen.getByText('2 datasets')).toBeDefined()
-    expect(screen.getByText('mine.zarr')).toBeDefined()
+
+    expect(screen.getByText('Lung Atlas')).toBeDefined()
+    expect(screen.queryByText('mine.zarr')).toBeNull()
+
+    fireEvent.click(screen.getByRole('tab', { name: /Unannotated/ }))
+    await waitFor(() => expect(screen.getByText('mine.zarr')).toBeDefined())
     expect(screen.getByText('Local')).toBeDefined()
   })
 
@@ -153,6 +158,54 @@ describe('Home', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Remove / }))
     await waitFor(() => expect(screen.queryByText('mine.zarr')).toBeNull())
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toEqual([])
+  })
+
+  it('shows no tabs when every dataset is unannotated, and lists them all', () => {
+    // The real catalogue today: the backend indexes nothing, so nothing is
+    // annotated. A default Annotated tab would render empty.
+    setStore({
+      facetDefs: [],
+      catalogDatasets: [
+        { ...LUNG, facets: undefined },
+        { ...BREAST, facets: undefined },
+      ],
+    })
+    renderHome()
+    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(screen.getByText('Lung Atlas')).toBeDefined()
+    expect(screen.getByText('Breast Atlas')).toBeDefined()
+    expect(screen.getByText('2 datasets')).toBeDefined()
+  })
+
+  it('splits into tabs only when both halves exist', () => {
+    setStore({ catalogDatasets: [LUNG, { ...BREAST, facets: {} }] })
+    renderHome()
+    const tabs = screen.getByRole('tablist')
+    expect(within(tabs).getByRole('tab', { name: /Annotated/ }).getAttribute('aria-selected')).toBe('true')
+    // The annotated half is what shows by default.
+    expect(screen.getByText('Lung Atlas')).toBeDefined()
+    expect(screen.queryByText('Breast Atlas')).toBeNull()
+  })
+
+  it('offers facet values with dataset counts', () => {
+    setStore({ catalogDatasets: [LUNG, BREAST] })
+    const { container } = renderHome()
+    const sidebar = within(container.querySelector('.ce-facets') as HTMLElement)
+    expect(sidebar.getByText('Tissue')).toBeDefined()
+    expect(sidebar.getByText('lung')).toBeDefined()
+    expect(sidebar.getByText('breast')).toBeDefined()
+  })
+
+  it('ticking a facet value narrows the list and lands in the URL', async () => {
+    setStore({ catalogDatasets: [LUNG, BREAST] })
+    const { container } = renderHome()
+    const sidebar = within(container.querySelector('.ce-facets') as HTMLElement)
+
+    fireEvent.click(sidebar.getByText('lung'))
+
+    await waitFor(() => expect(screen.queryByText('Breast Atlas')).toBeNull())
+    expect(screen.getByText('Lung Atlas')).toBeDefined()
+    expect(screen.getByText('1 dataset')).toBeDefined()
   })
 
   it('without a backend, still offers search and Add URL and hides collections', () => {

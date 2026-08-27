@@ -6,6 +6,8 @@ import { flushSummaryQueue } from '../hooks/summaryScheduler'
 import UniversalWorker from '../workers/universal.worker.ts?worker'
 import type { ColorBufferResponse } from '../workers/colorBuffer.schemas'
 import type { RGB } from '../utils/colors'
+import type { FacetDef } from '../utils/facets'
+import { MOCK_FACETS_ENABLED, MOCK_FACET_DEFS, withMockFacets } from '../utils/mockFacets'
 import { OBS_CONTINUOUS_SCALE_NAME } from '../utils/colors'
 import { encodeCategories, MAX_CATEGORIES, classifyCardinality, CATEGORY_LEGEND_LIST_CAP } from '../utils/categoryEncoding'
 
@@ -225,8 +227,18 @@ export interface AppState {
      * Store facts the backend harvested. Null until a harvest has succeeded,
      * so the absence of this object means "we don't know", never "zero".
      */
-    metadata?: { n_obs: number; n_vars: number } | null
+    metadata?: { n_obs: number; n_vars: number; obs_columns?: string[] } | null
+    /**
+     * Facet values, keyed by facet. Three states: null means ingestion has not
+     * run, {} means it ran and found nothing indexable, populated means values
+     * were found. The backend does not send this yet — `obs_columns` on
+     * `DatasetMetadataResponse` is still `string[]` rather than
+     * `ObsColumnInfo[]` — so today only the dev fixture supplies it.
+     */
+    facets?: Record<string, string[]> | null
   }>
+  /** Filterable fields, as declared by the backend. Empty until it declares any. */
+  facetDefs: FacetDef[]
   fetchCatalog: () => Promise<void>
   openCatalogDataset: (slug: string) => Promise<void>
 
@@ -524,11 +536,24 @@ const useAppStore = create<AppState>((set, get) => ({
   },
 
   catalogDatasets: [],
+  facetDefs: [],
   fetchCatalog: async () => {
     try {
       const { api } = await import('../api')
       const { data } = await api.GET('/api/datasets')
-      if (data?.datasets) set({ catalogDatasets: data.datasets })
+      if (!data?.datasets) return
+
+      // Dev only: the catalogue carries obs column *names* but not their
+      // values, so facets cannot be built from it yet. This fills in the
+      // missing half over the real datasets. See utils/mockFacets.
+      if (MOCK_FACETS_ENABLED) {
+        set({
+          catalogDatasets: withMockFacets(data.datasets),
+          facetDefs: MOCK_FACET_DEFS,
+        })
+        return
+      }
+      set({ catalogDatasets: data.datasets })
     } catch {
       // Backend unavailable or request failed — keep existing catalog
     }

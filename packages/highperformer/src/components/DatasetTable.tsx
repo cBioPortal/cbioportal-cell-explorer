@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, ConfigProvider, Table, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -49,7 +48,6 @@ export default function DatasetTable({
   resolved,
   emptyText,
   onRemove,
-  onVisibleCountChange,
   showCollection = true,
 }: {
   entries: DatasetEntry[]
@@ -58,11 +56,6 @@ export default function DatasetTable({
   emptyText?: React.ReactNode
   /** Supplied only where rows are removable — i.e. locally added URLs. */
   onRemove?: (entry: DatasetEntry) => void
-  /**
-   * Column filtering happens inside antd, so a caller showing a row count has
-   * no other way to learn what survived it.
-   */
-  onVisibleCountChange?: (count: number) => void
   /** Off where every row shares one collection, which makes the column noise. */
   showCollection?: boolean
 }) {
@@ -75,30 +68,6 @@ export default function DatasetTable({
       navigate(`/view?dataset=${encodeURIComponent(entry.slug)}`)
     }
   }
-
-  // Only offer filters for values actually present, so no dropdown ever leads
-  // to an empty table.
-  const collectionFilters = useMemo(() => {
-    const names = new Set<string>()
-    let anyUngrouped = false
-    for (const e of entries) {
-      if (e.collectionName) names.add(e.collectionName)
-      else anyUngrouped = true
-    }
-    const options = [...names].sort().map((n) => ({ text: n, value: n }))
-    if (anyUngrouped) options.push({ text: 'No collection', value: '__none__' })
-    return options.length > 1 ? options : undefined
-  }, [entries])
-
-  const accessFilters = useMemo(() => {
-    const hasPublic = entries.some((e) => e.isPublic)
-    const hasPrivate = entries.some((e) => !e.isPublic)
-    if (!hasPublic || !hasPrivate) return undefined
-    return [
-      { text: 'Public', value: true },
-      { text: 'Private', value: false },
-    ]
-  }, [entries])
 
   const allColumns: ColumnsType<DatasetEntry> = [
     {
@@ -132,9 +101,6 @@ export default function DatasetTable({
       className: 'ce-col-collection',
       width: 220,
       sorter: compareByCollection,
-      filters: collectionFilters,
-      onFilter: (value, entry) =>
-        value === '__none__' ? !entry.collectionName : entry.collectionName === value,
       render: (_, entry) =>
         entry.collectionName
           ? <span title={entry.collectionName}>{entry.collectionName}</span>
@@ -174,8 +140,6 @@ export default function DatasetTable({
       title: 'Status',
       key: 'status',
       width: 190,
-      filters: accessFilters,
-      onFilter: (value, entry) => entry.isPublic === value,
       render: (_, entry) => (
         <StatusLine probe={probes.get(entry.key)} isPublic={entry.isPublic} />
       ),
@@ -251,9 +215,6 @@ export default function DatasetTable({
             ? { pageSize: PAGE_SIZE, showSizeChanger: false, hideOnSinglePage: true }
             : false
         }
-        onChange={(_pagination, _filters, _sorter, extra) => {
-          onVisibleCountChange?.(extra.currentDataSource.length)
-        }}
         onRow={(entry) => ({
           onClick: () => open(entry),
           onKeyDown: (e: React.KeyboardEvent) => {

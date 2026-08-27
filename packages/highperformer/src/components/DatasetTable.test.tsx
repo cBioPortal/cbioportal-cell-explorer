@@ -132,41 +132,6 @@ describe('DatasetTable', () => {
     expect(screen.getByRole('columnheader', { name: /Cells/ })).toBeDefined()
   })
 
-  it('reports how many rows survived a column filter', () => {
-    const lung = { ...DATASET, slug: 'lung', name: 'Lung set', collection: { slug: 'lung', name: 'Lung' } }
-    const breast = { ...DATASET, slug: 'breast', name: 'Breast set', collection: { slug: 'br', name: 'Breast' } }
-    const onVisibleCountChange = vi.fn()
-    renderTable({
-      entries: [catalogToEntry(lung), catalogToEntry(breast)],
-      onVisibleCountChange,
-    })
-
-    fireEvent.click(screen.getByRole('columnheader', { name: /Collection/ })
-      .querySelector('.ant-table-filter-trigger')!)
-    // "Lung" also appears in the table body, so scope to the filter menu.
-    const menu = document.querySelector('.ant-table-filter-dropdown') as HTMLElement
-    fireEvent.click(within(menu).getByText('Lung'))
-    fireEvent.click(within(menu).getByRole('button', { name: /OK/ }))
-
-    expect(onVisibleCountChange).toHaveBeenCalledWith(1)
-  })
-
-  it('filters by collection, and offers a filter only when there is a choice', () => {
-    const lung = { ...DATASET, slug: 'lung', name: 'Lung set', collection: { slug: 'lung', name: 'Lung' } }
-    const breast = { ...DATASET, slug: 'breast', name: 'Breast set', collection: { slug: 'br', name: 'Breast' } }
-
-    const { unmount } = renderTable({ entries: [catalogToEntry(lung), catalogToEntry(breast)] })
-    // Two distinct collections — a filter control is offered on that column.
-    expect(screen.getByRole('columnheader', { name: /Collection/ })
-      .querySelector('.ant-table-filter-trigger')).not.toBeNull()
-    unmount()
-
-    // Only one distinct value: filtering could never narrow anything, so no control.
-    renderTable({ entries: [catalogToEntry(lung)] })
-    expect(screen.getByRole('columnheader', { name: /Collection/ })
-      .querySelector('.ant-table-filter-trigger')).toBeNull()
-  })
-
   it('offers remove only on local rows', () => {
     const onRemove = vi.fn()
     renderTable({
