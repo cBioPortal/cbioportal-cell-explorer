@@ -10,8 +10,18 @@ import ZarrView from './pages/ZarrView'
 import useAppStore from './store/useAppStore'
 import { installMockCatalog, MOCK_CATALOG_ENABLED } from './utils/mockCatalog'
 import { useTokenRefresh } from './hooks/useTokenRefresh'
+import { useAnalytics } from './hooks/useAnalytics'
 
 const { Content } = Layout
+
+/**
+ * Analytics has to live inside the router — it reports on route changes, and
+ * useLocation is only available below BrowserRouter.
+ */
+function Analytics() {
+  useAnalytics()
+  return null
+}
 
 const ENABLE_PROFILER = import.meta.env.VITE_ENABLE_PROFILER === 'true'
 const ENABLE_ZARR_VIEW = import.meta.env.VITE_ENABLE_ZARR_VIEW === 'true'
@@ -63,6 +73,7 @@ function App() {
   useTokenRefresh(user !== null)
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <Analytics />
       <Routes>
         {/* Home owns its own full-bleed layout — the header band spans the
             viewport, so it must not sit inside a width-capped Content. */}
