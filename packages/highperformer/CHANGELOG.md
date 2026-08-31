@@ -1,5 +1,40 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.7.0
+
+### Minor Changes
+
+- [#308](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/308) [`5937d89`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/5937d8962dfd254cbff07652f2eed592b6e12ad9) Thanks [@hweej](https://github.com/hweej)! - Load Google Analytics when the backend supplies a measurement id.
+
+  The id arrives at runtime from `/api/info` rather than a build-time `VITE_`
+  variable, because one image is deployed to several environments and a baked-in
+  id could not differ between them. No id means no script is loaded at all — that
+  is how a deployment opts out, and why the GitHub Pages build, which has no
+  backend to ask, stays untracked.
+
+  Page views are sent per route change carrying the full path, query string
+  included, so which dataset was opened is visible in the reports.
+
+  Embedded iframe views are deliberately not special-cased. The iframe loads this
+  same app from the same origin, so it reports to the same property as a
+  standalone visit; the embedding page reports to its own property, counting a
+  different thing.
+
+  Regenerates the API client, which also corrects `obs_columns` on the catalogue
+  response from `string[]` to `ObsColumnInfo[]`.
+
+### Patch Changes
+
+- [#305](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/305) [`145d744`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/145d7443d23bc0bda60b58698ebc02d09d8514d1) Thanks [@hweej](https://github.com/hweej)! - Stop a focus ring appearing when a facet filter is clicked.
+
+  The facet value rule used `:focus-within`, which matches mouse input too, so
+  ticking a filter drew an outline around the whole row until focus moved
+  elsewhere. It now uses `:has(:focus-visible)`, so the ring appears for keyboard
+  navigation only.
+
+- Updated dependencies [[`5937d89`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/5937d8962dfd254cbff07652f2eed592b6e12ad9)]:
+  - @cbioportal-cell-explorer/api-client@0.2.4
+
 ## 0.6.0
 
 ### Minor Changes

@@ -1,5 +1,12 @@
 # @cbioportal-cell-explorer/app
 
+## 0.1.6
+
+### Patch Changes
+
+- Updated dependencies [[`5937d89`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/5937d8962dfd254cbff07652f2eed592b6e12ad9)]:
+  - @cbioportal-cell-explorer/api-client@0.2.4
+
 ## 0.1.5
 
 ### Patch Changes
