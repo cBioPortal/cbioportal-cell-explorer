@@ -2,6 +2,25 @@ import type { ResolvedBrand } from '../hooks/useBrand'
 
 const HEX = /^#[0-9a-fA-F]{6}$/
 
+const COLOR_MIX_PROBE = 'color-mix(in srgb, white 94%, black)'
+
+/**
+ * Whether this engine parses `color-mix()`. Three of the four identity-band
+ * colors are derived with it; on an engine that lacks it, the custom
+ * property is still *set* to an unparseable string, which means
+ * `var(--brand-ink-deep, #061a2c)` does NOT fall back — the fallback arm
+ * only applies when the property is unset — so the property resolves
+ * invalid at computed-value time and the declaration that consumes it
+ * (a non-inherited `background`) computes to its initial value instead.
+ */
+function supportsColorMix(): boolean {
+  // Absent detection means an environment we cannot ask (jsdom in tests) —
+  // assume yes, so tests exercise the real path. Only an explicit `false`
+  // disables branding.
+  if (typeof CSS === 'undefined' || typeof CSS.supports !== 'function') return true
+  return CSS.supports('color', COLOR_MIX_PROBE)
+}
+
 export interface ResolvedBrandColors {
   ink: string
   inkDeep: string
@@ -26,6 +45,10 @@ export interface ResolvedBrandColors {
  */
 export function resolveBrandColors(brand: ResolvedBrand): ResolvedBrandColors | null {
   if (brand.isDefault) return null
+  // A bundle degrades branding, never the application: without color-mix()
+  // support, fall back to the authored navy rather than write custom
+  // properties the engine cannot parse.
+  if (!supportsColorMix()) return null
 
   const { ink, inkDeep } = brand.colors
   // The backend validates these, but a value reaching setProperty (or an SVG

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { applyBrandColors } from './applyBrandColors'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { applyBrandColors, resolveBrandColors } from './applyBrandColors'
 import { DEFAULT_BRAND, type ResolvedBrand } from '../hooks/useBrand'
 
 const btc: ResolvedBrand = {
@@ -60,5 +60,31 @@ describe('applyBrandColors', () => {
     const el = root()
     applyBrandColors({ ...btc, colors: { ...btc.colors, ink: 'red; --x: y' } }, el)
     expect(el.style.getPropertyValue('--brand-ink')).toBe('')
+  })
+
+  describe('without color-mix() support', () => {
+    const originalSupports = CSS.supports
+
+    afterEach(() => {
+      // CSS.supports is undefined in this jsdom to begin with (see
+      // supportsColorMix's "absent means assume yes" branch) — restore
+      // exactly what was there before, not a stub, so it cannot leak into
+      // other tests.
+      if (originalSupports === undefined) {
+        // @ts-expect-error -- deleting a property jsdom never defined
+        delete CSS.supports
+      } else {
+        CSS.supports = originalSupports
+      }
+    })
+
+    it('returns null rather than writing an unparseable color-mix() value', () => {
+      // On an engine without color-mix(), the custom property would still be
+      // *set* to an invalid value, and var(--brand-ink-deep, #fallback) does
+      // not rescue an invalid-at-computed-value-time property — only an
+      // unset one. Bailing out here is what keeps the authored navy in force.
+      CSS.supports = vi.fn().mockReturnValue(false)
+      expect(resolveBrandColors(btc)).toBeNull()
+    })
   })
 })
