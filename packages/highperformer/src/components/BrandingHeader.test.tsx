@@ -40,8 +40,14 @@ describe('BrandingHeader', () => {
     expect(screen.getByText(/Acme Cell Explorer/)).toBeTruthy()
   })
 
-  it('always shows the cBioPortal attribution mark, branded or not', () => {
-    brand = { ...DEFAULT_BRAND, name: 'Break Through Cancer', isDefault: false }
+  // Both states, because the regression this guards against is conditioning the
+  // mark on isDefault — "attribution only for branded deployments", or the
+  // reverse. A single-state test cannot see either direction.
+  it.each([
+    ['unbranded', DEFAULT_BRAND],
+    ['branded', { ...DEFAULT_BRAND, name: 'Break Through Cancer', isDefault: false }],
+  ])('always shows the cBioPortal attribution mark (%s)', (_label, b) => {
+    brand = b as ResolvedBrand
     renderBar()
     expect(screen.getByRole('img', { name: 'Powered by cBioPortal' })).toBeTruthy()
   })
