@@ -17,9 +17,19 @@ describe('SiteFooter', () => {
     expect(screen.getByRole('img', { name: 'cBioPortal' })).toBeTruthy()
   })
 
-  it('takes no props that could suppress or alter the attribution', () => {
-    // The attribution is a fixed product decision, not configuration. If someone
-    // later adds a prop to hide or reword it, this test is the tripwire.
+  it('ignores any props passed to it', () => {
+    // The attribution is a fixed product decision, not configuration. This is the
+    // real tripwire: it fails the moment any prop is wired up to alter or suppress
+    // the attribution, whatever that prop is called.
+    // @ts-expect-error - intentionally passing unsupported props to prove they do nothing
+    render(<SiteFooter hideAttribution suppress variant="hidden" />)
+    expect(screen.getByText(/powered by cbioportal/i)).toBeTruthy()
+  })
+
+  it('declares no parameters', () => {
+    // Secondary signal only. Function.length counts parameters BEFORE the first
+    // one with a default, so `SiteFooter({ hide = false } = {})` would still
+    // report 0 — which is why the behavioural test above is the actual guard.
     expect(SiteFooter.length).toBe(0)
   })
 })
