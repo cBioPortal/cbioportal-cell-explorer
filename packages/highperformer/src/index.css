@@ -107,6 +107,17 @@ body {
   gap: 16px;
 }
 
+.ce-brand-logo {
+  height: 44px;
+  width: auto;
+  display: block;
+}
+
+.ce-brand-link {
+  display: inline-flex;
+  border-radius: 4px;
+}
+
 .ce-wordmark {
   margin: 0;
   font-size: 38px;
