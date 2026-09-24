@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { Popover, Typography } from 'antd'
 import { InfoCircleOutlined } from '@ant-design/icons'
 import useAppStore from '../store/useAppStore'
+import { useBrand } from '../hooks/useBrand'
+import CBioPortalMark from './CBioPortalMark'
 
 const infoRowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 12 }
 
@@ -41,17 +43,22 @@ function InfoPopoverContent() {
 }
 
 function BrandingHeader() {
+  const brand = useBrand()
   return (
     <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <Link to="/" style={{ textDecoration: 'none' }}>
         <Typography.Title level={5} style={{ margin: 0 }}>
-          cBioPortal Cell Explorer{' '}
+          {brand.name} Cell Explorer{' '}
           <span style={{ fontSize: 12, color: '#999', fontWeight: 'normal' }}>v{__APP_VERSION__}</span>
         </Typography.Title>
       </Link>
-      <Popover content={<InfoPopoverContent />} trigger="click" placement="bottomRight">
-        <InfoCircleOutlined style={{ fontSize: 14, color: '#999', cursor: 'pointer' }} />
-      </Popover>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Fixed platform attribution — not configurable, by product decision. */}
+        <CBioPortalMark size={18} title="Powered by cBioPortal" />
+        <Popover content={<InfoPopoverContent />} trigger="click" placement="bottomRight">
+          <InfoCircleOutlined style={{ fontSize: 14, color: '#999', cursor: 'pointer' }} />
+        </Popover>
+      </div>
     </div>
   )
 }
