@@ -37,16 +37,19 @@ body {
    ───────────────────────────────────────────────────────────────────────── */
 
 .ce-landing {
-  --ink: #0d2c48;
-  --ink-deep: #061a2c;
+  /* Operator-branded via --brand-* (set by applyBrandColors.ts on
+     document.documentElement). The literal is the fallback, so an unbranded
+     deployment is byte-for-byte what it is today. */
+  --ink: var(--brand-ink, #0d2c48);
+  --ink-deep: var(--brand-ink-deep, #061a2c);
   --paper: #ffffff;
   --mist: #f5f8fb;
   --line: #e2e9f0;
   --text: #12283c;
   --text-muted: #5c7186;
   --text-faint: #8fa2b4;
-  --on-ink: #eaf1f8;
-  --on-ink-muted: #93aec9;
+  --on-ink: var(--brand-on-ink, #eaf1f8);
+  --on-ink-muted: var(--brand-on-ink-muted, #93aec9);
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "Cascadia Mono",
     "DejaVu Sans Mono", monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,

@@ -1,4 +1,6 @@
 import { t } from './landingTokens'
+import { useBrand } from '../hooks/useBrand'
+import { resolveBrandColors } from '../brand/applyBrandColors'
 
 /**
  * The header's background: a static, seeded scatter of points arranged in soft
@@ -65,7 +67,13 @@ interface Point {
   y: number
   r: number
   o: number
-  c: string
+  /**
+   * Cluster color (data, never chrome), or `null` for a noise dot. Noise dots
+   * take the header's on-ink-muted color, which is chrome and must follow the
+   * brand — so it is resolved at render time from `useBrand()` rather than
+   * baked in here at module load.
+   */
+  c: string | null
 }
 
 const POINTS: Point[] = []
@@ -89,11 +97,20 @@ for (let i = 0; i < 90; i++) {
     y: rand() * VIEW_H,
     r: 1.1 + rand() * 1.1,
     o: 0.07 + rand() * 0.1,
-    c: t.onInkMuted,
+    c: null,
   })
 }
 
 export default function CellField() {
+  // The gradient scrim and the noise dots are chrome, inside the header band
+  // itself — they must follow the brand, not stay baked to navy while the
+  // gradient around them rebrands. Cluster colors above are data and never
+  // rebrand, so they keep reading straight from landingTokens.
+  const brand = useBrand()
+  const resolved = resolveBrandColors(brand)
+  const ink = resolved?.ink ?? t.ink
+  const onInkMuted = resolved?.onInkMuted ?? t.onInkMuted
+
   return (
     <svg
       className="ce-field"
@@ -104,14 +121,14 @@ export default function CellField() {
     >
       <defs>
         <linearGradient id="ce-field-scrim" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor={t.ink} stopOpacity="0.92" />
-          <stop offset="0.34" stopColor={t.ink} stopOpacity="0.66" />
-          <stop offset="0.62" stopColor={t.ink} stopOpacity="0" />
+          <stop offset="0" stopColor={ink} stopOpacity="0.92" />
+          <stop offset="0.34" stopColor={ink} stopOpacity="0.66" />
+          <stop offset="0.62" stopColor={ink} stopOpacity="0" />
         </linearGradient>
       </defs>
       <g>
         {POINTS.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={p.r} fill={p.c} opacity={p.o} />
+          <circle key={i} cx={p.x} cy={p.y} r={p.r} fill={p.c ?? onInkMuted} opacity={p.o} />
         ))}
       </g>
       <rect width={VIEW_W} height={VIEW_H} fill="url(#ce-field-scrim)" />
