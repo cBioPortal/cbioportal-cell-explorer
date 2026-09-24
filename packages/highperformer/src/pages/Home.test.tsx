@@ -98,8 +98,15 @@ describe('Home', () => {
   })
 
   it('carries the cBioPortal mark, with an accessible name', () => {
-    renderHome()
-    expect(screen.getByRole('img', { name: 'cBioPortal' })).toBeDefined()
+    const { container } = renderHome()
+    const header = within(container.querySelector('.ce-header') as HTMLElement)
+    expect(header.getByRole('img', { name: 'cBioPortal' })).toBeDefined()
+  })
+
+  it('always attributes cBioPortal in the footer', () => {
+    const { container } = renderHome()
+    const footer = within(container.querySelector('.ce-footer') as HTMLElement)
+    expect(footer.getByText(/powered by cbioportal/i)).toBeDefined()
   })
 
   it('lists every catalog dataset with a count', () => {

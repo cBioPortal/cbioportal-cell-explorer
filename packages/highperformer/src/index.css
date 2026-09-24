@@ -140,6 +140,24 @@ body {
   padding-top: 4px;
 }
 
+/* ── Footer ────────────────────────────────────────────────────────────── */
+
+.ce-footer {
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.ce-footer-inner {
+  width: var(--content);
+  margin-inline: auto;
+  padding: 24px 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
 /* ── Detail band (collection pages) ────────────────────────────────────── */
 
 /* Shallower than the landing band, and without the point field. */
