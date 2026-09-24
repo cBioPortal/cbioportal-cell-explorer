@@ -15,7 +15,10 @@ const btc: ResolvedBrand = {
   name: 'Break Through Cancer',
   logoOnDark: '/brand/btc-logo-white.svg',
   logoOnLight: '/brand/btc-logo.svg',
-  logoAlt: 'Break Through Cancer',
+  // Deliberately DIFFERENT from `name`: the <img> branch takes its accessible
+  // name from alt, the CBioPortalMark branch from name. If they matched, a test
+  // querying by role+name could not tell the two branches apart.
+  logoAlt: 'BTC logo',
   logoHref: null,
   isDefault: false,
 }
@@ -33,14 +36,14 @@ describe('BrandLogo', () => {
   it('renders the operator logo when one is configured', () => {
     brand = btc
     render(<BrandLogo variant="onDark" />)
-    const img = screen.getByAltText('Break Through Cancer') as HTMLImageElement
+    const img = screen.getByAltText('BTC logo') as HTMLImageElement
     expect(img.getAttribute('src')).toBe('/brand/btc-logo-white.svg')
   })
 
   it('picks the light variant when asked', () => {
     brand = btc
     render(<BrandLogo variant="onLight" />)
-    const img = screen.getByAltText('Break Through Cancer') as HTMLImageElement
+    const img = screen.getByAltText('BTC logo') as HTMLImageElement
     expect(img.getAttribute('src')).toBe('/brand/btc-logo.svg')
   })
 
@@ -48,6 +51,9 @@ describe('BrandLogo', () => {
     // An operator may supply only the dark variant; the light surface must not break.
     brand = { ...btc, logoOnLight: null }
     render(<BrandLogo variant="onLight" />)
+    // No <img> at all — proves it did not quietly fall back to logoOnDark ...
+    expect(screen.queryByAltText('BTC logo')).toBeNull()
+    // ... and the built-in mark took its place, named from `name`.
     expect(screen.getByRole('img', { name: 'Break Through Cancer' })).toBeTruthy()
   })
 
