@@ -68,6 +68,19 @@ describe('resolveBrand', () => {
     expect(b.isDefault).toBe(false) // a branded deployment that happens to share the name
   })
 
+  it('rejects a javascript: logoHref rather than let it reach an <a href>', () => {
+    // React ships whatever it is given as an href attribute (it only warns
+    // at dev time on javascript:), so a hostile or corrupted brand bundle
+    // must be caught here, not trusted through to BrandLogo.
+    const b = resolveBrand({ ...full, logo_href: 'javascript:alert(1)' })
+    expect(b.logoHref).toBeNull()
+  })
+
+  it('passes through a valid https: logoHref', () => {
+    const b = resolveBrand({ ...full, logo_href: 'https://breakthroughcancer.org' })
+    expect(b.logoHref).toBe('https://breakthroughcancer.org')
+  })
+
   it('matches the backend defaults exactly', () => {
     // This pins the frontend's own DEFAULT_BRAND literals against accidental
     // edit. It does NOT compare against the backend — the backend's defaults

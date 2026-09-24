@@ -34,6 +34,27 @@ export const DEFAULT_BRAND: ResolvedBrand = {
   isDefault: true,
 }
 
+/**
+ * Only `http:`/`https:` may reach the `href` on the rendered logo link.
+ * React ships whatever it is given as an attribute (it only warns, at dev
+ * time, on `javascript:`), so a hostile or corrupted brand bundle yielding
+ * `logo_href: "javascript:..."` would otherwise produce a live clickable
+ * script URL. The backend validates this too, but `logoHref` reaches an
+ * executable sink rather than a parser, so the frontend re-checks here —
+ * the same rationale `resolveBrandColors` already applies to colors.
+ */
+function sanitizeHref(href: string | null | undefined): string | null {
+  if (!href) return null
+  try {
+    // No base: a relative href has no scheme to validate, so it is rejected
+    // along with anything explicitly dangerous (e.g. `javascript:`).
+    const url = new URL(href)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? href : null
+  } catch {
+    return null
+  }
+}
+
 /** Merge a backend brand over the defaults. Pure; exported for tests. */
 export function resolveBrand(brand: BrandInfo | null): ResolvedBrand {
   if (!brand) return DEFAULT_BRAND
@@ -43,7 +64,7 @@ export function resolveBrand(brand: BrandInfo | null): ResolvedBrand {
     logoOnLight: brand.logo_on_light ?? null,
     logoOnDark: brand.logo_on_dark ?? null,
     logoAlt: brand.logo_alt,
-    logoHref: brand.logo_href ?? null,
+    logoHref: sanitizeHref(brand.logo_href),
     colors: {
       ink: brand.colors.ink,
       inkDeep: brand.colors.ink_deep ?? null,
