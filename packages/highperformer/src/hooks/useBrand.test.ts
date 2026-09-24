@@ -4,7 +4,11 @@ import { DEFAULT_BRAND, resolveBrand } from './useBrand'
 const full = {
   name: 'Break Through Cancer',
   short_name: 'BTC',
-  tagline: 'Explore millions of cells in your browser.',
+  // Deliberately DIFFERENT from DEFAULT_BRAND.tagline: if `resolveBrand` were
+  // changed to fall back to the default tagline instead of passing the
+  // backend's through, a fixture that reused the default value would not
+  // catch it — every assertion would still pass.
+  tagline: 'Explore BTC cells.',
   logo_href: 'https://breakthroughcancer.org',
   logo_on_light: '/brand/btc-logo.svg',
   logo_on_dark: '/brand/btc-logo-white.svg',
@@ -29,6 +33,9 @@ describe('resolveBrand', () => {
     expect(b.logoAlt).toBe('Break Through Cancer')
     expect(b.logoHref).toBe('https://breakthroughcancer.org')
     expect(b.colors.themeColor).toBe('#240D00')
+    expect(b.name).toBe('Break Through Cancer')
+    expect(b.tagline).toBe('Explore BTC cells.')
+    expect(b.colors.ink).toBe('#240D00')
   })
 
   it('never returns undefined fields', () => {
@@ -62,8 +69,10 @@ describe('resolveBrand', () => {
   })
 
   it('matches the backend defaults exactly', () => {
-    // These five values are duplicated from the backend's DEFAULT_BRAND. If the
-    // backend changes one, this test is the thing that notices.
+    // This pins the frontend's own DEFAULT_BRAND literals against accidental
+    // edit. It does NOT compare against the backend — the backend's defaults
+    // live in another repo and are never consulted here, so a divergence
+    // between the two would not be caught by this test.
     expect(DEFAULT_BRAND.name).toBe('cBioPortal')
     expect(DEFAULT_BRAND.tagline).toBe('Explore millions of cells in your browser.')
     expect(DEFAULT_BRAND.colors.ink).toBe('#0d2c48')
