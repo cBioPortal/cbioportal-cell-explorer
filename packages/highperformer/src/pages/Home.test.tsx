@@ -98,8 +98,18 @@ describe('Home', () => {
   })
 
   it('carries the cBioPortal mark, with an accessible name', () => {
-    renderHome()
-    expect(screen.getByRole('img', { name: 'cBioPortal' })).toBeDefined()
+    const { container } = renderHome()
+    const header = within(container.querySelector('.ce-header') as HTMLElement)
+    expect(header.getByRole('img', { name: 'cBioPortal' })).toBeDefined()
+  })
+
+  it('always attributes cBioPortal in the header', () => {
+    // The footer is gone; attribution now lives as sub-text under the
+    // wordmark in SiteHeader. Distinct from the mark test above: this checks
+    // the attribution TEXT, which must render in both brand states.
+    const { container } = renderHome()
+    const header = within(container.querySelector('.ce-header') as HTMLElement)
+    expect(header.getByText(/powered by cbioportal/i)).toBeDefined()
   })
 
   it('lists every catalog dataset with a count', () => {
