@@ -19,6 +19,13 @@ export default defineConfig({
         target: 'http://localhost:8001',
         changeOrigin: false,
       },
+      // Operator-supplied brand assets are served by the backend, and the URLs
+      // for them arrive from /api/info already resolved. Without this, a
+      // branded deployment's logo 404s in dev and only the fallback mark shows.
+      '/brand': {
+        target: 'http://localhost:8001',
+        changeOrigin: false,
+      },
     },
   },
   test: {
