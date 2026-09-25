@@ -111,7 +111,7 @@ body {
 }
 
 .ce-brand-logo {
-  height: 44px;
+  height: 68px;
   width: auto;
   display: block;
 }
@@ -121,9 +121,31 @@ body {
   border-radius: 4px;
 }
 
+.ce-lockup-names {
+  /* Rule, not a glyph: a "|" character would inherit the wordmark's size and
+     baseline and sit unevenly. The band is guaranteed dark by the ink
+     luminance gate, so white-alpha reads on any operator colour. */
+  border-left: 1px solid rgba(255, 255, 255, 0.22);
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  /* Enough to clear the wordmark's descenders without detaching the line. */
+  gap: 7px;
+}
+
+.ce-poweredby {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  color: var(--on-ink-muted);
+}
+
 .ce-wordmark {
   margin: 0;
-  font-size: 38px;
+  font-size: 46px;
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -0.022em;
@@ -781,7 +803,15 @@ body {
   }
 
   .ce-wordmark {
-    font-size: 28px;
+    font-size: 34px;
+  }
+
+  .ce-brand-logo {
+    height: 50px;
+  }
+
+  .ce-lockup-names {
+    padding-left: 14px;
   }
 
   .ce-detail-title {

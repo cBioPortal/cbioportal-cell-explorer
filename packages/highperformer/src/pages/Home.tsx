@@ -4,7 +4,6 @@ import { SearchOutlined } from '@ant-design/icons'
 import { loadDatasets, saveDatasets } from '../utils/datasets'
 import useAppStore from '../store/useAppStore'
 import SiteHeader from '../components/SiteHeader'
-import SiteFooter from '../components/SiteFooter'
 import DatasetTable from '../components/DatasetTable'
 import { labelStyle } from '../components/landingTokens'
 import type { Stat } from '../components/OverviewStats'
@@ -266,8 +265,6 @@ function Home() {
           </section>
         </div>
       </main>
-
-      <SiteFooter />
     </div>
   )
 }
