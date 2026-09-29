@@ -11,6 +11,8 @@ import useAppStore from './store/useAppStore'
 import { installMockCatalog, MOCK_CATALOG_ENABLED } from './utils/mockCatalog'
 import { useTokenRefresh } from './hooks/useTokenRefresh'
 import { useAnalytics } from './hooks/useAnalytics'
+import { useBrand } from './hooks/useBrand'
+import { applyBrandColors } from './brand/applyBrandColors'
 
 const { Content } = Layout
 
@@ -32,6 +34,11 @@ function App() {
   const fetchCatalog = useAppStore((s) => s.fetchCatalog)
   const fetchCollections = useAppStore((s) => s.fetchCollections)
   const user = useAppStore((s) => s.user)
+  const brand = useBrand()
+
+  useEffect(() => {
+    applyBrandColors(brand)
+  }, [brand])
 
   useEffect(() => {
     // Dev fixture, when enabled, stands in for the backend entirely — probing

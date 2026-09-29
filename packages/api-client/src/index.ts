@@ -554,6 +554,33 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** BrandColorsInfo */
+        BrandColorsInfo: {
+            /** Ink */
+            ink: string;
+            /** Ink Deep */
+            ink_deep: string | null;
+            /** Theme Color */
+            theme_color: string;
+        };
+        /** BrandInfo */
+        BrandInfo: {
+            /** Name */
+            name: string;
+            /** Short Name */
+            short_name: string;
+            /** Tagline */
+            tagline: string;
+            /** Logo Href */
+            logo_href: string | null;
+            /** Logo On Light */
+            logo_on_light: string | null;
+            /** Logo On Dark */
+            logo_on_dark: string | null;
+            /** Logo Alt */
+            logo_alt: string;
+            colors: components["schemas"]["BrandColorsInfo"];
+        };
         /** BulkRefreshRequest */
         BulkRefreshRequest: {
             /**
@@ -980,6 +1007,7 @@ export interface components {
             chat_enabled: boolean;
             /** Google Analytics Id */
             google_analytics_id: string | null;
+            brand: components["schemas"]["BrandInfo"] | null;
         };
         /**
          * ObsColumnInfo

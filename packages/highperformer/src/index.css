@@ -37,16 +37,19 @@ body {
    ───────────────────────────────────────────────────────────────────────── */
 
 .ce-landing {
-  --ink: #0d2c48;
-  --ink-deep: #061a2c;
+  /* Operator-branded via --brand-* (set by applyBrandColors.ts on
+     document.documentElement). The literal is the fallback, so an unbranded
+     deployment is byte-for-byte what it is today. */
+  --ink: var(--brand-ink, #0d2c48);
+  --ink-deep: var(--brand-ink-deep, #061a2c);
   --paper: #ffffff;
   --mist: #f5f8fb;
   --line: #e2e9f0;
   --text: #12283c;
   --text-muted: #5c7186;
   --text-faint: #8fa2b4;
-  --on-ink: #eaf1f8;
-  --on-ink-muted: #93aec9;
+  --on-ink: var(--brand-on-ink, #eaf1f8);
+  --on-ink-muted: var(--brand-on-ink-muted, #93aec9);
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "Cascadia Mono",
     "DejaVu Sans Mono", monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -107,9 +110,42 @@ body {
   gap: 16px;
 }
 
+.ce-brand-logo {
+  height: 68px;
+  width: auto;
+  display: block;
+}
+
+.ce-brand-link {
+  display: inline-flex;
+  border-radius: 4px;
+}
+
+.ce-lockup-names {
+  /* Rule, not a glyph: a "|" character would inherit the wordmark's size and
+     baseline and sit unevenly. The band is guaranteed dark by the ink
+     luminance gate, so white-alpha reads on any operator colour. */
+  border-left: 1px solid rgba(255, 255, 255, 0.22);
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  /* Enough to clear the wordmark's descenders without detaching the line. */
+  gap: 7px;
+}
+
+.ce-poweredby {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  color: var(--on-ink-muted);
+}
+
 .ce-wordmark {
   margin: 0;
-  font-size: 38px;
+  font-size: 46px;
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -0.022em;
@@ -127,6 +163,24 @@ body {
 .ce-header-actions {
   flex-shrink: 0;
   padding-top: 4px;
+}
+
+/* ── Footer ────────────────────────────────────────────────────────────── */
+
+.ce-footer {
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.ce-footer-inner {
+  width: var(--content);
+  margin-inline: auto;
+  padding: 24px 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-muted);
 }
 
 /* ── Detail band (collection pages) ────────────────────────────────────── */
@@ -749,7 +803,15 @@ body {
   }
 
   .ce-wordmark {
-    font-size: 28px;
+    font-size: 34px;
+  }
+
+  .ce-brand-logo {
+    height: 50px;
+  }
+
+  .ce-lockup-names {
+    padding-left: 14px;
   }
 
   .ce-detail-title {
