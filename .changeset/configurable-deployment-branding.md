@@ -12,8 +12,10 @@ to several environments. Supplying nothing keeps cBioPortal's identity exactly
 as it is today — the authored token literals remain the fallbacks, so an
 unbranded deployment renders unchanged.
 
-The cBioPortal attribution is not configurable. It is hardcoded in the landing
-footer and the view-page bar, and "Cell Explorer" stays literal in the wordmark:
-an operator brands the surrounding identity, not the tool's name.
+The cBioPortal attribution is not configurable. It renders in the landing header
+lockup as sub-text beneath "Cell Explorer" and in the view-page bar, and
+"Cell Explorer" stays literal in the wordmark: an operator brands the surrounding
+identity, not the tool's name. There is no footer — the landing footer was removed
+and its attribution moved into the header.
 
 Also regenerates the API client for the new `brand` block on `/api/info`.
