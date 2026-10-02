@@ -1,5 +1,26 @@
 # @cbioportal-cell-explorer/api-client
 
+## 0.2.5
+
+### Patch Changes
+
+- [#310](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/310) [`41aeeb5`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/41aeeb5cabb276091bdd01a1d650800ae88de960) Thanks [@hweej](https://github.com/hweej)! - Render operator-supplied branding when a deployment provides it.
+
+  A deployment can supply its own logo, name, tagline and identity-band colours
+  through the backend's `BRAND_DIR`; the brand arrives at runtime from
+  `/api/info`, the same way the analytics id does, because one image is deployed
+  to several environments. Supplying nothing keeps cBioPortal's identity exactly
+  as it is today — the authored token literals remain the fallbacks, so an
+  unbranded deployment renders unchanged.
+
+  The cBioPortal attribution is not configurable. It renders in the landing header
+  lockup as sub-text beneath "Cell Explorer" and in the view-page bar, and
+  "Cell Explorer" stays literal in the wordmark: an operator brands the surrounding
+  identity, not the tool's name. There is no footer — the landing footer was removed
+  and its attribution moved into the header.
+
+  Also regenerates the API client for the new `brand` block on `/api/info`.
+
 ## 0.2.4
 
 ### Patch Changes
