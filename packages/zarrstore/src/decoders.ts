@@ -87,6 +87,46 @@ export function toStringArray(
   return Array.from(data as ArrayLike<unknown>, (v) => String(v));
 }
 
+/** zarrita returns a BoolArray for bool data, which has no numeric indexing — iterate it. */
+function readMask(data: zarr.TypedArray<zarr.DataType> | string[]): boolean[] {
+  return Array.from(data as Iterable<unknown>, Boolean);
+}
+
+export async function decodeNullableString(
+  group: ZarrGroup,
+  open: OpenFn = defaultOpen,
+  signal?: AbortSignal,
+): Promise<(string | null)[]> {
+  const valuesArr = (await open(group.resolve("values"), { kind: "array" })) as ZarrArray;
+  const maskArr = (await open(group.resolve("mask"), { kind: "array" })) as ZarrArray;
+  const [valuesResult, maskResult] = await Promise.all([
+    readArray(valuesArr, signal),
+    readArray(maskArr, signal),
+  ]);
+  const mask = readMask(maskResult.data);
+  return toStringArray(valuesResult.data).map((v, i) => (mask[i] ? null : v));
+}
+
+/** Read a dataframe index stored as a plain array, a categorical group or a nullable-string group. */
+export async function decodeIndex(
+  group: ZarrGroup,
+  indexKey: string,
+  open: OpenFn = defaultOpen,
+  signal?: AbortSignal,
+): Promise<(string | number | null)[]> {
+  let node: ZarrGroup;
+  try {
+    node = (await open(group.resolve(indexKey), { kind: "group" })) as ZarrGroup;
+  } catch {
+    const arr = (await open(group.resolve(indexKey), { kind: "array" })) as ZarrArray;
+    return toStringArray((await readArray(arr, signal)).data);
+  }
+  if (node.attrs?.["encoding-type"] === "nullable-string-array") {
+    return decodeNullableString(node, open, signal);
+  }
+  return (await decodeCategorical(node, open, signal)).values;
+}
+
 export async function decodeCategorical(
   group: ZarrGroup,
   open: OpenFn = defaultOpen,
@@ -147,6 +187,9 @@ export async function decodeColumn(
     const decoded = await decodeNullable(node, open, signal);
     return decoded.values;
   }
+  if (encodingType === "nullable-string-array") {
+    return decodeNullableString(node, open, signal);
+  }
   // fallback: try reading as categorical (common even without explicit encoding-type)
   try {
     const decoded = await decodeCategorical(node, open, signal);
@@ -166,9 +209,7 @@ export async function decodeDataframe(
   const indexKey = attrs["_index"] as string;
   const columnOrder = attrs["column-order"] as string[];
 
-  const indexArr = (await open(group.resolve(indexKey), { kind: "array" })) as ZarrArray;
-  const indexResult = await readArray(indexArr);
-  const index = toStringArray(indexResult.data);
+  const index = (await decodeIndex(group, indexKey, open)).map(String);
 
   const columns: Record<string, zarr.TypedArray<zarr.DataType> | (string | number | null)[]> = {};
   for (const colName of columnOrder) {
@@ -190,9 +231,14 @@ export async function decodeNullable(
   const valuesResult = await readArray(valuesArr, signal);
   const maskResult = await readArray(maskArr, signal);
 
+  const mask = readMask(maskResult.data);
   const values = Array.from(
     valuesResult.data as ArrayLike<number | boolean>,
-    (v, i) => ((maskResult.data as ArrayLike<number>)[i] ? null : v),
+    (v, i) => {
+      if (mask[i]) return null;
+      // Convert BigInt to number if needed
+      return typeof v === "bigint" ? Number(v) : v;
+    },
   );
 
   return { values, mask: maskResult.data };
