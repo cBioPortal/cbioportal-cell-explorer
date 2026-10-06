@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { AnnDataStore } from "./AnnDataStore";
 import type { MeasureDetail } from "./ProfileCollector";
 
@@ -43,5 +43,36 @@ describe("nullable-string-array stores", () => {
       .map((e) => (e as PerformanceMeasure).detail as MeasureDetail | undefined)
       .filter((d) => d?.key === "obsNames");
     expect(measures.at(-1)?.chunks?.arrayShape).toEqual([6]);
+  });
+
+  it("reports chunk info for a nullable string column to the profiler", async () => {
+    const adata = await AnnDataStore.open(NULLABLE_URL);
+    await adata.obsColumn("donor");
+    const measures = performance
+      .getEntriesByType("measure")
+      .map((e) => (e as PerformanceMeasure).detail as MeasureDetail | undefined)
+      .filter((d) => d?.key === "obs:donor");
+    expect(measures.at(-1)?.chunks?.arrayShape).toEqual([6]);
+  });
+
+  it("keeps values when nothing is masked and nulls only masked positions otherwise", async () => {
+    const adata = await AnnDataStore.open(NULLABLE_URL);
+    // obs/_index has an all-false mask, obs/donor a partial one
+    const names = await adata.obsNames();
+    expect(names).toEqual(CELLS);
+    expect(names.every((n) => n !== null)).toBe(true);
+    expect(await adata.obsColumn("donor")).toEqual(["d1", null, "d2", "d1", null, "d2"]);
+  });
+
+  it("does not probe for a group when reading a plain-array index on a v2 store", async () => {
+    const adata = await AnnDataStore.open(`${globalThis.__TEST_BASE_URL__}/pbmc3k.zarr`);
+    const spy = vi.spyOn(globalThis, "fetch");
+    try {
+      await adata.obsNames();
+      const urls = spy.mock.calls.map((c) => String(c[0] instanceof Request ? c[0].url : c[0]));
+      expect(urls.filter((u) => u.endsWith(".zgroup"))).toEqual([]);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

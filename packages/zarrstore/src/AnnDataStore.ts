@@ -134,7 +134,8 @@ export class AnnDataStore {
    */
   #chunkInfoForColumn(slot: string, name: string): ChunkInfo | undefined {
     return this.#chunkInfoFromMetadata(`${slot}/${name}`)
-      ?? this.#chunkInfoFromMetadata(`${slot}/${name}/codes`);
+      ?? this.#chunkInfoFromMetadata(`${slot}/${name}/codes`)
+      ?? this.#chunkInfoFromMetadata(`${slot}/${name}/values`);
   }
 
   /**
@@ -350,7 +351,9 @@ export class AnnDataStore {
       const idx = varNames.indexOf(geneName);
       if (idx < 0) return undefined;
 
-      const label = String(symbols[idx]);
+      const symbol = symbols[idx];
+      if (symbol == null) return undefined;
+      const label = String(symbol);
       // Don't return a label if it's identical to the key (already readable)
       return label && label !== geneName ? label : undefined;
     } catch {
