@@ -87,9 +87,13 @@ export function toStringArray(
   return Array.from(data as ArrayLike<unknown>, (v) => String(v));
 }
 
-/** zarrita returns a BoolArray for bool data, which has no numeric indexing — iterate it. */
-function readMask(data: zarr.TypedArray<zarr.DataType> | string[]): boolean[] {
-  return Array.from(data as Iterable<unknown>, Boolean);
+/**
+ * View a mask's bytes without copying. zarrita returns a BoolArray for bool data (no numeric
+ * indexing, one byte per element, exposing buffer/byteOffset/length); plain typed arrays also work.
+ */
+function maskBytes(data: zarr.TypedArray<zarr.DataType> | string[]): Uint8Array {
+  const d = data as unknown as { buffer: ArrayBuffer; byteOffset: number; length: number };
+  return new Uint8Array(d.buffer, d.byteOffset, d.length);
 }
 
 export async function decodeNullableString(
@@ -103,8 +107,13 @@ export async function decodeNullableString(
     readArray(valuesArr, signal),
     readArray(maskArr, signal),
   ]);
-  const mask = readMask(maskResult.data);
-  return toStringArray(valuesResult.data).map((v, i) => (mask[i] ? null : v));
+  const mask = maskBytes(maskResult.data);
+  const values: (string | null)[] = toStringArray(valuesResult.data);
+  // Nothing missing: return the values as-is, no copy
+  if (mask.indexOf(1) === -1) return values;
+  const out = values.slice();
+  for (let i = 0; i < out.length; i++) if (mask[i]) out[i] = null;
+  return out;
 }
 
 /** Read a dataframe index stored as a plain array, a categorical group or a nullable-string group. */
@@ -114,12 +123,13 @@ export async function decodeIndex(
   open: OpenFn = defaultOpen,
   signal?: AbortSignal,
 ): Promise<(string | number | null)[]> {
+  // Array first: plain indexes are the common case, and on v2 stores a group probe is an extra 404
   let node: ZarrGroup;
   try {
-    node = (await open(group.resolve(indexKey), { kind: "group" })) as ZarrGroup;
-  } catch {
     const arr = (await open(group.resolve(indexKey), { kind: "array" })) as ZarrArray;
     return toStringArray((await readArray(arr, signal)).data);
+  } catch {
+    node = (await open(group.resolve(indexKey), { kind: "group" })) as ZarrGroup;
   }
   if (node.attrs?.["encoding-type"] === "nullable-string-array") {
     return decodeNullableString(node, open, signal);
@@ -209,7 +219,11 @@ export async function decodeDataframe(
   const indexKey = attrs["_index"] as string;
   const columnOrder = attrs["column-order"] as string[];
 
-  const index = (await decodeIndex(group, indexKey, open)).map(String);
+  const rawIndex = await decodeIndex(group, indexKey, open);
+  // Only copy when some entry isn't already a string (e.g. numeric or null index)
+  const index = rawIndex.every((v) => typeof v === "string")
+    ? (rawIndex as string[])
+    : rawIndex.map(String);
 
   const columns: Record<string, zarr.TypedArray<zarr.DataType> | (string | number | null)[]> = {};
   for (const colName of columnOrder) {
@@ -231,11 +245,12 @@ export async function decodeNullable(
   const valuesResult = await readArray(valuesArr, signal);
   const maskResult = await readArray(maskArr, signal);
 
-  const mask = readMask(maskResult.data);
+  const mask = maskBytes(maskResult.data);
+  const anyMissing = mask.indexOf(1) !== -1;
   const values = Array.from(
     valuesResult.data as ArrayLike<number | boolean>,
     (v, i) => {
-      if (mask[i]) return null;
+      if (anyMissing && mask[i]) return null;
       // Convert BigInt to number if needed
       return typeof v === "bigint" ? Number(v) : v;
     },
