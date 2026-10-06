@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { AnnDataStore } from "./AnnDataStore";
+import type { MeasureDetail } from "./ProfileCollector";
 
 const NULLABLE_URL = `${globalThis.__TEST_BASE_URL__}/nullable-strings.zarr`;
 const CELLS = ["cell_0", "cell_1", "cell_2", "cell_3", "cell_4", "cell_5"];
@@ -26,5 +27,21 @@ describe("nullable-string-array stores", () => {
   it("masks missing values in a nullable integer column", async () => {
     const adata = await AnnDataStore.open(NULLABLE_URL);
     expect(await adata.obsColumn("count")).toEqual([1, null, 3, 4, null, 6]);
+  });
+
+  it("reads obs and var names from nullable indexes", async () => {
+    const adata = await AnnDataStore.open(NULLABLE_URL);
+    expect(await adata.obsNames()).toEqual(CELLS);
+    expect(await adata.varNames()).toEqual(["gene_0", "gene_1", "gene_2"]);
+  });
+
+  it("reports chunk info for a nullable index to the profiler", async () => {
+    const adata = await AnnDataStore.open(NULLABLE_URL);
+    await adata.obsNames();
+    const measures = performance
+      .getEntriesByType("measure")
+      .map((e) => (e as PerformanceMeasure).detail as MeasureDetail | undefined)
+      .filter((d) => d?.key === "obsNames");
+    expect(measures.at(-1)?.chunks?.arrayShape).toEqual([6]);
   });
 });
