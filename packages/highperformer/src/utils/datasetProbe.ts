@@ -56,10 +56,11 @@ export function parseStoreShape(doc: unknown, version: number): StoreShape | und
     const obs = md.obs as Record<string, unknown> | undefined
     const indexName = (obs?.attributes as Record<string, unknown> | undefined)?._index
     if (typeof indexName === 'string') {
-      const indexNode = md[`obs/${indexName}`] ?? md[`obs/${indexName}/codes`]
-      const shape = (indexNode as Record<string, unknown> | undefined)?.shape
-      const nObs = Array.isArray(shape) ? asPositiveInt(shape[0]) : undefined
-      if (nObs) return { nObs }
+      for (const path of [`obs/${indexName}`, `obs/${indexName}/codes`, `obs/${indexName}/values`]) {
+        const shape = (md[path] as Record<string, unknown> | undefined)?.shape
+        const nObs = Array.isArray(shape) ? asPositiveInt(shape[0]) : undefined
+        if (nObs) return { nObs }
+      }
     }
     return undefined
   }
@@ -82,7 +83,7 @@ export function parseStoreShape(doc: unknown, version: number): StoreShape | und
 
   const indexName = (md['obs/.zattrs'] as Record<string, unknown> | undefined)?._index
   if (typeof indexName === 'string') {
-    for (const path of [`obs/${indexName}/.zarray`, `obs/${indexName}/codes/.zarray`]) {
+    for (const path of [`obs/${indexName}/.zarray`, `obs/${indexName}/codes/.zarray`, `obs/${indexName}/values/.zarray`]) {
       const shape = (md[path] as Record<string, unknown> | undefined)?.shape
       const nObs = Array.isArray(shape) ? asPositiveInt(shape[0]) : undefined
       if (nObs) return { nObs }

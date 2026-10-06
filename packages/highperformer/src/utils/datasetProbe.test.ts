@@ -111,6 +111,30 @@ describe('parseStoreShape', () => {
     expect(parseStoreShape(doc, 3)).toEqual({ nObs: 927205 })
   })
 
+  it('falls back to a nullable-string obs index length when v3 has no X', () => {
+    const doc = {
+      consolidated_metadata: {
+        metadata: {
+          obs: { node_type: 'group', attributes: { _index: 'cell_id' } },
+          'obs/cell_id': { node_type: 'group', attributes: { 'encoding-type': 'nullable-string-array' } },
+          'obs/cell_id/values': { node_type: 'array', shape: [927205] },
+          'obs/cell_id/mask': { node_type: 'array', shape: [927205] },
+        },
+      },
+    }
+    expect(parseStoreShape(doc, 3)).toEqual({ nObs: 927205 })
+  })
+
+  it('falls back to a nullable-string obs index length when v2 has no X', () => {
+    const doc = {
+      metadata: {
+        'obs/.zattrs': { _index: 'cell_id' },
+        'obs/cell_id/values/.zarray': { shape: [2700] },
+      },
+    }
+    expect(parseStoreShape(doc, 2)).toEqual({ nObs: 2700 })
+  })
+
   it('reads a dense X from v2 .zmetadata', () => {
     const doc = { metadata: { 'X/.zarray': { shape: [2700, 32738] } } }
     expect(parseStoreShape(doc, 2)).toEqual({ nObs: 2700, nVar: 32738 })
