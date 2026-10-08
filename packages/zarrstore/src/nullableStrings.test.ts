@@ -78,13 +78,13 @@ describe("nullable-string-array stores", () => {
     }
   });
 
-  it("does not probe for a group when reading a plain-array column on a v2 store", async () => {
+  it("does not probe for an array when reading a categorical column on a v2 store", async () => {
     const adata = await AnnDataStore.open(`${globalThis.__TEST_BASE_URL__}/pbmc3k.zarr`);
     const spy = vi.spyOn(globalThis, "fetch");
     try {
-      await adata.obsColumn("n_genes");
+      await adata.obsColumn("louvain");
       const urls = spy.mock.calls.map((c) => String(c[0] instanceof Request ? c[0].url : c[0]));
-      expect(urls.filter((u) => u.endsWith(".zgroup"))).toEqual([]);
+      expect(urls.filter((u) => u.endsWith("/louvain/.zarray"))).toEqual([]);
     } finally {
       spy.mockRestore();
     }

@@ -209,9 +209,15 @@ export async function decodeColumn(
   open: OpenFn = defaultOpen,
   signal?: AbortSignal,
 ): Promise<zarr.TypedArray<zarr.DataType> | (string | number | null)[]> {
-  const opened = await openArrayOrGroup(group.resolve(colName), open);
-  if (opened.array) {
-    const result = await readArray(opened.array, signal);
+  let node: ZarrGroup;
+  try {
+    // Group first: categorical and nullable columns are groups, and on v2 consolidated
+    // stores their .zgroup is served from the metadata cache
+    node = (await open(group.resolve(colName), { kind: "group" })) as ZarrGroup;
+  } catch {
+    // not a group — open as array
+    const arr = (await open(group.resolve(colName), { kind: "array" })) as ZarrArray;
+    const result = await readArray(arr, signal);
     if (
       typeof (result.data as unknown as Record<number, unknown>)[0] === "string" ||
       result.data instanceof Array
@@ -220,7 +226,6 @@ export async function decodeColumn(
     }
     return result.data;
   }
-  const node = opened.group;
 
   const encodingType = node.attrs?.["encoding-type"] as string | undefined;
   if (encodingType === "categorical") {
