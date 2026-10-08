@@ -34,8 +34,13 @@ export interface Nullable {
   mask: zarr.TypedArray<zarr.DataType>;
 }
 
+export interface NullableString {
+  values: (string | null)[];
+  mask: zarr.TypedArray<zarr.DataType>;
+}
+
 export interface Dataframe {
-  index: string[];
+  index: (string | null)[];
   columns: Record<string, zarr.TypedArray<zarr.DataType> | (string | number | null)[]>;
   columnOrder: string[];
 }
@@ -96,21 +101,61 @@ function maskBytes(data: zarr.TypedArray<zarr.DataType> | string[]): Uint8Array 
   return new Uint8Array(d.buffer, d.byteOffset, d.length);
 }
 
-export async function decodeNullableString(
+/** Open the values and mask arrays of a nullable-* group and read them concurrently. */
+async function readValuesAndMask(
   group: ZarrGroup,
-  open: OpenFn = defaultOpen,
+  open: OpenFn,
   signal?: AbortSignal,
-): Promise<(string | null)[]> {
-  const valuesArr = (await open(group.resolve("values"), { kind: "array" })) as ZarrArray;
-  const maskArr = (await open(group.resolve("mask"), { kind: "array" })) as ZarrArray;
+): Promise<{
+  valuesData: zarr.TypedArray<zarr.DataType>;
+  maskData: zarr.TypedArray<zarr.DataType>;
+  mask: Uint8Array;
+  anyMissing: boolean;
+}> {
+  const [valuesArr, maskArr] = (await Promise.all([
+    open(group.resolve("values"), { kind: "array" }),
+    open(group.resolve("mask"), { kind: "array" }),
+  ])) as [ZarrArray, ZarrArray];
   const [valuesResult, maskResult] = await Promise.all([
     readArray(valuesArr, signal),
     readArray(maskArr, signal),
   ]);
   const mask = maskBytes(maskResult.data);
-  const values: (string | null)[] = toStringArray(valuesResult.data);
+  return {
+    valuesData: valuesResult.data,
+    maskData: maskResult.data,
+    mask,
+    anyMissing: mask.indexOf(1) !== -1,
+  };
+}
+
+/**
+ * Open a node as an array, falling back to a group only when opening as an array fails.
+ * Read errors are the caller's to surface, so they are never mistaken for "not an array".
+ */
+async function openArrayOrGroup(
+  location: ZarrLocation,
+  open: OpenFn,
+): Promise<{ array: ZarrArray; group?: undefined } | { group: ZarrGroup; array?: undefined }> {
+  // Array first: plain columns/indexes are the common case, and on v2 stores a group probe is an extra 404
+  let array: ZarrArray;
+  try {
+    array = (await open(location, { kind: "array" })) as ZarrArray;
+  } catch {
+    return { group: (await open(location, { kind: "group" })) as ZarrGroup };
+  }
+  return { array };
+}
+
+export async function decodeNullableString(
+  group: ZarrGroup,
+  open: OpenFn = defaultOpen,
+  signal?: AbortSignal,
+): Promise<(string | null)[]> {
+  const { valuesData, mask, anyMissing } = await readValuesAndMask(group, open, signal);
+  const values: (string | null)[] = toStringArray(valuesData);
   // Nothing missing: return the values as-is, no copy
-  if (mask.indexOf(1) === -1) return values;
+  if (!anyMissing) return values;
   const out = values.slice();
   for (let i = 0; i < out.length; i++) if (mask[i]) out[i] = null;
   return out;
@@ -123,14 +168,9 @@ export async function decodeIndex(
   open: OpenFn = defaultOpen,
   signal?: AbortSignal,
 ): Promise<(string | number | null)[]> {
-  // Array first: plain indexes are the common case, and on v2 stores a group probe is an extra 404
-  let node: ZarrGroup;
-  try {
-    const arr = (await open(group.resolve(indexKey), { kind: "array" })) as ZarrArray;
-    return toStringArray((await readArray(arr, signal)).data);
-  } catch {
-    node = (await open(group.resolve(indexKey), { kind: "group" })) as ZarrGroup;
-  }
+  const opened = await openArrayOrGroup(group.resolve(indexKey), open);
+  if (opened.array) return toStringArray((await readArray(opened.array, signal)).data);
+  const node = opened.group;
   if (node.attrs?.["encoding-type"] === "nullable-string-array") {
     return decodeNullableString(node, open, signal);
   }
@@ -169,13 +209,9 @@ export async function decodeColumn(
   open: OpenFn = defaultOpen,
   signal?: AbortSignal,
 ): Promise<zarr.TypedArray<zarr.DataType> | (string | number | null)[]> {
-  let node: ZarrGroup;
-  try {
-    node = (await open(group.resolve(colName), { kind: "group" })) as ZarrGroup;
-  } catch {
-    // not a group — open as array
-    const arr = (await open(group.resolve(colName), { kind: "array" })) as ZarrArray;
-    const result = await readArray(arr, signal);
+  const opened = await openArrayOrGroup(group.resolve(colName), open);
+  if (opened.array) {
+    const result = await readArray(opened.array, signal);
     if (
       typeof (result.data as unknown as Record<number, unknown>)[0] === "string" ||
       result.data instanceof Array
@@ -184,6 +220,7 @@ export async function decodeColumn(
     }
     return result.data;
   }
+  const node = opened.group;
 
   const encodingType = node.attrs?.["encoding-type"] as string | undefined;
   if (encodingType === "categorical") {
@@ -220,10 +257,11 @@ export async function decodeDataframe(
   const columnOrder = attrs["column-order"] as string[];
 
   const rawIndex = await decodeIndex(group, indexKey, open);
-  // Only copy when some entry isn't already a string (e.g. numeric or null index)
-  const index = rawIndex.every((v) => typeof v === "string")
-    ? (rawIndex as string[])
-    : rawIndex.map(String);
+  // Only copy when some entry isn't already a string or null (e.g. a numeric index);
+  // missing entries stay null, matching obsNames()/varNames()
+  const index = rawIndex.every((v) => v === null || typeof v === "string")
+    ? (rawIndex as (string | null)[])
+    : rawIndex.map((v) => (v === null ? null : String(v)));
 
   const columns: Record<string, zarr.TypedArray<zarr.DataType> | (string | number | null)[]> = {};
   for (const colName of columnOrder) {
@@ -238,17 +276,9 @@ export async function decodeNullable(
   open: OpenFn = defaultOpen,
   signal?: AbortSignal,
 ): Promise<Nullable> {
-  const valuesArr = (await open(group.resolve("values"), {
-    kind: "array",
-  })) as ZarrArray;
-  const maskArr = (await open(group.resolve("mask"), { kind: "array" })) as ZarrArray;
-  const valuesResult = await readArray(valuesArr, signal);
-  const maskResult = await readArray(maskArr, signal);
-
-  const mask = maskBytes(maskResult.data);
-  const anyMissing = mask.indexOf(1) !== -1;
+  const { valuesData, maskData, mask, anyMissing } = await readValuesAndMask(group, open, signal);
   const values = Array.from(
-    valuesResult.data as ArrayLike<number | boolean>,
+    valuesData as ArrayLike<number | boolean>,
     (v, i) => {
       if (anyMissing && mask[i]) return null;
       // Convert BigInt to number if needed
@@ -256,7 +286,7 @@ export async function decodeNullable(
     },
   );
 
-  return { values, mask: maskResult.data };
+  return { values, mask: maskData };
 }
 
 export async function decodeSparseMatrix(
@@ -323,6 +353,7 @@ export type DecodeNodeResult =
   | SparseMatrix
   | Categorical
   | Nullable
+  | NullableString
   | ArrayResult
   | { attrs: Record<string, unknown> };
 
@@ -348,6 +379,12 @@ export async function decodeNode(
     case "nullable-integer":
     case "nullable-boolean":
       return decodeNullable(location, open);
+    case "nullable-string-array": {
+      const { valuesData, maskData, mask, anyMissing } = await readValuesAndMask(location, open);
+      const values: (string | null)[] = toStringArray(valuesData);
+      const out = anyMissing ? values.map((v, i) => (mask[i] ? null : v)) : values;
+      return { values: out, mask: maskData };
+    }
     default: {
       // Dense array or unknown group — try as array first
       try {

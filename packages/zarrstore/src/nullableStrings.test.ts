@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
+import * as zarr from "zarrita";
 import { AnnDataStore } from "./AnnDataStore";
+import { decodeNode } from "./decoders";
 import type { MeasureDetail } from "./ProfileCollector";
 
 const NULLABLE_URL = `${globalThis.__TEST_BASE_URL__}/nullable-strings.zarr`;
@@ -74,5 +76,25 @@ describe("nullable-string-array stores", () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it("does not probe for a group when reading a plain-array column on a v2 store", async () => {
+    const adata = await AnnDataStore.open(`${globalThis.__TEST_BASE_URL__}/pbmc3k.zarr`);
+    const spy = vi.spyOn(globalThis, "fetch");
+    try {
+      await adata.obsColumn("n_genes");
+      const urls = spy.mock.calls.map((c) => String(c[0] instanceof Request ? c[0].url : c[0]));
+      expect(urls.filter((u) => u.endsWith(".zgroup"))).toEqual([]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("decodes a nullable-string-array node reached through decodeNode", async () => {
+    const root = await zarr.open(new zarr.FetchStore(NULLABLE_URL), { kind: "group" });
+    const node = await zarr.open(root.resolve("obs/donor"), { kind: "group" });
+    const result = (await decodeNode(node)) as { values: unknown[]; mask: ArrayLike<number> };
+    expect(result.values).toEqual(["d1", null, "d2", "d1", null, "d2"]);
+    expect(Array.from(result.mask as ArrayLike<unknown>, Number)).toEqual([0, 1, 0, 0, 1, 0]);
   });
 });
