@@ -1,5 +1,14 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.8.1
+
+### Patch Changes
+
+- [#315](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/315) [`fc09731`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/fc09731e4d1294057a481ea3a4410be252ea3680) Thanks [@hweej](https://github.com/hweej)! - Read stores written with pandas 3 and anndata 0.13, which store string columns and obs/var indexes as `nullable-string-array` (a `values` + `mask` group). Missing values in nullable integer, boolean and string columns are returned as `null`, and missing obs/var index entries stay `null` instead of becoming the string "null". Plain-array columns now open without an extra group probe, and index read errors are no longer reported as "not found".
+
+- Updated dependencies [[`fc09731`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/fc09731e4d1294057a481ea3a4410be252ea3680)]:
+  - @cbioportal-cell-explorer/zarrstore@0.4.0
+
 ## 0.8.0
 
 ### Minor Changes
