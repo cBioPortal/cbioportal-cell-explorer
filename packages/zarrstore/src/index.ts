@@ -13,6 +13,8 @@ export {
   decodeColumn,
   decodeDataframe,
   decodeNullable,
+  decodeNullableString,
+  decodeIndex,
   decodeSparseMatrix,
   sparseToDense,
   decodeNode,

@@ -6,10 +6,9 @@ import {
   readArraySliced,
   decodeDataframe,
   decodeColumn,
-  decodeCategorical,
   decodeSparseMatrix,
   decodeNode,
-  toStringArray,
+  decodeIndex,
 } from "./decoders";
 import type {
   ArrayResult,
@@ -135,7 +134,8 @@ export class AnnDataStore {
    */
   #chunkInfoForColumn(slot: string, name: string): ChunkInfo | undefined {
     return this.#chunkInfoFromMetadata(`${slot}/${name}`)
-      ?? this.#chunkInfoFromMetadata(`${slot}/${name}/codes`);
+      ?? this.#chunkInfoFromMetadata(`${slot}/${name}/codes`)
+      ?? this.#chunkInfoFromMetadata(`${slot}/${name}/values`);
   }
 
   /**
@@ -153,7 +153,8 @@ export class AnnDataStore {
     const indexKey = (v2Attrs?.["_index"] ?? v3Attributes?.["_index"]) as string | undefined;
     if (!indexKey) return undefined;
     return this.#chunkInfoFromMetadata(`${slot}/${indexKey}`)
-      ?? this.#chunkInfoFromMetadata(`${slot}/${indexKey}/codes`);
+      ?? this.#chunkInfoFromMetadata(`${slot}/${indexKey}/codes`)
+      ?? this.#chunkInfoFromMetadata(`${slot}/${indexKey}/values`);
   }
 
   #cached<T>(
@@ -350,7 +351,9 @@ export class AnnDataStore {
       const idx = varNames.indexOf(geneName);
       if (idx < 0) return undefined;
 
-      const label = String(symbols[idx]);
+      const symbol = symbols[idx];
+      if (symbol == null) return undefined;
+      const label = String(symbol);
       // Don't return a label if it's identical to the key (already readable)
       return label && label !== geneName ? label : undefined;
     } catch {
@@ -452,21 +455,7 @@ export class AnnDataStore {
       "obsNames",
       async () => {
         const group = await this.#zarrStore.openGroup("obs");
-        const indexKey = group.attrs["_index"] as string;
-        // Index can be an array or a categorical group
-        const openFn = this.#zarrStore.openFn;
-        try {
-          const arr = await openFn(group.resolve(indexKey), { kind: "array" });
-          const result = await readArray(arr as zarr.Array<zarr.DataType, Readable>);
-          return toStringArray(result.data);
-        } catch {
-          // It's a categorical group
-          const catGroup = await openFn(group.resolve(indexKey), {
-            kind: "group",
-          });
-          const decoded = await decodeCategorical(catGroup as zarr.Group<Readable>, openFn);
-          return decoded.values;
-        }
+        return decodeIndex(group, group.attrs["_index"] as string, this.#zarrStore.openFn);
       },
       { getChunkInfo: () => this.#chunkInfoForIndex("obs") },
     );
@@ -506,21 +495,7 @@ export class AnnDataStore {
       "varNames",
       async () => {
         const group = await this.#zarrStore.openGroup("var");
-        const indexKey = group.attrs["_index"] as string;
-        // Index can be an array or a categorical group
-        const openFn = this.#zarrStore.openFn;
-        try {
-          const arr = await openFn(group.resolve(indexKey), { kind: "array" });
-          const result = await readArray(arr as zarr.Array<zarr.DataType, Readable>);
-          return toStringArray(result.data);
-        } catch {
-          // It's a categorical group
-          const catGroup = await openFn(group.resolve(indexKey), {
-            kind: "group",
-          });
-          const decoded = await decodeCategorical(catGroup as zarr.Group<Readable>, openFn);
-          return decoded.values;
-        }
+        return decodeIndex(group, group.attrs["_index"] as string, this.#zarrStore.openFn);
       },
       { getChunkInfo: () => this.#chunkInfoForIndex("var") },
     );
