@@ -77,18 +77,18 @@ describe("buildViewStateSnapshot", () => {
     expect(buildViewStateSnapshot().highlightedCategories).toEqual(["T cell"]);
   });
 
-  it("omits pointSize/opacity when at defaults (0.5)", () => {
-    useAppStore.setState({ pointRadius: 0.5, opacity: 0.5 } as any);
+  it("omits pointSize/opacity when at defaults (1)", () => {
+    useAppStore.setState({ pointRadius: 1, opacity: 1 } as any);
     const snap = buildViewStateSnapshot();
     expect(snap.pointSize).toBeUndefined();
     expect(snap.opacity).toBeUndefined();
   });
 
   it("includes pointSize/opacity when non-default", () => {
-    useAppStore.setState({ pointRadius: 2, opacity: 0.3 } as any);
+    useAppStore.setState({ pointRadius: 0.5, opacity: 0.5 } as any);
     const snap = buildViewStateSnapshot();
-    expect(snap.pointSize).toBe(2);
-    expect(snap.opacity).toBe(0.3);
+    expect(snap.pointSize).toBe(0.5);
+    expect(snap.opacity).toBe(0.5);
   });
 
   it("includes summaryGenes resolved to symbols", () => {

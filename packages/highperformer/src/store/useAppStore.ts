@@ -342,6 +342,10 @@ const GROUP_COLORS: [number, number, number][] = [
 export const CUSTOM_GROUP_ID = 4
 export const EXPRESSION_GROUP_ID = 5
 
+// Built-in render defaults; a dataset's default_view or an explicit config overrides them
+export const DEFAULT_POINT_SIZE = 1
+export const DEFAULT_OPACITY = 1
+
 let selectionVersion = 0
 export function getSelectionVersion(): number { return selectionVersion }
 export function resetSelectionVersion(): void { selectionVersion = 0 }
@@ -374,8 +378,8 @@ const useAppStore = create<AppState>((set, get) => ({
   selectedEmbedding: null,
 
   // Rendering controls
-  pointRadius: 0.5,
-  opacity: 0.5,
+  pointRadius: DEFAULT_POINT_SIZE,
+  opacity: DEFAULT_OPACITY,
   antialiasing: true,
   collisionEnabled: false,
   collisionRadiusScale: 0,
@@ -1228,7 +1232,7 @@ const useAppStore = create<AppState>((set, get) => ({
         obsmKeys,
         selectedEmbedding: defaultKey,
         loading: false,
-        opacity: adata.nObs > 1_000_000 ? 0.3 : 0.5,
+        opacity: DEFAULT_OPACITY,
       })
       if (defaultKey) get().fetchEmbedding(defaultKey)
     } catch (err) {

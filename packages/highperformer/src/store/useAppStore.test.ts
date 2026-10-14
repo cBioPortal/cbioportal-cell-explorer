@@ -33,7 +33,7 @@ vi.mock('../api', () => ({
   api: { GET: mockGET, POST: mockPOST },
 }))
 
-const { default: useAppStore, getColorBuildVersion, resetColorBuildVersion, resetSelectionVersion } = await import('./useAppStore')
+const { default: useAppStore, getColorBuildVersion, resetColorBuildVersion, resetSelectionVersion, DEFAULT_OPACITY } = await import('./useAppStore')
 
 describe('useAppStore', () => {
   beforeEach(() => {
@@ -54,8 +54,8 @@ describe('useAppStore', () => {
   describe('initial state', () => {
     it('has correct default values', () => {
       const state = useAppStore.getState()
-      expect(state.pointRadius).toBe(0.5)
-      expect(state.opacity).toBe(0.5)
+      expect(state.pointRadius).toBe(1)
+      expect(state.opacity).toBe(1)
       expect(state.antialiasing).toBe(true)
       expect(state.collisionEnabled).toBe(false)
       expect(state.collisionRadiusScale).toBe(0)
@@ -1330,6 +1330,18 @@ describe('useAppStore', () => {
 
       await useAppStore.getState().openCatalogDataset('public-ds')
       expect(mockOpen).toHaveBeenCalledWith('https://cdn.example.com/test.zarr', undefined)
+      mockOpen.mockRestore()
+    })
+
+    it('openDataset uses the default opacity for datasets over 1M cells', async () => {
+      useAppStore.setState({ opacity: 0.2 })
+      const { AnnDataStore } = await import('@cbioportal-cell-explorer/zarrstore')
+      const mockOpen = vi.spyOn(AnnDataStore, 'open').mockResolvedValueOnce({
+        nObs: 2_000_000, nVar: 50, obsmKeys: () => [],
+      } as any)
+
+      await useAppStore.getState().openDataset('https://cdn.example.com/big.zarr')
+      expect(useAppStore.getState().opacity).toBe(DEFAULT_OPACITY)
       mockOpen.mockRestore()
     })
 

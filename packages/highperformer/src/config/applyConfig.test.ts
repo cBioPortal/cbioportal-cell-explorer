@@ -850,26 +850,26 @@ describe('applyConfig — clear semantics (null)', () => {
     clearObsColumn.mockRestore()
   })
 
-  it("pointSize: null resets to default (0.5)", async () => {
+  it("pointSize: null resets to default (1)", async () => {
     useAppStore.setState({ pointRadius: 5 } as any)
     const result = await applyConfig({ pointSize: null })
     expect(result.ok).toBe(true)
-    expect(useAppStore.getState().pointRadius).toBe(0.5)
+    expect(useAppStore.getState().pointRadius).toBe(1)
   })
 
-  it("opacity: null resets to default (0.5)", async () => {
+  it("opacity: null resets to default (1)", async () => {
     useAppStore.setState({ opacity: 0.1 } as any)
     const result = await applyConfig({ opacity: null })
     expect(result.ok).toBe(true)
-    expect(useAppStore.getState().opacity).toBe(0.5)
+    expect(useAppStore.getState().opacity).toBe(1)
   })
 
   it("pointSize and opacity together reset both", async () => {
     useAppStore.setState({ pointRadius: 5, opacity: 0.1 } as any)
     const result = await applyConfig({ pointSize: null, opacity: null })
     expect(result.ok).toBe(true)
-    expect(useAppStore.getState().pointRadius).toBe(0.5)
-    expect(useAppStore.getState().opacity).toBe(0.5)
+    expect(useAppStore.getState().pointRadius).toBe(1)
+    expect(useAppStore.getState().opacity).toBe(1)
   })
 })
 
