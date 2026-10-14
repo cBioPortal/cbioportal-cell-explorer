@@ -1,5 +1,11 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.10.0
+
+### Minor Changes
+
+- [#321](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/321) [`c9df771`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/c9df77178a0af4384650fdfeed2ef9e4b3e9c927) Thanks [@hweej](https://github.com/hweej)! - Default point size and opacity are now 1.0 for every dataset, replacing 0.5 (and 0.3 opacity for datasets over 1M cells). A dataset's default view or an explicit config still overrides them.
+
 ## 0.9.0
 
 ### Minor Changes
