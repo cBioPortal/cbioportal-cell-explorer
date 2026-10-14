@@ -1,5 +1,5 @@
 import { AppConfigSchema, type AppConfig } from './schema'
-import useAppStore from '../store/useAppStore'
+import useAppStore, { DEFAULT_OPACITY, DEFAULT_POINT_SIZE } from '../store/useAppStore'
 import { waitForStore } from './waitForStore'
 import { ok, err, type ApplyResult } from './applyResult'
 
@@ -400,12 +400,12 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
   }
 
   // Rendering controls — map schema field names to store field names.
-  // `null` is the reset sentinel: restore the store defaults (0.5 / 0.5).
+  // `null` is the reset sentinel: restore the built-in defaults.
   if (config.pointSize !== undefined) {
-    store.setState({ pointRadius: config.pointSize ?? 0.5 })
+    store.setState({ pointRadius: config.pointSize ?? DEFAULT_POINT_SIZE })
   }
   if (config.opacity !== undefined) {
-    store.setState({ opacity: config.opacity ?? 0.5 })
+    store.setState({ opacity: config.opacity ?? DEFAULT_OPACITY })
   }
 
   // Viewport — delegate to the store action.

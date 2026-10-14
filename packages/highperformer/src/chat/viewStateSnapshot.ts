@@ -10,7 +10,7 @@
  * separate tool call.
  */
 
-import useAppStore from "../store/useAppStore";
+import useAppStore, { DEFAULT_OPACITY, DEFAULT_POINT_SIZE } from "../store/useAppStore";
 
 export type FilterSnapshot =
   | { kind: "ids"; obsColumn: string; matchedCount: number }
@@ -59,8 +59,8 @@ export function buildViewStateSnapshot(): ViewStateSnapshot {
   }
 
   if (s.geneLabelColumn) snap.geneLabelColumn = s.geneLabelColumn;
-  if (s.pointRadius !== 0.5) snap.pointSize = s.pointRadius;
-  if (s.opacity !== 0.5) snap.opacity = s.opacity;
+  if (s.pointRadius !== DEFAULT_POINT_SIZE) snap.pointSize = s.pointRadius;
+  if (s.opacity !== DEFAULT_OPACITY) snap.opacity = s.opacity;
 
   // Map store's internal value ('all' | 'selections' | 'compare') to the
   // agent-facing surface. 'compare' is intentionally UI-only.
