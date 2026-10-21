@@ -3,7 +3,7 @@ import { Button, ConfigProvider, Table, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { ApartmentOutlined, LinkOutlined, DeleteOutlined } from '@ant-design/icons'
 import StatusLine from './StatusLine'
-import { t, labelStyle } from './landingTokens'
+import { t } from './landingTokens'
 import { formatCount } from '../utils/formatCount'
 import { compareByName, compareByCollection, makeShapeComparator } from '../utils/sortEntries'
 import type { ProbeResult, ResolvedAccess } from '../hooks/useDatasetProbes'
@@ -82,9 +82,6 @@ export default function DatasetTable({
           <>
             <div className="ce-row-title">
               <span className="ce-row-name">{entry.name}</span>
-              {entry.savedUrl && (
-                <span className="ce-tag ce-tag-local" style={labelStyle}>Local</span>
-              )}
             </div>
             {entry.description ? (
               <div className="ce-row-desc">{entry.description}</div>
@@ -186,7 +183,9 @@ export default function DatasetTable({
                 />
               </Tooltip>
             )}
-            {onRemove && entry.savedUrl && (
+            {/* A catalog row stays listed whatever is saved, so removing
+                its saved URL would appear to do nothing. */}
+            {onRemove && entry.kind === 'local' && (
               <Tooltip title="Remove URL">
                 <Button
                   type="text"

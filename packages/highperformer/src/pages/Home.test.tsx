@@ -149,7 +149,6 @@ describe('Home', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /Unannotated/ }))
     await waitFor(() => expect(screen.getByText('mine.zarr')).toBeDefined())
-    expect(screen.getByText('Local')).toBeDefined()
   })
 
   it('reports the collection count even though the chips row is gone', () => {
