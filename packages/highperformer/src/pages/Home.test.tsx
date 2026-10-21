@@ -202,6 +202,17 @@ describe('Home', () => {
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toEqual([])
   })
 
+  it('forgets saved URLs the catalog already lists, keeping the rest', async () => {
+    // Earlier versions saved every dataset the viewer opened, catalog ones
+    // included; the catalog row already covers those (#309).
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(['https://cdn/lung.zarr/', 'https://cdn/mine.zarr']))
+    setStore({ catalogDatasets: [LUNG] })
+    renderHome()
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toEqual(['https://cdn/mine.zarr']),
+    )
+  })
+
   it('shows no tabs when every dataset is unannotated, and lists them all', () => {
     // The real catalogue today: the backend indexes nothing, so nothing is
     // annotated. A default Annotated tab would render empty.
