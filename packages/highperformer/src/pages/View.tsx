@@ -660,6 +660,18 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     return { length: embeddingData.numPoints, attributes }
   }, [embeddingData, colorBuffer, radiusBuffer, selectionFilterBuffer, selectionDisplayMode])
 
+  // Key forces deck.gl to re-initialize when view state changes (new embedding)
+  const deckKey = useMemo(
+    () => embeddingData ? `${embeddingData.bounds.minX}-${embeddingData.bounds.maxX}` : 'empty',
+    [embeddingData],
+  )
+
+  // deckKey is a dependency even though the body never reads it: a new key
+  // remounts DeckGL with a fresh WebGL context, and a layer instance already
+  // initialized in the old context fails deck.gl's init assertion and draws
+  // with destroyed programs. The label layer can be built before the new
+  // embedding's positions arrive (its centroids may be cached), so without
+  // this it would be carried across the remount.
   const categoryLabelLayer = useMemo(() => {
     if (!effectiveLabelColumn) return null
     const cache = categoryCentroids.get(`${selectedEmbedding}::${effectiveLabelColumn}`)
@@ -715,6 +727,7 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     highlightedCategories,
     categoryMap,
     labelColumnObsData,
+    deckKey,
   ])
 
   const layers = useMemo(() => {
@@ -771,12 +784,6 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     if (categoryLabelLayer) layers.push(categoryLabelLayer)
     return layers
   }, [layerData, colorBuffer, radiusBuffer, pointRadius, antialiasing, collisionEnabled, collisionRadiusScale, selectionFilterBuffer, selectionDisplayMode, selectionGroups, categoryLabelLayer])
-
-  // Key forces deck.gl to re-initialize when view state changes (new embedding)
-  const deckKey = useMemo(
-    () => embeddingData ? `${embeddingData.bounds.minX}-${embeddingData.bounds.maxX}` : 'empty',
-    [embeddingData],
-  )
 
   // Reset controlled mode on embedding switch — the new deck.gl mount starts
   // uncontrolled and consumes the new initialViewState fresh.
