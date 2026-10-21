@@ -116,8 +116,8 @@ export function normalizeStoreUrl(url: string): string {
  * name, and every total counted it twice.
  *
  * Where they coincide the catalogue row wins, since it carries the name,
- * description, collection and harvested counts, and inherits `savedUrl` so the
- * badge and the remove action survive the merge.
+ * description, collection and harvested counts. It still records `savedUrl`,
+ * but offers no remove: the catalog row would stay listed regardless.
  */
 export function mergeSavedUrls(
   savedUrls: string[],

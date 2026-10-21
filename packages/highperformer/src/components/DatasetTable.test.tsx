@@ -45,10 +45,11 @@ describe('DatasetTable', () => {
     expect(screen.getByText('Nothing here')).toBeDefined()
   })
 
-  it('tags a locally added URL and names it after its last path segment', () => {
+  it('names a locally added URL after its last path segment, without a tag', () => {
+    // "Local" read as "stored on this machine", not "added by you" (#309).
     renderTable({ entries: [localToEntry('https://cdn/my-atlas.zarr')] })
     expect(screen.getByText('my-atlas.zarr')).toBeDefined()
-    expect(screen.getByText('Local')).toBeDefined()
+    expect(screen.queryByText('Local')).toBeNull()
   })
 
   it('shows the collection a catalog dataset belongs to', () => {
@@ -142,6 +143,15 @@ describe('DatasetTable', () => {
     expect(buttons).toHaveLength(1)
     fireEvent.click(buttons[0])
     expect(onRemove).toHaveBeenCalledWith(expect.objectContaining({ key: 'https://cdn/mine.zarr' }))
+  })
+
+  it('offers no remove on a catalog row whose URL is also saved', () => {
+    // Removing would only forget the saved URL; the catalog row stays put.
+    renderTable({
+      entries: [{ ...catalogToEntry(DATASET), savedUrl: DATASET.url }],
+      onRemove: vi.fn(),
+    })
+    expect(screen.queryByRole('button', { name: /^Remove / })).toBeNull()
   })
 })
 

@@ -19,6 +19,7 @@ import {
   countsFor,
   mergeSavedUrls,
   matchesSearch,
+  normalizeStoreUrl,
   type DatasetEntry,
 } from '../utils/datasetEntries'
 
@@ -63,6 +64,20 @@ function Home() {
   useEffect(() => {
     saveDatasets(localUrls)
   }, [localUrls])
+
+  // The viewer used to save every dataset it opened, catalog ones included.
+  // The catalog row already lists those, so forget them; otherwise they linger
+  // in the viewer's dataset switcher.
+  useEffect(() => {
+    const catalogUrls = new Set(
+      catalogDatasets.flatMap((d) => (d.url ? [normalizeStoreUrl(d.url)] : [])),
+    )
+    if (catalogUrls.size === 0) return
+    setLocalUrls((prev) => {
+      const kept = prev.filter((u) => !catalogUrls.has(normalizeStoreUrl(u)))
+      return kept.length === prev.length ? prev : kept
+    })
+  }, [catalogDatasets])
 
   const removeEntry = (entry: DatasetEntry) => {
     // Keyed by slug once merged, so remove by the saved URL, not the key.

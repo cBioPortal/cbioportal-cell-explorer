@@ -272,15 +272,11 @@ function LeftSidebarContent() {
   const selectedEmbedding = useAppStore((s) => s.selectedEmbedding)
   const setSelectedEmbedding = useAppStore((s) => s.setSelectedEmbedding)
 
-  // Build dataset options from localStorage, ensuring current URL is included
+  // Saved URLs, plus the current dataset when it is not one of them — a
+  // catalog dataset is listed so the select can show it, but never saved.
   const datasetOptions = useMemo(() => {
     const saved = loadDatasets()
-    if (datasetUrl && !saved.includes(datasetUrl)) {
-      const updated = [datasetUrl, ...saved]
-      saveDatasets(updated)
-      return updated
-    }
-    return saved
+    return datasetUrl && !saved.includes(datasetUrl) ? [datasetUrl, ...saved] : saved
   }, [datasetUrl])
 
   return (
@@ -930,7 +926,14 @@ function View() {
   useEffect(() => {
     if (configParam) return
     if (datasetParam) openCatalogDataset(datasetParam)
-    else if (urlParam) openDataset(urlParam)
+    else if (urlParam) {
+      // Only URLs opened directly are remembered. Catalog datasets are already
+      // listed by the catalog, and a private one's URL is useless without the
+      // credentials `/access` grants alongside it.
+      const saved = loadDatasets()
+      if (!saved.includes(urlParam)) saveDatasets([urlParam, ...saved])
+      openDataset(urlParam)
+    }
   }, [urlParam, datasetParam, configParam, openDataset, openCatalogDataset])
 
   if (loadingError) {

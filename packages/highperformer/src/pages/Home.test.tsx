@@ -149,7 +149,6 @@ describe('Home', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /Unannotated/ }))
     await waitFor(() => expect(screen.getByText('mine.zarr')).toBeDefined())
-    expect(screen.getByText('Local')).toBeDefined()
   })
 
   it('reports the collection count even though the chips row is gone', () => {
@@ -201,6 +200,17 @@ describe('Home', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Remove / }))
     await waitFor(() => expect(screen.queryByText('mine.zarr')).toBeNull())
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toEqual([])
+  })
+
+  it('forgets saved URLs the catalog already lists, keeping the rest', async () => {
+    // Earlier versions saved every dataset the viewer opened, catalog ones
+    // included; the catalog row already covers those (#309).
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(['https://cdn/lung.zarr/', 'https://cdn/mine.zarr']))
+    setStore({ catalogDatasets: [LUNG] })
+    renderHome()
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toEqual(['https://cdn/mine.zarr']),
+    )
   })
 
   it('shows no tabs when every dataset is unannotated, and lists them all', () => {

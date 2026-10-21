@@ -744,19 +744,6 @@ body {
   letter-spacing: -0.005em;
 }
 
-.ce-tag {
-  color: var(--text-muted);
-  border: 1px solid var(--line);
-  border-radius: calc(var(--radius) / 2);
-  padding: 2px 7px;
-  line-height: 1.5;
-}
-
-.ce-tag-local {
-  color: var(--ink);
-  border-color: var(--ink);
-}
-
 .ce-row-desc {
   margin-top: 5px;
   font-size: 14.5px;
