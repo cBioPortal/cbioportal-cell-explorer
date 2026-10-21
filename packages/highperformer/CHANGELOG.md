@@ -1,5 +1,11 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.10.1
+
+### Patch Changes
+
+- [#326](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/326) [`30eb847`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/30eb847836343f9399315d99df0791e0dd63eb96) Thanks [@hweej](https://github.com/hweej)! - Catalog datasets are no longer tagged "Local" after being opened. The viewer now remembers only URLs opened with `?url=`, the "Local" tag is gone, "Remove URL" appears only on URLs you added, and catalog URLs saved by earlier versions are cleared from the list.
+
 ## 0.10.0
 
 ### Minor Changes
