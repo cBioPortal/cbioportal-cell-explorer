@@ -1,4 +1,5 @@
 import { Alert } from "antd";
+import { loginUrl } from "../utils/loginUrl";
 
 export function ChatPermissionBanner({ reason }: { reason: string }) {
   if (reason === "requires_auth") {
@@ -10,7 +11,7 @@ export function ChatPermissionBanner({ reason }: { reason: string }) {
         description={
           <>
             Chat requires an authenticated session.{" "}
-            <a href="/api/auth/login">Sign in</a> to continue.
+            <a href={loginUrl()}>Sign in</a> to continue.
           </>
         }
       />
