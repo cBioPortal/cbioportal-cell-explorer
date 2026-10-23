@@ -2,6 +2,7 @@ import { Button, Popover, Typography } from 'antd'
 import { LoginOutlined, LogoutOutlined } from '@ant-design/icons'
 import useAppStore from '../store/useAppStore'
 import { t } from './landingTokens'
+import { loginUrl } from '../utils/loginUrl'
 
 function getInitials(name: string): string {
   return name
@@ -33,7 +34,7 @@ export default function UserAvatar({ showName = false, onDark = false }: UserAva
         type="text"
         size="small"
         icon={<LoginOutlined />}
-        onClick={() => { window.location.href = '/api/auth/login' }}
+        onClick={() => { window.location.href = loginUrl() }}
         style={{
           fontSize: 12,
           color: onDark ? '#eaf1f8' : '#1677ff',
