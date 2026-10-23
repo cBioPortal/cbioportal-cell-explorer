@@ -1,5 +1,13 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.10.2
+
+### Patch Changes
+
+- [#328](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/328) [`3ef9f78`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/3ef9f7805e4ed35be30ecebfe011baa952ef5765) Thanks [@hweej](https://github.com/hweej)! - Switching embeddings with cluster labels shown no longer breaks the labels. The label layer could be carried over to the freshly mounted canvas, where it failed to initialize and logged WebGL errors (`getUniformBlockIndex … not of type 'WebGLProgram'`) on every frame.
+
+- [#330](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/330) [`8006e95`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/8006e95a6c7122a6d3ca40d74062478279b9db5a) Thanks [@inodb](https://github.com/inodb)! - Signing in now returns you to the page you were on (e.g. a dataset view or collection) instead of the index page. Requires the backend `next` parameter on `/api/auth/login` (cBioPortal/cell-explorer-py).
+
 ## 0.10.1
 
 ### Patch Changes
