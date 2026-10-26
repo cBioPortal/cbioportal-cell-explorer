@@ -1,5 +1,11 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.11.0
+
+### Minor Changes
+
+- [#332](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/332) [`4844ecc`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/4844ecceb359a757a2f0087168cf6422e75698ae) Thanks [@hweej](https://github.com/hweej)! - Chat renders bar charts that compare a few groups (cell-type composition, cell counts, or gene expression per group) and a diverging bar of the top genes from a two-group comparison.
+
 ## 0.10.2
 
 ### Patch Changes
