@@ -51,6 +51,39 @@ describe("getChartRenderer", () => {
     }
   });
 
+  it("renders grouped_bar and diverging_bar, and ignores malformed data", () => {
+    const grouped = {
+      title: "Cells per site",
+      value_kind: "count",
+      obs_column: "site",
+      categories: ["Adnexa"],
+      series: ["cells"],
+      values: [[10]],
+      n_cells: [10],
+    };
+    const G = getChartRenderer({ type: "grouped_bar", data: grouped });
+    expect(G).toBeDefined();
+    if (G) {
+      expect(render(<G data={grouped} />).container.textContent).toContain("Adnexa");
+      cleanup();
+      expect(render(<G data={{ categories: "nope" }} />).container.firstChild).toBeNull();
+      cleanup();
+    }
+    const diverging = {
+      obs_column: "site",
+      group_a: "Adnexa",
+      group_b: "Omentum",
+      genes: [{ symbol: "CD8A", cohens_d: 1.2 }],
+    };
+    const D = getChartRenderer({ type: "diverging_bar", data: diverging });
+    expect(D).toBeDefined();
+    if (D) {
+      expect(render(<D data={diverging} />).container.textContent).toContain("CD8A");
+    }
+    expect(getChartTableRenderer({ type: "grouped_bar", data: grouped })).toBeDefined();
+    expect(getChartTableRenderer({ type: "diverging_bar", data: diverging })).toBeDefined();
+  });
+
   it("returns undefined for unknown chart type", () => {
     const R = getChartRenderer({ type: "future_chart_xyz", data: {} });
     expect(R).toBeUndefined();

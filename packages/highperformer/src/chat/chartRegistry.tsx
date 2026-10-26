@@ -3,6 +3,10 @@ import TopGenesBarChart from "../components/TopGenesBarChart";
 import GenePanelDotplot from "../components/GenePanelDotplot";
 import TopGenesBarTable from "../components/TopGenesBarTable";
 import GenePanelDotplotTable from "../components/GenePanelDotplotTable";
+import GroupedBarChart, { isGroupedBarData } from "../components/GroupedBarChart";
+import GroupedBarTable from "../components/GroupedBarTable";
+import DivergingBarChart, { isDivergingBarData } from "../components/DivergingBarChart";
+import DivergingBarTable from "../components/DivergingBarTable";
 import type { ChartHint } from "./types";
 
 /**
@@ -47,9 +51,17 @@ const GenePanelDotplotAdapter: ChartRenderer = ({ data, width, isModal }) => {
   return <GenePanelDotplot data={d} width={width} isModal={isModal} />;
 };
 
+const GroupedBarAdapter: ChartRenderer = ({ data, width }) =>
+  isGroupedBarData(data) ? <GroupedBarChart data={data} width={width} /> : null;
+
+const DivergingBarAdapter: ChartRenderer = ({ data, width }) =>
+  isDivergingBarData(data) ? <DivergingBarChart data={data} width={width} /> : null;
+
 const REGISTRY: Record<string, ChartRenderer> = {
   top_genes_bar: TopGenesBarAdapter,
   gene_panel_dotplot: GenePanelDotplotAdapter,
+  grouped_bar: GroupedBarAdapter,
+  diverging_bar: DivergingBarAdapter,
 };
 
 /** Returns a chart renderer for the given hint, or undefined if unknown. */
@@ -86,9 +98,17 @@ const GenePanelDotplotTableAdapter: ChartTableRenderer = ({ data }) => {
   return <GenePanelDotplotTable data={d} />;
 };
 
+const GroupedBarTableAdapter: ChartTableRenderer = ({ data }) =>
+  isGroupedBarData(data) ? <GroupedBarTable data={data} /> : null;
+
+const DivergingBarTableAdapter: ChartTableRenderer = ({ data }) =>
+  isDivergingBarData(data) ? <DivergingBarTable data={data} /> : null;
+
 const TABLE_REGISTRY: Record<string, ChartTableRenderer> = {
   top_genes_bar: TopGenesBarTableAdapter,
   gene_panel_dotplot: GenePanelDotplotTableAdapter,
+  grouped_bar: GroupedBarTableAdapter,
+  diverging_bar: DivergingBarTableAdapter,
 };
 
 /** Returns a table renderer for the given hint, or undefined if unknown. */
