@@ -13,6 +13,26 @@ Plain `?url=` — should work exactly as before:
 http://localhost:5173/view?url=http://localhost:3005/spectrum_all_cells-f16-zstd-c1s30-v3.zarr/
 ```
 
+## Readable View Params
+
+`/view?dataset=` and `/view?url=` accept these optional params, applied after the
+dataset (and its `default_view`) loads. Once loaded, the URL is rewritten in place
+(no history entries) as the view changes. Ignored when `?config=` is present.
+
+| Param | Meaning | Example |
+|---|---|---|
+| `embedding` | obsm key | `embedding=X_umap50` |
+| `gene` | color by gene (symbol or var index) | `gene=EGFR` |
+| `colorBy` | color by obs column | `colorBy=cell_type` |
+| `colorScale` | gene color scale (`viridis`, `magma`, `plasma`, `inferno`) | `colorScale=magma` |
+
+`gene` wins over `colorBy` if both are given. A value that doesn't exist in the
+dataset shows a warning and is dropped from the URL.
+
+```
+http://localhost:5173/view?url=http://localhost:3005/spectrum_all_cells-f16-zstd-c1s30-v3.zarr/&embedding=X_umap50&gene=EGFR&colorScale=magma
+```
+
 ## Minimal Config
 
 Just the URL, everything else defaults:

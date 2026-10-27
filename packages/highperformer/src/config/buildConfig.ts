@@ -1,5 +1,6 @@
 import useAppStore from '../store/useAppStore'
 import type { AppConfig } from './schema'
+import { encodeQueryValue, mergeViewParams, viewParamsFromState } from './urlViewParams'
 
 export function buildConfigFromState(): AppConfig | null {
   const state = useAppStore.getState()
@@ -56,4 +57,15 @@ export function buildDatasetUrl(datasetUrl: string): string {
     return `${base}view?dataset=${encodeURIComponent(slug)}`
   }
   return `${base}view?url=${datasetUrl}`
+}
+
+/** Readable link to the current view: dataset plus the view params mirrored in the URL. */
+export function buildViewUrl(): string | null {
+  const state = useAppStore.getState()
+  if (!state.datasetUrl) return null
+  const base = `${window.location.origin}${import.meta.env.BASE_URL}`
+  const source = state.datasetSlug
+    ? `dataset=${encodeQueryValue(state.datasetSlug)}`
+    : `url=${encodeQueryValue(state.datasetUrl)}`
+  return `${base}view?${mergeViewParams(source, viewParamsFromState(state))}`
 }

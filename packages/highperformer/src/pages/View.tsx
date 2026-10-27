@@ -10,7 +10,8 @@ import { _StatsWidget as StatsWidget } from '@deck.gl/widgets'
 import { ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from '@cbioportal-cell-explorer/profiler'
 import useAppStore from '../store/useAppStore'
 import type { SpatialSelectionGroup } from '../store/useAppStore'
-import { buildConfigFromState, buildConfigUrl, buildDatasetUrl } from '../config/buildConfig'
+import { buildConfigFromState, buildConfigUrl, buildDatasetUrl, buildViewUrl } from '../config/buildConfig'
+import { useUrlViewState } from '../config/useUrlViewState'
 import { usePostMessage } from '../config/usePostMessage'
 import { parseConfig } from '../config/parseConfig'
 import { applyConfig } from '../config/applyConfig'
@@ -195,13 +196,39 @@ function AuthSection() {
   )
 }
 
+// The async Clipboard API is missing outside secure contexts (plain-http hosts),
+// so fall back to a selected textarea + execCommand there.
+async function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return
+    } catch {
+      // fall through to the legacy path
+    }
+  }
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  Object.assign(textarea.style, { position: 'fixed', top: '0', left: '0', opacity: '0' })
+  document.body.appendChild(textarea)
+  textarea.select()
+  const copied = document.execCommand('copy')
+  textarea.remove()
+  if (!copied) throw new Error('copy command failed')
+}
+
 function ShareLinkPopover({ datasetUrl }: { datasetUrl: string }) {
   const [open, setOpen] = useState(false)
-  const [copied, setCopied] = useState<'dataset' | 'config' | null>(null)
+  const [copied, setCopied] = useState<'view' | 'dataset' | 'config' | null>(null)
 
-  const handleCopy = (type: 'dataset' | 'config') => {
+  const handleCopy = (type: 'view' | 'dataset' | 'config') => {
     let url: string
-    if (type === 'dataset') {
+    if (type === 'view') {
+      const viewUrl = buildViewUrl()
+      if (!viewUrl) return
+      url = viewUrl
+    } else if (type === 'dataset') {
       url = buildDatasetUrl(datasetUrl)
     } else {
       const config = buildConfigFromState()
@@ -211,9 +238,10 @@ function ShareLinkPopover({ datasetUrl }: { datasetUrl: string }) {
         message.warning('Link copied — URL is very long and may not work in all browsers.')
       }
     }
-    navigator.clipboard.writeText(url).catch(() => {
-      message.error('Failed to copy link to clipboard')
-    })
+    copyToClipboard(url).then(
+      () => { message.success('Link copied to clipboard', 1.5) },
+      () => { message.error('Failed to copy link to clipboard') },
+    )
     setCopied(type)
     setTimeout(() => {
       setCopied(null)
@@ -223,6 +251,16 @@ function ShareLinkPopover({ datasetUrl }: { datasetUrl: string }) {
 
   const content = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 180 }}>
+      <div
+        style={{ padding: '4px 8px', cursor: 'pointer', borderRadius: 4 }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f5' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+        onClick={() => handleCopy('view')}
+      >
+        <Typography.Text style={{ fontSize: 12 }}>
+          {copied === 'view' ? 'Copied!' : 'Copy link to this view'}
+        </Typography.Text>
+      </div>
       <div
         style={{ padding: '4px 8px', cursor: 'pointer', borderRadius: 4 }}
         onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f5' }}
@@ -240,7 +278,7 @@ function ShareLinkPopover({ datasetUrl }: { datasetUrl: string }) {
         onClick={() => handleCopy('config')}
       >
         <Typography.Text style={{ fontSize: 12 }}>
-          {copied === 'config' ? 'Copied!' : 'Share current view'}
+          {copied === 'config' ? 'Copied!' : 'Copy full config link'}
         </Typography.Text>
       </div>
     </div>
@@ -255,6 +293,7 @@ function ShareLinkPopover({ datasetUrl }: { datasetUrl: string }) {
       placement="bottomLeft"
     >
       <LinkOutlined
+        title="Copy link"
         style={{ fontSize: 11, marginLeft: 6, cursor: 'pointer', color: '#999' }}
       />
     </Popover>
@@ -916,6 +955,9 @@ function View() {
 
   const configApplied = useRef(false)
 
+  // Readable view params (?embedding=, ?gene=, ...) — ?config= takes over instead
+  const hydrateViewParams = useUrlViewState(!configParam)
+
   // Handle ?config= param (applied once on initial load)
   useEffect(() => {
     if (!configParam || configApplied.current) return
@@ -932,16 +974,16 @@ function View() {
   // Skipped when ?config= was used (applyConfig handles dataset loading)
   useEffect(() => {
     if (configParam) return
-    if (datasetParam) openCatalogDataset(datasetParam)
+    if (datasetParam) hydrateViewParams(openCatalogDataset(datasetParam))
     else if (urlParam) {
       // Only URLs opened directly are remembered. Catalog datasets are already
       // listed by the catalog, and a private one's URL is useless without the
       // credentials `/access` grants alongside it.
       const saved = loadDatasets()
       if (!saved.includes(urlParam)) saveDatasets([urlParam, ...saved])
-      openDataset(urlParam)
+      hydrateViewParams(openDataset(urlParam))
     }
-  }, [urlParam, datasetParam, configParam, openDataset, openCatalogDataset])
+  }, [urlParam, datasetParam, configParam, openDataset, openCatalogDataset, hydrateViewParams])
 
   if (loadingError) {
     const isEmbedded = window.self !== window.top

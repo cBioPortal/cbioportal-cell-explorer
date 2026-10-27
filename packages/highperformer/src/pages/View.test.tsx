@@ -1,5 +1,5 @@
 import { act, cleanup, render } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // jsdom has no WebGL, so DeckGL renders nothing. It records the layers each
@@ -124,5 +124,86 @@ describe('View category labels across an embedding switch', () => {
     const secondMountLayers = labelLayer(deckMounts[1])
     expect(secondMountLayers.length).toBeGreaterThan(0)
     for (const layer of secondMountLayers) expect(firstMountLayers.has(layer)).toBe(false)
+  })
+})
+
+describe('View URL view state', () => {
+  let location = ''
+  function LocationProbe() {
+    location = useLocation().search
+    return null
+  }
+
+  function renderWithProbe(search: string) {
+    return render(
+      <MemoryRouter initialEntries={[`/view?${search}`]}>
+        <View />
+        <LocationProbe />
+      </MemoryRouter>,
+    )
+  }
+
+  beforeEach(() => {
+    location = ''
+    useAppStore.setState({
+      backendInfo: null,
+      // Stubbed to the state a loaded dataset (with its default_view) leaves behind
+      openCatalogDataset: vi.fn(async (slug: string) => useAppStore.setState({
+        datasetUrl: 'https://cdn/lung.zarr',
+        datasetSlug: slug,
+        loading: false,
+        loadingError: null,
+        obsmKeys: ['X_umap', 'X_pca'],
+        selectedEmbedding: 'X_umap',
+        obsColumnNames: ['cell_type', 'sample'],
+        varNames: ['ENSG1', 'ENSG2'],
+        geneLabelColumn: null,
+        geneLabelMap: new Map([['ENSG1', 'EGFR']]),
+        colorMode: 'category',
+        selectedObsColumn: 'sample',
+        selectedGene: null,
+        colorScaleName: 'viridis',
+      })),
+      setSelectedEmbedding: vi.fn((key: string) => useAppStore.setState({ selectedEmbedding: key })),
+      setColorMode: vi.fn((mode) => useAppStore.setState({ colorMode: mode })),
+      selectGene: vi.fn((name: string) => useAppStore.setState({ selectedGene: name })),
+      selectObsColumn: vi.fn((name: string) => useAppStore.setState({ selectedObsColumn: name })),
+      setColorScaleName: vi.fn((name: string) => useAppStore.setState({ colorScaleName: name })),
+      addSummaryObsColumn: vi.fn(),
+      addSummaryGene: vi.fn(),
+    })
+  })
+
+  afterEach(() => {
+    cleanup()
+    useAppStore.setState({ datasetUrl: null, datasetSlug: null })
+  })
+
+  it('applies view params on top of the default view', async () => {
+    renderWithProbe('dataset=lung&embedding=X_pca&gene=EGFR&colorScale=magma')
+    await vi.waitFor(() => expect(useAppStore.getState().colorScaleName).toBe('magma'))
+    const state = useAppStore.getState()
+    expect(state.selectedEmbedding).toBe('X_pca')
+    expect(state.colorMode).toBe('gene')
+    expect(state.selectedGene).toBe('ENSG1')
+    expect(new URLSearchParams(location).get('gene')).toBe('EGFR')
+  })
+
+  it('writes the loaded view into the URL, then follows store changes', async () => {
+    renderWithProbe('dataset=lung')
+    await vi.waitFor(() => expect(location).toBe('?dataset=lung&embedding=X_umap&colorBy=sample'))
+    act(() => useAppStore.setState({ selectedObsColumn: 'cell_type' }))
+    await vi.waitFor(() => expect(location).toBe('?dataset=lung&embedding=X_umap&colorBy=cell_type'))
+    act(() => useAppStore.setState({ colorMode: 'gene', selectedGene: 'ENSG1' }))
+    await vi.waitFor(() => expect(location).toBe('?dataset=lung&embedding=X_umap&gene=EGFR'))
+  })
+
+  it('leaves the URL alone when ?config= is used', async () => {
+    const config = encodeURIComponent(JSON.stringify({ dataset: 'lung' }))
+    renderWithProbe(`config=${config}`)
+    await vi.waitFor(() => expect(useAppStore.getState().datasetSlug).toBe('lung'))
+    act(() => useAppStore.setState({ selectedObsColumn: 'cell_type' }))
+    await new Promise((r) => setTimeout(r, 400))
+    expect(location).toBe(`?config=${config}`)
   })
 })
