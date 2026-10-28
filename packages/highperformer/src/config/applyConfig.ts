@@ -94,7 +94,8 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     // A non-null categoryLabelsObsColumn needs post-load handling to fetch
     // the column's codes/categoryMap. Plain null is a Phase 1 clear — no
     // post-load work needed.
-    !!config.categoryLabelsObsColumn
+    !!config.categoryLabelsObsColumn ||
+    config.mappedColumns
 
   if (!hasPostLoadConfig) return ok()
 
@@ -119,6 +120,11 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
     }
   } else if (!metadataReady) {
     return err({ kind: 'metadata_unavailable', field: 'post-load' })
+  }
+
+  // Mapped columns first: color-by and the summary panel below may name them.
+  if (config.mappedColumns && config.mappedColumns.length > 0) {
+    await store.getState().registerMappedColumns(config.mappedColumns)
   }
 
   // 3a: Gene label column
