@@ -1,10 +1,10 @@
-import { notification } from 'antd'
 import { createApiClient } from '@cbioportal-cell-explorer/api-client/client'
 import type { Middleware } from '@cbioportal-cell-explorer/api-client/client'
 
-let lastNotification = 0
-const NOTIFICATION_DEBOUNCE_MS = 5000
-
+// A 401 means the session is gone: show the user as signed out so the header
+// offers sign-in again. No toast — proactive refresh (useTokenRefresh) keeps
+// live sessions alive, so a 401 is either a genuine sign-out the header already
+// reflects or an anonymous request that was never signed in.
 const authMiddleware: Middleware = {
   async onResponse({ response }) {
     if (response.status === 401) {
@@ -13,16 +13,6 @@ const authMiddleware: Middleware = {
       const { backendInfo } = useAppStore.getState()
       if (backendInfo?.auth_enabled) {
         useAppStore.setState({ user: null })
-        const now = Date.now()
-        if (now - lastNotification > NOTIFICATION_DEBOUNCE_MS) {
-          lastNotification = now
-          notification.info({
-            message: 'Session expired',
-            description: 'Please sign in again.',
-            placement: 'topRight',
-            duration: 4,
-          })
-        }
       }
     }
     return response

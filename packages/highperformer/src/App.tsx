@@ -76,7 +76,7 @@ function App() {
   }, [user, fetchCatalog, fetchCollections])
 
   // Keep the access cookie fresh while signed in. Sidesteps the rotation
-  // race that surfaces as 'Session expired' on long-lived chat streams.
+  // race that would sign the user out mid-way through long-lived chat streams.
   useTokenRefresh(user !== null)
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
