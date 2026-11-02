@@ -9,7 +9,7 @@
  *    requests always have a fresh access cookie at boundary time, so the
  *    rotation race between parallel refreshes never fires.
  *  - Recovers from transient Keycloak hiccups on the next tick rather than
- *    surfacing as "Session expired" to the user mid-conversation.
+ *    signing the user out mid-conversation.
  *  - Costs ~15 requests/hour. Each is a thin POST that returns 204.
  *
  * Also fires once on `visibilitychange` to visible — if the tab was
