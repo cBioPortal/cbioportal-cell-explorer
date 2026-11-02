@@ -246,6 +246,8 @@ export interface AppState {
   facetDefs: FacetDef[]
   fetchCatalog: () => Promise<void>
   openCatalogDataset: (slug: string) => Promise<void>
+  /** Stop renewing a private dataset's CloudFront signed cookies. */
+  cancelAccessRefresh: () => void
 
   // Collections
   collections: Array<{
@@ -360,6 +362,35 @@ export function getPool(): WorkerPool {
 // Debounce timer for opacity-driven color buffer rebuilds
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const DEBOUNCE_MS = 150
+
+// CloudFront signed cookies from `/access` expire (30 min by default), and every
+// chunk fetched after that is refused. Renew this long before expiry, while the
+// same dataset stays open.
+const ACCESS_RENEW_MARGIN_MS = 2 * 60_000
+let accessRefreshTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleAccessRefresh(get: () => AppState, slug: string, expiresAt: string) {
+  get().cancelAccessRefresh()
+  const delay = new Date(expiresAt).getTime() - Date.now() - ACCESS_RENEW_MARGIN_MS
+  if (!Number.isFinite(delay)) return
+  accessRefreshTimer = setTimeout(async () => {
+    accessRefreshTimer = null
+    if (get().datasetSlug !== slug) return
+    try {
+      const { api } = await import('../api')
+      const { data } = await api.POST('/api/datasets/{slug}/access', {
+        params: { path: { slug } },
+      })
+      // A refusal (role removed, session ended) stops renewal; the next chunk
+      // fetch then fails visibly instead of being retried in the background.
+      if (data?.credential_type === 'signed_cookies' && data.expires_at && get().datasetSlug === slug) {
+        scheduleAccessRefresh(get, slug, data.expires_at as string)
+      }
+    } catch {
+      // Network failure: stop renewing, as above.
+    }
+  }, Math.max(30_000, delay))
+}
 
 
 const useAppStore = create<AppState>((set, get) => ({
@@ -580,7 +611,13 @@ const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
+  cancelAccessRefresh: () => {
+    if (accessRefreshTimer) clearTimeout(accessRefreshTimer)
+    accessRefreshTimer = null
+  },
+
   openCatalogDataset: async (slug) => {
+    get().cancelAccessRefresh()
     let dataset = get().catalogDatasets.find((d) => d.slug === slug)
 
     // If not in local catalog yet (e.g., cold start from a shared link),
@@ -644,7 +681,15 @@ const useAppStore = create<AppState>((set, get) => ({
         return
       }
 
-      // signed_cookies or public — no overrides needed
+      if (data.credential_type === 'signed_cookies') {
+        // `/access` set the CloudFront cookies on the CDN's domain; chunk
+        // fetches are cross-origin, so they only carry them when told to.
+        await get().openDataset(data.url as string, { credentials: 'include' })
+        await finishOpen()
+        if (data.expires_at) scheduleAccessRefresh(get, slug, data.expires_at as string)
+        return
+      }
+
       await get().openDataset(data.url)
       await finishOpen()
     } catch {

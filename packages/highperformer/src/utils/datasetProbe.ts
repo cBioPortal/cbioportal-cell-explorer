@@ -104,7 +104,11 @@ async function shapeOf(res: Response, version: number): Promise<StoreShape | und
 export async function probeStore(
   url: string,
   signal: AbortSignal,
-  headers?: Record<string, string>,
+  /**
+   * Credentials for a private store: `headers` for a bearer token, or
+   * `credentials: 'include'` for CloudFront signed cookies set by `/access`.
+   */
+  init?: Pick<RequestInit, 'headers' | 'credentials'>,
   /**
    * Read the body to extract cell and gene counts.
    *
@@ -116,8 +120,7 @@ export async function probeStore(
   needShape = true,
 ): Promise<ProbeStoreResult> {
   const base = url.endsWith('/') ? url : url + '/'
-  const opts: RequestInit = { method: 'GET', signal }
-  if (headers) opts.headers = headers
+  const opts: RequestInit = { ...init, method: 'GET', signal }
 
   // Try zarr.json (v3), then .zmetadata (v2) — simple GET, no preflight
   const v3 = await fetch(base + 'zarr.json', opts)
