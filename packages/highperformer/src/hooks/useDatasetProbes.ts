@@ -74,11 +74,17 @@ export default function useDatasetProbes(entries: DatasetEntry[]) {
           }
           setResolved((prev) => new Map(prev).set(entry.key, access))
 
-          const headers = access.token ? { Authorization: `Bearer ${access.token}` } : undefined
+          // Signed-cookie datasets: `/access` has just set the CloudFront
+          // cookies, which a cross-origin fetch only sends when asked to.
+          const init: Pick<RequestInit, 'headers' | 'credentials'> | undefined = access.token
+            ? { headers: { Authorization: `Bearer ${access.token}` } }
+            : data.credential_type === 'signed_cookies'
+              ? { credentials: 'include' }
+              : undefined
           try {
             record(
               entry.key,
-              toResult(await probeStore(access.url, controller.signal, headers, entry.counts == null)),
+              toResult(await probeStore(access.url, controller.signal, init, entry.counts == null)),
             )
           } catch {
             record(entry.key, { status: 'error' })

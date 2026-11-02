@@ -73,6 +73,28 @@ describe('probeStore', () => {
     await probeStore('http://example.com/store.zarr/', AbortSignal.abort())
     expect(fetch).toHaveBeenCalledWith('http://example.com/store.zarr/zarr.json', expect.anything())
   })
+
+  it('sends cookies when asked to, for CloudFront signed-cookie datasets', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ ok: true } as Response)
+
+    await probeStore('http://example.com/store.zarr', AbortSignal.abort(), { credentials: 'include' })
+    expect(fetch).toHaveBeenCalledWith(
+      'http://example.com/store.zarr/zarr.json',
+      expect.objectContaining({ method: 'GET', credentials: 'include' }),
+    )
+  })
+
+  it('passes request headers through, for bearer-token datasets', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ ok: true } as Response)
+
+    await probeStore('http://example.com/store.zarr', AbortSignal.abort(), {
+      headers: { Authorization: 'Bearer t' },
+    })
+    expect(fetch).toHaveBeenCalledWith(
+      'http://example.com/store.zarr/zarr.json',
+      expect.objectContaining({ headers: { Authorization: 'Bearer t' } }),
+    )
+  })
 })
 
 describe('parseStoreShape', () => {
