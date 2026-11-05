@@ -41,6 +41,7 @@ describe('View dataset history', () => {
     localStorage.clear()
     useAppStore.setState({
       backendInfo: null,
+      backendProbed: true,
       showDatasetDropdown: true,
       // Opening is stubbed to what the real actions leave behind: the store
       // pointing at the dataset's URL.
@@ -71,6 +72,124 @@ describe('View dataset history', () => {
     renderView(`url=${encodeURIComponent('https://cdn/mine.zarr')}`)
     await vi.waitFor(() => expect(useAppStore.getState().datasetUrl).toBe('https://cdn/mine.zarr'))
     expect(loadDatasets()).toEqual(['https://cdn/mine.zarr'])
+  })
+})
+
+describe('View waits for the auth check before opening a slug', () => {
+  const openCatalogDataset = vi.fn(async () => {})
+  const openDataset = vi.fn(async () => {})
+
+  beforeEach(() => {
+    localStorage.clear()
+    openCatalogDataset.mockClear()
+    openDataset.mockClear()
+    useAppStore.setState({
+      backendInfo: { auth_enabled: true } as never,
+      backendProbed: true,
+      authChecked: false,
+      loadingError: null,
+      openCatalogDataset,
+      openDataset,
+    })
+  })
+
+  afterEach(cleanup)
+
+  it('holds a ?dataset= open until authChecked, then opens once', async () => {
+    renderView('dataset=private-study')
+    await act(async () => {})
+    expect(openCatalogDataset).not.toHaveBeenCalled()
+    act(() => useAppStore.setState({ authChecked: true }))
+    await vi.waitFor(() => expect(openCatalogDataset).toHaveBeenCalledTimes(1))
+    expect(openCatalogDataset).toHaveBeenCalledWith('private-study')
+  })
+
+  it('opens ?dataset= immediately when the probe found no backend', async () => {
+    useAppStore.setState({ backendInfo: null })
+    renderView('dataset=lung-atlas')
+    await vi.waitFor(() => expect(openCatalogDataset).toHaveBeenCalledWith('lung-atlas'))
+  })
+
+  it('opens ?dataset= immediately when auth is disabled', async () => {
+    useAppStore.setState({ backendInfo: { auth_enabled: false } as never })
+    renderView('dataset=lung-atlas')
+    await vi.waitFor(() => expect(openCatalogDataset).toHaveBeenCalledWith('lung-atlas'))
+  })
+
+  it('does not open ?dataset= before the backend probe finishes', async () => {
+    useAppStore.setState({ backendProbed: false, backendInfo: null })
+    renderView('dataset=lung-atlas')
+    await act(async () => {})
+    expect(openCatalogDataset).not.toHaveBeenCalled()
+  })
+
+  it('opens ?url= without waiting for authChecked', async () => {
+    renderView(`url=${encodeURIComponent('https://cdn/mine.zarr')}`)
+    await vi.waitFor(() => expect(openDataset).toHaveBeenCalledWith('https://cdn/mine.zarr'))
+  })
+})
+
+describe('View status page and Try again', () => {
+  afterEach(() => {
+    cleanup()
+    useAppStore.setState({ loadingError: null })
+  })
+
+  it('Try again on a ?dataset= failure re-opens the slug, not the resolved zarr URL', async () => {
+    const openDataset = vi.fn(async () => {})
+    const openCatalogDataset = vi.fn(async (slug: string) =>
+      useAppStore.setState({
+        datasetUrl: 'https://cdn/private.zarr',
+        loadingError: { kind: 'files_failed', slug, name: 'Private', detail: 'boom' },
+      }),
+    )
+    useAppStore.setState({ backendInfo: null, backendProbed: true, openCatalogDataset, openDataset })
+    const { findByRole } = renderView('dataset=private-study')
+    const retry = await findByRole('button', { name: /try again/i })
+    act(() => retry.click())
+    await vi.waitFor(() => expect(openCatalogDataset).toHaveBeenCalledTimes(2))
+    expect(openCatalogDataset).toHaveBeenLastCalledWith('private-study')
+    expect(openDataset).not.toHaveBeenCalled()
+  })
+
+  it('Try again on a ?url= failure re-opens the URL', async () => {
+    const url = 'https://cdn/broken.zarr'
+    const openDataset = vi.fn(async (u: string) =>
+      useAppStore.setState({ loadingError: { kind: 'store_failed', url: u, detail: 'boom' } }),
+    )
+    useAppStore.setState({ backendInfo: null, backendProbed: true, openDataset })
+    const { findByRole } = renderView(`url=${encodeURIComponent(url)}`)
+    const retry = await findByRole('button', { name: /try again/i })
+    act(() => retry.click())
+    await vi.waitFor(() => expect(openDataset).toHaveBeenCalledTimes(2))
+    expect(openDataset).toHaveBeenLastCalledWith(url)
+  })
+
+  it('clears the error when the viewer unmounts, so the next visit does not flash it', async () => {
+    useAppStore.setState({
+      backendInfo: null,
+      backendProbed: true,
+      openCatalogDataset: vi.fn(async (slug: string) =>
+        useAppStore.setState({ loadingError: { kind: 'not_found', slug } }),
+      ),
+    })
+    const { findByText, unmount } = renderView('dataset=nope')
+    await findByText('Dataset not found')
+    unmount()
+    expect(useAppStore.getState().loadingError).toBeNull()
+  })
+
+  it('renders the status page, not the old error page, for an access state', async () => {
+    useAppStore.setState({
+      backendInfo: null,
+      backendProbed: true,
+      openCatalogDataset: vi.fn(async (slug: string) =>
+        useAppStore.setState({ loadingError: { kind: 'not_found', slug } }),
+      ),
+    })
+    const { findByText, queryByText } = renderView('dataset=nope')
+    expect(await findByText('Dataset not found')).toBeTruthy()
+    expect(queryByText('Failed to load dataset')).toBeNull()
   })
 })
 

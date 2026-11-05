@@ -1385,7 +1385,98 @@ describe('useAppStore', () => {
       mockPOST.mockResolvedValueOnce({ data: undefined, error: { detail: 'not configured' }, response: { status: 503 } })
 
       await useAppStore.getState().openCatalogDataset('broken-ds')
-      expect(useAppStore.getState().loadingError).toContain('temporarily unavailable')
+      expect(useAppStore.getState().loadingError).toEqual({ kind: 'unavailable', slug: 'broken-ds', name: 'Broken' })
+    })
+
+    it('cold slug, GET 401 while signed out → sign_in_required with the body name', async () => {
+      mockGET.mockResolvedValueOnce({
+        data: undefined,
+        error: { detail: 'Authentication required', slug: 'p', name: 'Private Study' },
+        response: { status: 401 },
+      })
+      await useAppStore.getState().openCatalogDataset('p')
+      expect(useAppStore.getState().loadingError).toEqual({ kind: 'sign_in_required', slug: 'p', name: 'Private Study' })
+    })
+
+    it('cold slug, GET 401 while the user was signed in → session_expired', async () => {
+      useAppStore.setState({ user: { sub: 'u1', name: 'Jo', email: 'jo@example.org', roles: [] } })
+      mockGET.mockResolvedValueOnce({
+        data: undefined,
+        error: { detail: 'Authentication required', slug: 'p', name: 'Private Study' },
+        response: { status: 401 },
+      })
+      await useAppStore.getState().openCatalogDataset('p')
+      expect(useAppStore.getState().loadingError).toEqual({ kind: 'session_expired', slug: 'p', name: 'Private Study' })
+    })
+
+    it('cold slug, GET 403 → no_access', async () => {
+      mockGET.mockResolvedValueOnce({
+        data: undefined,
+        error: { detail: 'Insufficient permissions', slug: 'p', name: 'Private Study' },
+        response: { status: 403 },
+      })
+      await useAppStore.getState().openCatalogDataset('p')
+      expect(useAppStore.getState().loadingError).toEqual({ kind: 'no_access', slug: 'p', name: 'Private Study' })
+    })
+
+    it('cold slug, GET 404 → not_found', async () => {
+      mockGET.mockResolvedValueOnce({ data: undefined, error: { detail: 'Dataset not found' }, response: { status: 404 } })
+      await useAppStore.getState().openCatalogDataset('nope')
+      expect(useAppStore.getState().loadingError).toEqual({ kind: 'not_found', slug: 'nope' })
+    })
+
+    it('GET throws → unreachable', async () => {
+      mockGET.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      await useAppStore.getState().openCatalogDataset('p')
+      expect(useAppStore.getState().loadingError).toEqual({ kind: 'unreachable' })
+    })
+
+    it('catalog dataset whose files fail to open → files_failed, default view not applied', async () => {
+      useAppStore.setState({
+        catalogDatasets: [
+          {
+            slug: 'pub', name: 'Public', description: null, is_public: true,
+            url: 'https://cdn.example.com/pub.zarr', chat_enabled: false, default_view: { pointSize: 7 },
+          },
+        ],
+      })
+      const { AnnDataStore } = await import('@cbioportal-cell-explorer/zarrstore')
+      const mockOpen = vi.spyOn(AnnDataStore, 'open').mockRejectedValueOnce(new Error('boom'))
+
+      await useAppStore.getState().openCatalogDataset('pub')
+      expect(useAppStore.getState().loadingError).toEqual({ kind: 'files_failed', slug: 'pub', name: 'Public', detail: 'boom' })
+      expect(useAppStore.getState().datasetSlug).toBeNull()
+      mockOpen.mockRestore()
+    })
+
+    it('openDataset(url) that throws → store_failed', async () => {
+      const { AnnDataStore } = await import('@cbioportal-cell-explorer/zarrstore')
+      const mockOpen = vi.spyOn(AnnDataStore, 'open').mockRejectedValueOnce(new Error('boom'))
+
+      await useAppStore.getState().openDataset('https://example.org/x.zarr')
+      expect(useAppStore.getState().loadingError).toEqual({ kind: 'store_failed', url: 'https://example.org/x.zarr', detail: 'boom' })
+      mockOpen.mockRestore()
+    })
+
+    it('openDataset of the already-loaded URL clears a stale loadingError', async () => {
+      useAppStore.setState({
+        datasetUrl: 'https://cdn.example.com/a.zarr',
+        adata: {} as never,
+        loadingError: { kind: 'unavailable', slug: 'other', name: 'Other' },
+      })
+      await useAppStore.getState().openDataset('https://cdn.example.com/a.zarr')
+      expect(useAppStore.getState().loadingError).toBeNull()
+    })
+
+    it('openCatalogDataset clears a previous loadingError when it starts', async () => {
+      useAppStore.setState({ loadingError: { kind: 'not_found', slug: 'old' } })
+      let seen: unknown = 'unset'
+      mockGET.mockImplementationOnce(async () => {
+        seen = useAppStore.getState().loadingError
+        return { data: undefined, error: { detail: 'Dataset not found' }, response: { status: 404 } }
+      })
+      await useAppStore.getState().openCatalogDataset('new')
+      expect(seen).toBeNull()
     })
   })
 
