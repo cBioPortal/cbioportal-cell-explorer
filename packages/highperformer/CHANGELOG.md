@@ -1,5 +1,20 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.12.0
+
+### Minor Changes
+
+- [#334](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/334) [`dd4d331`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/dd4d3315b30609316f1c861ef37f8559dd03c8f2) Thanks [@hweej](https://github.com/hweej)! - Private datasets served through CloudFront with signed cookies now load: their probe and chunk fetches carry the cookies `/access` sets, and access is renewed before the cookies expire while the dataset stays open.
+
+- [#337](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/337) [`398af24`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/398af24911c44e396447efde00a7fecb3a1f9a99) Thanks [@hweej](https://github.com/hweej)! - Clear pages when a dataset can't be opened: sign in for private datasets, a request-access contact when your account lacks access, "not found" for unknown links, and "try again" only when something is actually broken.
+
+### Patch Changes
+
+- [#335](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/335) [`e0c099d`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/e0c099d8c2c4d5f24ad4b0e3d29cb70da4ec771f) Thanks [@hweej](https://github.com/hweej)! - No more "Session expired — please sign in again" pop-up. A 401 still shows you as signed out, so the header offers sign-in.
+
+- Updated dependencies [[`398af24`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/398af24911c44e396447efde00a7fecb3a1f9a99)]:
+  - @cbioportal-cell-explorer/api-client@0.3.1
+
 ## 0.11.0
 
 ### Minor Changes
