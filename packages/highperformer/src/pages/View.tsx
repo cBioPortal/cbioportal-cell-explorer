@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
-import { Button, Collapse, InputNumber, Layout, Popover, Switch, Tabs, Typography, Select, Spin, message } from 'antd'
+import { Button, Collapse, InputNumber, Layout, Popover, Switch, Tabs, Typography, Select, Spin, message, notification } from 'antd'
 import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HolderOutlined, LeftOutlined, LinkOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons'
 import { DeckGL } from '@deck.gl/react'
 import { OrthographicView } from '@deck.gl/core'
@@ -14,7 +14,9 @@ import { buildConfigFromState, buildConfigUrl, buildDatasetUrl } from '../config
 import { usePostMessage } from '../config/usePostMessage'
 import { parseConfig } from '../config/parseConfig'
 import { applyConfig } from '../config/applyConfig'
-import { DatasetError } from '../components/DatasetError'
+import { DatasetStatus } from '../components/DatasetStatus'
+import { applyErrorMessage } from '../config/applyResult'
+import type { AppConfig } from '../config/schema'
 import UserAvatar from '../components/UserAvatar'
 import BrandingHeader from '../components/BrandingHeader'
 import ColorBySection from '../components/ColorBySection'
@@ -896,7 +898,6 @@ function View() {
   const openDataset = useAppStore((s) => s.openDataset)
   const openCatalogDataset = useAppStore((s) => s.openCatalogDataset)
   const loadingError = useAppStore((s) => s.loadingError)
-  const datasetUrl = useAppStore((s) => s.datasetUrl)
   const datasetSlug = useAppStore((s) => s.datasetSlug)
   const dataset = useAppStore((s) =>
     s.catalogDatasets.find((d) => d.slug === datasetSlug),
@@ -916,52 +917,76 @@ function View() {
 
   const configApplied = useRef(false)
 
+  // A catalog dataset is opened only once we know who the user is. The access
+  // cookie is short-lived and the dataset endpoint does not refresh it, but the
+  // auth check does — opening first would tell a signed-in user to sign in.
+  // No backend, or auth off, means there is nothing to wait for.
+  const backendProbed = useAppStore((s) => s.backendProbed)
+  const authChecked = useAppStore((s) => s.authChecked)
+  const readyForCatalog = backendProbed && (!backendInfo?.auth_enabled || authChecked)
+
+  // Apply a ?config= and report what it could not apply. When the dataset
+  // itself failed to open, the status page already says so; otherwise the
+  // viewer is fine and only some settings were skipped, so a notice is enough.
+  const applyLinkConfig = useCallback((config: AppConfig) => {
+    applyConfig(config).then((result) => {
+      if (!result.ok && !useAppStore.getState().loadingError) {
+        notification.warning({
+          message: "Some of this link's view settings couldn't be applied",
+          description: applyErrorMessage(result.reason),
+        })
+      }
+    })
+  }, [])
+
   // Handle ?config= param (applied once on initial load)
   useEffect(() => {
     if (!configParam || configApplied.current) return
     const config = parseConfig(configParam)
-    if (config) {
+    if (!config) {
       configApplied.current = true
-      if (!config.showLeftSidebar) setLeftCollapsed(true)
-      if (!config.showRightSidebar) setRightWidth(SIDEBAR_COLLAPSED_WIDTH)
-      applyConfig(config)
+      useAppStore.setState({ loadingError: { kind: 'config_unreadable' } })
+      return
     }
-  }, [configParam])
+    if (config.dataset && !readyForCatalog) return
+    configApplied.current = true
+    if (!config.showLeftSidebar) setLeftCollapsed(true)
+    if (!config.showRightSidebar) setRightWidth(SIDEBAR_COLLAPSED_WIDTH)
+    applyLinkConfig(config)
+  }, [configParam, readyForCatalog, applyLinkConfig])
 
-  // Handle ?url= or ?dataset= param — loads dataset on initial visit
+  // Handle ?dataset= param — loads dataset on initial visit
   // Skipped when ?config= was used (applyConfig handles dataset loading)
   useEffect(() => {
-    if (configParam) return
-    if (datasetParam) openCatalogDataset(datasetParam)
-    else if (urlParam) {
-      // Only URLs opened directly are remembered. Catalog datasets are already
-      // listed by the catalog, and a private one's URL is useless without the
-      // credentials `/access` grants alongside it.
-      const saved = loadDatasets()
-      if (!saved.includes(urlParam)) saveDatasets([urlParam, ...saved])
-      openDataset(urlParam)
-    }
-  }, [urlParam, datasetParam, configParam, openDataset, openCatalogDataset])
+    if (configParam || !datasetParam || !readyForCatalog) return
+    openCatalogDataset(datasetParam)
+  }, [datasetParam, configParam, readyForCatalog, openCatalogDataset])
+
+  // Handle ?url= param. A direct URL has no access rules, so it does not wait
+  // for the auth check.
+  useEffect(() => {
+    if (configParam || datasetParam || !urlParam) return
+    // Only URLs opened directly are remembered. Catalog datasets are already
+    // listed by the catalog, and a private one's URL is useless without the
+    // credentials `/access` grants alongside it.
+    const saved = loadDatasets()
+    if (!saved.includes(urlParam)) saveDatasets([urlParam, ...saved])
+    openDataset(urlParam)
+  }, [urlParam, datasetParam, configParam, openDataset])
 
   if (loadingError) {
-    const isEmbedded = window.self !== window.top
     return (
-      <DatasetError
+      <DatasetStatus
         error={loadingError}
-        url={datasetUrl ?? urlParam ?? ''}
         onRetry={() => {
-          if (configParam) {
-            const config = parseConfig(configParam)
-            if (config) {
-              configApplied.current = false
-              applyConfig(config)
-              return
-            }
-          }
-          if (datasetUrl) openDataset(datasetUrl)
+          // Re-run what the link describes. The resolved store URL is not
+          // enough: a private dataset's URL is useless without the credentials
+          // `/access` grants alongside it.
+          const config = configParam ? parseConfig(configParam) : null
+          if (config) applyLinkConfig(config)
+          else if (datasetParam) openCatalogDataset(datasetParam)
           else if (urlParam) openDataset(urlParam)
         }}
-        showHomeLink={!isEmbedded}
       />
     )
   }
