@@ -1458,6 +1458,16 @@ describe('useAppStore', () => {
       mockOpen.mockRestore()
     })
 
+    it('openDataset of the already-loaded URL clears a stale loadingError', async () => {
+      useAppStore.setState({
+        datasetUrl: 'https://cdn.example.com/a.zarr',
+        adata: {} as never,
+        loadingError: { kind: 'unavailable', slug: 'other', name: 'Other' },
+      })
+      await useAppStore.getState().openDataset('https://cdn.example.com/a.zarr')
+      expect(useAppStore.getState().loadingError).toBeNull()
+    })
+
     it('openCatalogDataset clears a previous loadingError when it starts', async () => {
       useAppStore.setState({ loadingError: { kind: 'not_found', slug: 'old' } })
       let seen: unknown = 'unset'

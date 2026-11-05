@@ -1254,7 +1254,12 @@ const useAppStore = create<AppState>((set, get) => ({
 
   // Actions
   openDataset: async (url, overrides) => {
-    if (url === get().datasetUrl && get().adata) return
+    if (url === get().datasetUrl && get().adata) {
+      // Already open. A failed open of some other dataset may have left its
+      // error behind without replacing this one, so the error is stale.
+      if (get().loadingError) set({ loadingError: null })
+      return
+    }
     set({
       datasetUrl: url, datasetSlug: null, loading: true, loadingError: null, adata: null, nObs: null, nVar: null, obsmKeys: [],
       selectedEmbedding: null, embeddingData: null, colorBuffer: null,

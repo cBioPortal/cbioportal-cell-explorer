@@ -165,6 +165,20 @@ describe('View status page and Try again', () => {
     expect(openDataset).toHaveBeenLastCalledWith(url)
   })
 
+  it('clears the error when the viewer unmounts, so the next visit does not flash it', async () => {
+    useAppStore.setState({
+      backendInfo: null,
+      backendProbed: true,
+      openCatalogDataset: vi.fn(async (slug: string) =>
+        useAppStore.setState({ loadingError: { kind: 'not_found', slug } }),
+      ),
+    })
+    const { findByText, unmount } = renderView('dataset=nope')
+    await findByText('Dataset not found')
+    unmount()
+    expect(useAppStore.getState().loadingError).toBeNull()
+  })
+
   it('renders the status page, not the old error page, for an access state', async () => {
     useAppStore.setState({
       backendInfo: null,

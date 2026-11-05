@@ -917,6 +917,10 @@ function View() {
 
   const configApplied = useRef(false)
 
+  // An error belongs to this visit. Leaving it in the store would show it for
+  // a frame on the next visit, before that visit's open clears it.
+  useEffect(() => () => useAppStore.setState({ loadingError: null }), [])
+
   // A catalog dataset is opened only once we know who the user is. The access
   // cookie is short-lived and the dataset endpoint does not refresh it, but the
   // auth check does — opening first would tell a signed-in user to sign in.
