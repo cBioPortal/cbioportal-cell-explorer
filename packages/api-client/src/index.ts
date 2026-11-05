@@ -14,6 +14,9 @@ export interface paths {
         /**
          * Login
          * @description Redirect to Keycloak login page.
+         *
+         *     ``next`` is the page to return to after login (a path on this site, e.g.
+         *     ``/view?dataset=spectrum``). It is kept in a cookie for the round trip.
          */
         get: operations["login_api_auth_login_get"];
         put?: never;
@@ -393,6 +396,11 @@ export interface paths {
         /**
          * Get Dataset
          * @description Get a single dataset by slug.
+         *
+         *     An inaccessible private dataset is 401 for an anonymous caller and 403 for
+         *     a signed-in one without the role, so the frontend can offer sign-in or a
+         *     request-access contact. With auth disabled nobody can ever open it, so it
+         *     stays 404.
          */
         get: operations["get_dataset_api_datasets__slug__get"];
         put?: never;
@@ -758,6 +766,21 @@ export interface components {
             available_tools: string[];
             permission: components["schemas"]["ChatPermissionResponse"];
         };
+        /**
+         * DatasetAccessDenied
+         * @description 401/403 body for a private dataset the caller cannot open.
+         *
+         *     Names the dataset so the frontend can say what is private rather than just
+         *     that something is. Private dataset names are not secret; only their data is.
+         */
+        DatasetAccessDenied: {
+            /** Detail */
+            detail: string;
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+        };
         /** DatasetAdminListResponse */
         DatasetAdminListResponse: {
             /** Datasets */
@@ -1059,6 +1082,8 @@ export interface components {
             chat_enabled: boolean;
             /** Google Analytics Id */
             google_analytics_id: string | null;
+            /** Access Contact */
+            access_contact: string | null;
             brand: components["schemas"]["BrandInfo"] | null;
         };
         /**
@@ -1237,7 +1262,9 @@ export type $defs = Record<string, never>;
 export interface operations {
     login_api_auth_login_get: {
         parameters: {
-            query?: never;
+            query?: {
+                next?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1251,6 +1278,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1882,6 +1918,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatasetResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetAccessDenied"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetAccessDenied"];
                 };
             };
             /** @description Validation Error */

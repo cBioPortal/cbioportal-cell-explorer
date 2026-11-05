@@ -26,6 +26,7 @@ export interface EmbeddingData {
 
 import type { components } from '@cbioportal-cell-explorer/api-client'
 import type { CollectionAttribution } from '../utils/attribution'
+import { classifyHttpFailure, type DatasetLoadError } from './datasetLoadError'
 
 export type BackendInfo = components['schemas']['InfoResponse']
 export type User = components['schemas']['User']
@@ -267,7 +268,7 @@ export interface AppState {
   showDatasetDropdown: boolean
 
   // Error state
-  loadingError: string | null
+  loadingError: DatasetLoadError | null
 
   // Actions
   openDataset: (url: string, overrides?: RequestInit) => Promise<void>
@@ -618,6 +619,11 @@ const useAppStore = create<AppState>((set, get) => ({
 
   openCatalogDataset: async (slug) => {
     get().cancelAccessRefresh()
+    set({ loadingError: null })
+    // Read before any request: the api client's 401 middleware clears `user`
+    // before we see the response, and a 401 for someone who was signed in
+    // means their session ended rather than that they never signed in.
+    const wasSignedIn = get().user !== null
     let dataset = get().catalogDatasets.find((d) => d.slug === slug)
 
     // If not in local catalog yet (e.g., cold start from a shared link),
@@ -625,34 +631,43 @@ const useAppStore = create<AppState>((set, get) => ({
     if (!dataset) {
       try {
         const { api } = await import('../api')
-        const { data } = await api.GET('/api/datasets/{slug}', {
+        const { data, error, response } = await api.GET('/api/datasets/{slug}', {
           params: { path: { slug } },
         })
         if (data) {
           dataset = data
         } else {
-          set({ loadingError: 'Dataset not found' })
+          set({ loadingError: classifyHttpFailure({ status: response?.status, body: error, slug, name: null, wasSignedIn }) })
           return
         }
       } catch {
-        set({ loadingError: 'Failed to load dataset' })
+        set({ loadingError: { kind: 'unreachable' } })
         return
       }
     }
 
-    const finishOpen = async () => {
+    // Open the store, then apply the dataset's default view only if it
+    // opened: a failed open is reported as this catalog dataset's files
+    // failing, not as a bare URL that would not open.
+    const openAndFinish = async (url: string, overrides?: RequestInit): Promise<boolean> => {
+      await get().openDataset(url, overrides)
+      const failure = get().loadingError
+      if (failure?.kind === 'store_failed') {
+        set({ loadingError: { kind: 'files_failed', slug, name: dataset.name, detail: failure.detail } })
+        return false
+      }
       set({ datasetSlug: slug })
       const dv = dataset.default_view
       if (dv) {
         const { applyConfig } = await import('../config/applyConfig')
         await applyConfig(dv)
       }
+      return true
     }
 
     // Public dataset — open directly
     if (dataset.url) {
-      await get().openDataset(dataset.url)
-      await finishOpen()
+      await openAndFinish(dataset.url)
       return
     }
 
@@ -664,36 +679,28 @@ const useAppStore = create<AppState>((set, get) => ({
       })
 
       if (!data) {
-        const status = response?.status
-        if (status === 503) {
-          set({ loadingError: 'Dataset temporarily unavailable' })
-        } else {
-          set({ loadingError: typeof error?.detail === 'string' ? error.detail : 'Failed to access dataset' })
-        }
+        set({ loadingError: classifyHttpFailure({ status: response?.status, body: error, slug, name: dataset.name, wasSignedIn }) })
         return
       }
 
       if (data.credential_type === 'bearer_token' && data.token) {
-        await get().openDataset(data.url, {
+        await openAndFinish(data.url, {
           headers: { Authorization: `Bearer ${data.token}` },
         })
-        await finishOpen()
         return
       }
 
       if (data.credential_type === 'signed_cookies') {
         // `/access` set the CloudFront cookies on the CDN's domain; chunk
         // fetches are cross-origin, so they only carry them when told to.
-        await get().openDataset(data.url as string, { credentials: 'include' })
-        await finishOpen()
-        if (data.expires_at) scheduleAccessRefresh(get, slug, data.expires_at as string)
+        const opened = await openAndFinish(data.url as string, { credentials: 'include' })
+        if (opened && data.expires_at) scheduleAccessRefresh(get, slug, data.expires_at as string)
         return
       }
 
-      await get().openDataset(data.url)
-      await finishOpen()
+      await openAndFinish(data.url)
     } catch {
-      set({ loadingError: 'Failed to access dataset' })
+      set({ loadingError: { kind: 'unreachable' } })
     }
   },
 
@@ -1281,7 +1288,7 @@ const useAppStore = create<AppState>((set, get) => ({
       })
       if (defaultKey) get().fetchEmbedding(defaultKey)
     } catch (err) {
-      set({ loading: false, loadingError: err instanceof Error ? err.message : 'Failed to load dataset' })
+      set({ loading: false, loadingError: { kind: 'store_failed', url, detail: err instanceof Error ? err.message : String(err) } })
     }
   },
 
