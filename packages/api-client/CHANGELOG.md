@@ -1,5 +1,11 @@
 # @cbioportal-cell-explorer/api-client
 
+## 0.3.1
+
+### Patch Changes
+
+- [#337](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/337) [`398af24`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/398af24911c44e396447efde00a7fecb3a1f9a99) Thanks [@hweej](https://github.com/hweej)! - Clear pages when a dataset can't be opened: sign in for private datasets, a request-access contact when your account lacks access, "not found" for unknown links, and "try again" only when something is actually broken.
+
 ## 0.3.0
 
 ### Minor Changes
