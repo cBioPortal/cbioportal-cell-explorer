@@ -1,10 +1,13 @@
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DatasetStatus } from './DatasetStatus'
 import useAppStore from '../store/useAppStore'
 import type { DatasetLoadError } from '../store/datasetLoadError'
 import { loginUrl } from '../utils/loginUrl'
+import { switchAccount } from '../utils/session'
+
+vi.mock('../utils/session', () => ({ signOut: vi.fn(), switchAccount: vi.fn() }))
 
 function renderStatus(error: DatasetLoadError, onRetry = vi.fn()) {
   render(
@@ -55,12 +58,13 @@ describe('DatasetStatus', () => {
     expect(screen.queryByRole('link', { name: /request access/i })).toBeNull()
   })
 
-  it('no_access shows the signed-in account and a different-account link', () => {
+  it('no_access shows the signed-in account and a different-account link that switches account', () => {
     setContact(null)
     useAppStore.setState({ user: jo })
     renderStatus({ kind: 'no_access', slug: 'p', name: 'Private Study' })
     expect(screen.getByText('jo@example.org')).toBeTruthy()
-    expect(screen.getByRole('link', { name: /sign in with a different account/i })).toBeTruthy()
+    fireEvent.click(screen.getByRole('link', { name: /sign in with a different account/i }))
+    expect(switchAccount).toHaveBeenCalledOnce()
   })
 
   it('session_expired asks to sign in again', () => {
