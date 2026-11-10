@@ -18,7 +18,9 @@ import { applyErrorMessage } from '../config/applyResult'
 import type { AppConfig } from '../config/schema'
 import UserAvatar from '../components/UserAvatar'
 import ColorBySection from '../components/ColorBySection'
-import { ControlsPanel } from '../components/ControlsPanel'
+import { ControlsPanel, urlLabel } from '../components/ControlsPanel'
+import { NarrowViewLayout } from '../components/narrow/NarrowViewLayout'
+import { useNarrowLayout } from '../hooks/useNarrowLayout'
 import SelectionOverlay from '../components/SelectionOverlay'
 import SelectionToolbar from '../components/SelectionToolbar'
 import SummaryPanel from '../components/SummaryPanel'
@@ -692,6 +694,11 @@ function View() {
     s.catalogDatasets.find((d) => d.slug === datasetSlug),
   )
   const backendInfo = useAppStore((s) => s.backendInfo)
+  const datasetUrl = useAppStore((s) => s.datasetUrl)
+  const narrow = useNarrowLayout()
+  // The open chat thread, so the other layout's chat can reopen it when the
+  // page crosses the narrow/wide threshold (a tablet rotating, a window resized).
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightWidth, setRightWidth] = useState(RIGHT_SIDEBAR_WIDTH)
   const deckRef = useRef<DeckGL>(null)
@@ -703,6 +710,12 @@ function View() {
 
   // Keep the drag hook's ref in sync with the current snapped width
   useEffect(() => { setSnappedRef(rightWidth) }, [rightWidth, setSnappedRef])
+
+  // Narrow screens have no box/lasso tools, and a leftover one would stop the
+  // plot from panning.
+  useEffect(() => {
+    if (narrow && useAppStore.getState().selectionTool !== 'pan') useAppStore.getState().setSelectionTool('pan')
+  }, [narrow])
 
   const configApplied = useRef(false)
 
@@ -784,6 +797,27 @@ function View() {
     )
   }
 
+  const chatAvailable = !!(datasetSlug && backendInfo?.chat_enabled && dataset?.chat_enabled)
+
+  if (narrow) {
+    return (
+      <NarrowViewLayout
+        plot={
+          <>
+            <MemoizedVisualization deckRef={deckRef} />
+            <FilterBanner />
+            <CanvasLoadingOverlay />
+          </>
+        }
+        title={dataset?.name ?? (datasetUrl ? urlLabel(datasetUrl) : '')}
+        chatAvailable={chatAvailable}
+        slug={datasetSlug}
+        resumeThreadId={activeThreadId}
+        onActiveThreadChange={setActiveThreadId}
+      />
+    )
+  }
+
   return (
     <Layout style={{ height: '100vh', background: '#fff' }}>
       <Layout style={{ flex: 1, overflow: 'hidden', paddingBottom: profilerVisible ? PROFILE_BAR_HEIGHT : 0 }}>
@@ -852,12 +886,18 @@ function View() {
                   label: 'Summary',
                   children: <SummaryPanel collapsed={false} onExpand={() => {}} />,
                 },
-                ...(datasetSlug && backendInfo?.chat_enabled && dataset?.chat_enabled
+                ...(chatAvailable && datasetSlug
                   ? [
                       {
                         key: 'chat',
                         label: 'Chat',
-                        children: <ChatPanel slug={datasetSlug} />,
+                        children: (
+                          <ChatPanel
+                            slug={datasetSlug}
+                            resumeThreadId={activeThreadId}
+                            onActiveThreadChange={setActiveThreadId}
+                          />
+                        ),
                       },
                     ]
                   : []),
