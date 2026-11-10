@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams, useNavigate, Link } from 'react-router-dom'
-import { Button, Collapse, InputNumber, Layout, Popover, Switch, Tabs, Typography, Select, Spin, message, notification } from 'antd'
-import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HolderOutlined, LeftOutlined, LinkOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons'
+import { useSearchParams, Link } from 'react-router-dom'
+import { Layout, Tabs, Typography, Spin, message, notification } from 'antd'
+import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HolderOutlined, LeftOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons'
 import { DeckGL } from '@deck.gl/react'
 import { OrthographicView } from '@deck.gl/core'
 import { PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
@@ -10,7 +10,6 @@ import { _StatsWidget as StatsWidget } from '@deck.gl/widgets'
 import { ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from '@cbioportal-cell-explorer/profiler'
 import useAppStore from '../store/useAppStore'
 import type { SpatialSelectionGroup } from '../store/useAppStore'
-import { buildConfigFromState, buildConfigUrl, buildDatasetUrl } from '../config/buildConfig'
 import { usePostMessage } from '../config/usePostMessage'
 import { parseConfig } from '../config/parseConfig'
 import { applyConfig } from '../config/applyConfig'
@@ -18,8 +17,8 @@ import { DatasetStatus } from '../components/DatasetStatus'
 import { applyErrorMessage } from '../config/applyResult'
 import type { AppConfig } from '../config/schema'
 import UserAvatar from '../components/UserAvatar'
-import BrandingHeader from '../components/BrandingHeader'
 import ColorBySection from '../components/ColorBySection'
+import { ControlsPanel } from '../components/ControlsPanel'
 import SelectionOverlay from '../components/SelectionOverlay'
 import SelectionToolbar from '../components/SelectionToolbar'
 import SummaryPanel from '../components/SummaryPanel'
@@ -151,13 +150,6 @@ function dimColorBuffer(colorBuffer: Uint8Array, filterBuffer: Float32Array): Ui
   return out
 }
 
-function urlLabel(url: string): string {
-  return url.replace(/\/+$/, '').split('/').pop() ?? url
-}
-
-const sectionStyle = { padding: '12px 16px', borderBottom: '1px solid #f0f0f0' } as const
-const labelStyle = { fontSize: 12, fontWeight: 600, color: '#666', textTransform: 'uppercase', marginBottom: 8 } as const
-
 const collapsedIconStyle: React.CSSProperties = {
   fontSize: 16,
   color: '#999',
@@ -187,211 +179,6 @@ function CollapsedSidebar({ onExpand }: { onExpand: () => void }) {
       <div style={{ ...collapsedIconStyle, borderTop: '1px solid #f0f0f0', width: '100%' }}><SettingOutlined /></div>
       <CollapsedAuthIcon />
     </div>
-  )
-}
-
-function AuthSection() {
-  return (
-    <div style={{ padding: '8px 16px', borderTop: '1px solid #f0f0f0' }}>
-      <UserAvatar showName />
-    </div>
-  )
-}
-
-function ShareLinkPopover({ datasetUrl }: { datasetUrl: string }) {
-  const [open, setOpen] = useState(false)
-  const [copied, setCopied] = useState<'dataset' | 'config' | null>(null)
-
-  const handleCopy = (type: 'dataset' | 'config') => {
-    let url: string
-    if (type === 'dataset') {
-      url = buildDatasetUrl(datasetUrl)
-    } else {
-      const config = buildConfigFromState()
-      if (!config) return
-      url = buildConfigUrl(config)
-      if (url.length > 8000) {
-        message.warning('Link copied — URL is very long and may not work in all browsers.')
-      }
-    }
-    navigator.clipboard.writeText(url).catch(() => {
-      message.error('Failed to copy link to clipboard')
-    })
-    setCopied(type)
-    setTimeout(() => {
-      setCopied(null)
-      setOpen(false)
-    }, 1000)
-  }
-
-  const content = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 180 }}>
-      <div
-        style={{ padding: '4px 8px', cursor: 'pointer', borderRadius: 4 }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f5' }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-        onClick={() => handleCopy('dataset')}
-      >
-        <Typography.Text style={{ fontSize: 12 }}>
-          {copied === 'dataset' ? 'Copied!' : 'Share dataset'}
-        </Typography.Text>
-      </div>
-      <div
-        style={{ padding: '4px 8px', cursor: 'pointer', borderRadius: 4 }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f5' }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-        onClick={() => handleCopy('config')}
-      >
-        <Typography.Text style={{ fontSize: 12 }}>
-          {copied === 'config' ? 'Copied!' : 'Share current view'}
-        </Typography.Text>
-      </div>
-    </div>
-  )
-
-  return (
-    <Popover
-      content={content}
-      trigger="click"
-      open={open}
-      onOpenChange={setOpen}
-      placement="bottomLeft"
-    >
-      <LinkOutlined
-        style={{ fontSize: 11, marginLeft: 6, cursor: 'pointer', color: '#999' }}
-      />
-    </Popover>
-  )
-}
-
-function LeftSidebarContent() {
-  const navigate = useNavigate()
-  const datasetUrl = useAppStore((s) => s.datasetUrl)
-  const showHeader = useAppStore((s) => s.showHeader)
-  const showDatasetDropdown = useAppStore((s) => s.showDatasetDropdown)
-  const nObs = useAppStore((s) => s.nObs)
-  const nVar = useAppStore((s) => s.nVar)
-  const obsmKeys = useAppStore((s) => s.obsmKeys)
-  const selectedEmbedding = useAppStore((s) => s.selectedEmbedding)
-  const setSelectedEmbedding = useAppStore((s) => s.setSelectedEmbedding)
-
-  // Saved URLs, plus the current dataset when it is not one of them — a
-  // catalog dataset is listed so the select can show it, but never saved.
-  const datasetOptions = useMemo(() => {
-    const saved = loadDatasets()
-    return datasetUrl && !saved.includes(datasetUrl) ? [datasetUrl, ...saved] : saved
-  }, [datasetUrl])
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        {showHeader && <BrandingHeader />}
-
-        <div style={sectionStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', ...labelStyle }}>
-            <span>
-              Dataset
-              {datasetUrl && (
-                <ShareLinkPopover datasetUrl={datasetUrl} />
-              )}
-            </span>
-            {nObs != null && (
-              <Typography.Text type="secondary" style={{ fontSize: 11, fontWeight: 400, textTransform: 'none' }}>
-                {nObs.toLocaleString()} cells &middot; {(nVar ?? 0).toLocaleString()} genes
-              </Typography.Text>
-            )}
-          </div>
-          {showDatasetDropdown ? (
-            <Select
-              style={{ width: '100%' }}
-              size="small"
-              placeholder="Select dataset"
-              value={datasetUrl}
-              onChange={(url: string) => navigate(`/view?url=${encodeURIComponent(url)}`)}
-              options={datasetOptions.map((url) => ({ label: urlLabel(url), value: url }))}
-            />
-          ) : (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {datasetUrl ? urlLabel(datasetUrl) : 'No dataset'}
-            </Typography.Text>
-          )}
-        </div>
-
-        <div style={sectionStyle}>
-          <div style={labelStyle}>Embedding</div>
-          <Select
-            style={{ width: '100%' }}
-            size="small"
-            placeholder="Select embedding"
-            value={selectedEmbedding}
-            onChange={setSelectedEmbedding}
-            options={obsmKeys.map((key) => ({ label: key, value: key }))}
-            disabled={obsmKeys.length === 0}
-          />
-        </div>
-
-        <ColorBySection />
-      </div>
-
-      <div style={{ borderTop: '1px solid #f0f0f0' }}>
-        <RenderingControls />
-        <AuthSection />
-      </div>
-    </div>
-  )
-}
-
-function RenderingControls() {
-  const pointRadius = useAppStore((s) => s.pointRadius)
-  const setPointRadius = useAppStore((s) => s.setPointRadius)
-  const opacity = useAppStore((s) => s.opacity)
-  const setOpacity = useAppStore((s) => s.setOpacity)
-  const antialiasing = useAppStore((s) => s.antialiasing)
-  const setAntialiasing = useAppStore((s) => s.setAntialiasing)
-  const collisionEnabled = useAppStore((s) => s.collisionEnabled)
-  const setCollisionEnabled = useAppStore((s) => s.setCollisionEnabled)
-  const collisionRadiusScale = useAppStore((s) => s.collisionRadiusScale)
-  const setCollisionRadiusScale = useAppStore((s) => s.setCollisionRadiusScale)
-
-  return (
-    <Collapse
-      ghost
-      size="small"
-      items={[{
-        key: 'rendering',
-        label: <span style={{ fontSize: 12, fontWeight: 600, color: '#666', textTransform: 'uppercase' }}>Rendering</span>,
-        children: (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Point radius (px)</Typography.Text>
-              <InputNumber min={0.5} max={20} step={0.5} size="small" value={pointRadius} onChange={(v) => v != null && setPointRadius(v)} style={{ width: 70 }} />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Opacity</Typography.Text>
-              <InputNumber min={0.01} max={1} step={0.05} size="small" value={opacity} onChange={(v) => v != null && setOpacity(v)} style={{ width: 70 }} />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Antialiasing</Typography.Text>
-              <Switch size="small" checked={antialiasing} onChange={setAntialiasing} />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Collision detection</Typography.Text>
-              <Switch size="small" checked={collisionEnabled} onChange={setCollisionEnabled} />
-            </div>
-
-            {collisionEnabled && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>Collision scale</Typography.Text>
-                <InputNumber min={0.5} max={10} step={0.5} size="small" value={collisionRadiusScale} onChange={(v) => v != null && setCollisionRadiusScale(v)} style={{ width: 70 }} />
-              </div>
-            )}
-          </>
-        ),
-      }]}
-    />
   )
 }
 
@@ -1009,7 +796,7 @@ function View() {
           theme="light"
           style={{ borderRight: leftCollapsed ? undefined : '1px solid #f0f0f0', overflow: 'auto', background: '#fff', transition: 'width 200ms ease' }}
         >
-          {leftCollapsed ? <CollapsedSidebar onExpand={() => setLeftCollapsed(false)} /> : <LeftSidebarContent />}
+          {leftCollapsed ? <CollapsedSidebar onExpand={() => setLeftCollapsed(false)} /> : <ControlsPanel />}
         </Sider>
         <Content style={{ position: 'relative' }}>
           <EdgeTab
