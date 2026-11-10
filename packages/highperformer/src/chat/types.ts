@@ -197,12 +197,12 @@ export class HttpError extends Error {
 }
 
 /**
- * What to tell the user when a chat request fails. A 429 (signed-out chat
- * limit) carries its own plain-language message in `detail`; anything else
- * keeps today's text.
+ * What to tell the user when a chat request fails. Signed-out chat refusals —
+ * 429 (a usage limit) and 413 (conversation too long) — carry their own
+ * plain-language message in `detail`; anything else keeps today's text.
  */
 export function chatErrorMessage(e: unknown): string {
-  if (e instanceof HttpError && e.status === 429) {
+  if (e instanceof HttpError && (e.status === 429 || e.status === 413)) {
     try {
       const detail = JSON.parse(e.body)?.detail;
       if (typeof detail === "string" && detail) return detail;

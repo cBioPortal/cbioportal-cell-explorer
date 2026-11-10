@@ -1,3 +1,4 @@
+import { chatErrorMessage, HttpError } from './types'
 import { describe, it, expect } from "vitest";
 import type { ToolProgress, ToolPart, ChartHint } from "./types";
 
@@ -49,3 +50,16 @@ describe("chart types", () => {
     expect(hint.data).toBeNull();
   });
 });
+
+describe('chatErrorMessage', () => {
+  it('uses the server message for the signed-out limits (429) and size caps (413)', () => {
+    for (const status of [413, 429]) {
+      expect(chatErrorMessage(new HttpError(status, JSON.stringify({ detail: 'plain words' })))).toBe('plain words')
+    }
+  })
+
+  it('keeps the existing text for other errors', () => {
+    expect(chatErrorMessage(new HttpError(500, 'boom'))).toBe('HTTP 500: boom')
+    expect(chatErrorMessage(new Error('offline'))).toBe('offline')
+  })
+})
