@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { theme } from 'antd'
 import { LeftOutlined, SettingOutlined } from '@ant-design/icons'
 import useAppStore from '../../store/useAppStore'
 import { useBrand } from '../../hooks/useBrand'
@@ -39,6 +40,9 @@ interface NarrowViewLayoutProps {
  */
 export function NarrowViewLayout({ plot, title, chatAvailable, slug, resumeThreadId, onActiveThreadChange }: NarrowViewLayoutProps) {
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // The bar and chips sit outside antd components, so take antd's font
+  // explicitly rather than falling back to the browser default.
+  const { token } = theme.useToken()
   const showHeader = useAppStore((s) => s.showHeader)
   const brand = useBrand()
   // Inside a cBioPortal iframe there is no Cell Explorer home to go back to.
@@ -46,7 +50,7 @@ export function NarrowViewLayout({ plot, title, chatAvailable, slug, resumeThrea
   const logo = showHeader && !brand.isDefault ? brand.logoOnLight : null
 
   return (
-    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: '#fff' }}>
+    <div data-testid="narrow-view" style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: '#fff', fontFamily: token.fontFamily }}>
       <div style={{ height: TOP_BAR_HEIGHT, flex: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', borderBottom: '1px solid #e2e9f0' }}>
         {!embedded && (
           <Link to="/" aria-label="Back to datasets" style={iconButton}>

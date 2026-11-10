@@ -16,4 +16,5 @@ export const chipStyle: CSSProperties = {
   borderRadius: 14,
   boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
   cursor: 'pointer',
+  fontFamily: 'inherit',
 }

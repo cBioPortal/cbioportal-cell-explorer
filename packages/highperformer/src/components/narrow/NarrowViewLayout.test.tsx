@@ -15,6 +15,7 @@ vi.mock('../ColorBySection', () => ({ default: () => <div>color-by-section</div>
 vi.mock('../ControlsPanel', () => ({ ControlsPanel: () => <div>controls-panel</div> }))
 vi.mock('../SummaryPanel', () => ({ default: () => <div>summary-panel</div> }))
 
+import { theme } from 'antd'
 import { NarrowViewLayout } from './NarrowViewLayout'
 import useAppStore from '../../store/useAppStore'
 import type { SpatialSelectionGroup } from '../../store/useAppStore'
@@ -60,6 +61,14 @@ describe('NarrowViewLayout', () => {
     expect(screen.getByRole('button', { name: /settings/i })).toBeTruthy()
     expect(screen.getByText('the plot')).toBeTruthy()
     expect(screen.getByText('chat sheet')).toBeTruthy()
+  })
+
+  it('uses the app font, not the browser default', () => {
+    renderLayout()
+    const root = screen.getByText('MSK SPECTRUM TME 2022').closest('[data-testid="narrow-view"]') as HTMLElement
+    // The DOM rewrites quotes and whitespace in a font list; compare without them.
+    const unquote = (f: string) => f.replace(/["']/g, '').replace(/\s+/g, ' ').trim()
+    expect(unquote(root.style.fontFamily)).toBe(unquote(theme.getDesignToken().fontFamily))
   })
 
   it('no Back button when embedded', () => {
