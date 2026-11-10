@@ -19,6 +19,8 @@ export type ObsColumnInfo = {
 export type ChatPermission = {
   can_chat: boolean;
   reason: string | null;
+  /** Chatting signed out, under an anonymous ID, on a dataset that allows it. */
+  anonymous?: boolean;
 };
 
 export type ContextResponse = {
@@ -192,4 +194,21 @@ export class HttpError extends Error {
     super(`HTTP ${status}: ${body.slice(0, 200)}`);
     this.name = "HttpError";
   }
+}
+
+/**
+ * What to tell the user when a chat request fails. Signed-out chat refusals —
+ * 429 (a usage limit) and 413 (conversation too long) — carry their own
+ * plain-language message in `detail`; anything else keeps today's text.
+ */
+export function chatErrorMessage(e: unknown): string {
+  if (e instanceof HttpError && (e.status === 429 || e.status === 413)) {
+    try {
+      const detail = JSON.parse(e.body)?.detail;
+      if (typeof detail === "string" && detail) return detail;
+    } catch {
+      // not JSON — fall through
+    }
+  }
+  return (e as Error)?.message ?? "request failed";
 }

@@ -2,7 +2,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ConversationView } from './ConversationView'
 import * as useChatTurnModule from './useChatTurn'
-import type { ChatEvent, ContextResponse } from './types'
+import { HttpError, type ChatEvent, type ContextResponse } from './types'
+import { loginUrl } from '../utils/loginUrl'
 import useAppStore from '../store/useAppStore'
 
 const mockApplyConfig = vi.fn()
@@ -68,5 +69,34 @@ describe('ConversationView plot changes', () => {
     mockApplyConfig.mockResolvedValue({ ok: false, reason: { kind: 'missing_companion', field: 'gene' } })
     await sendAndReceive({ colorBy: 'gene' })
     expect(useAppStore.getState().plotChangeEpoch).toBe(0)
+  })
+})
+
+describe('ConversationView signed-out chat', () => {
+  it('shows "Sign in to keep your conversations" when chatting signed out', () => {
+    const anonCtx = { ...ctx, permission: { can_chat: true, reason: null, anonymous: true } }
+    render(<ConversationView slug="spectrum" ctxData={anonCtx} threadId={null} onThreadOpen={() => {}} />)
+    const link = screen.getByRole('link', { name: /sign in to keep your conversations/i })
+    expect(link.getAttribute('href')).toBe(loginUrl())
+  })
+
+  it('no sign-in note when signed in', () => {
+    render(<ConversationView slug="spectrum" ctxData={ctx} threadId={null} onThreadOpen={() => {}} />)
+    expect(screen.queryByText(/sign in to keep your conversations/i)).toBeNull()
+  })
+
+  it("a 429 shows the server's limit message, not the HTTP status", async () => {
+    const message = "You've reached the limit for now — try again in an hour, or sign in to keep going."
+    vi.spyOn(useChatTurnModule, 'useChatTurn').mockReturnValue({
+      streaming: false,
+      start: vi.fn(async () => { throw new HttpError(429, JSON.stringify({ detail: message })) }),
+      stop: vi.fn(),
+    })
+    render(<ConversationView slug="spectrum" ctxData={ctx} threadId={null} onThreadOpen={() => {}} />)
+    const input = screen.getByPlaceholderText(/ask anything/i)
+    fireEvent.change(input, { target: { value: 'hi' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByText(message)).toBeTruthy())
+    expect(screen.queryByText(/HTTP 429/)).toBeNull()
   })
 })

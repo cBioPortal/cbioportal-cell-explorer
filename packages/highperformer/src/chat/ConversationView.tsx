@@ -8,10 +8,11 @@ import useAppStore from "../store/useAppStore";
 import { isVisiblePlotChange } from "./plotChange";
 import { initialState, reduce, type State } from "./eventReducer";
 import { deriveSuggestionChips } from "./suggestionChips";
-import type { ChatEvent, ChatMessage, ContextResponse, MessagePart, WireMessage } from "./types";
+import { chatErrorMessage, type ChatEvent, type ChatMessage, type ContextResponse, type MessagePart, type WireMessage } from "./types";
 import { useChatTurn } from "./useChatTurn";
 import { AssistantBubble } from "./AssistantBubble";
 import { ensureAlternation } from "./wireMessages";
+import { loginUrl } from "../utils/loginUrl";
 
 type Action =
   | { type: "AGENT_EVENT"; event: ChatEvent }
@@ -181,7 +182,7 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
           dispatch({ type: "AGENT_EVENT", event: e });
         });
       } catch (e) {
-        const msg = (e as Error).message ?? "request failed";
+        const msg = chatErrorMessage(e);
         dispatch({
           type: "AGENT_EVENT",
           event: { type: "error", message: msg, retryable: false },
@@ -202,7 +203,7 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
         dispatch({ type: "AGENT_EVENT", event: e });
       });
     } catch (e) {
-      const msg = (e as Error).message ?? "request failed";
+      const msg = chatErrorMessage(e);
       dispatch({
         type: "AGENT_EVENT",
         event: { type: "error", message: msg, retryable: false },
@@ -296,6 +297,11 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
           </Button>
         )}
       </div>
+      {ctxData.permission.anonymous && (
+        <div style={{ marginTop: 6, fontSize: 12, color: "#8c8c8c" }}>
+          <a href={loginUrl()}>Sign in to keep your conversations</a>
+        </div>
+      )}
     </div>
   );
 }
