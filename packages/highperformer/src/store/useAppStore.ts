@@ -304,6 +304,11 @@ export interface AppState {
   // aside so the change is visible. Not read by Visualization.
   plotChangeEpoch: number
   notePlotChange: () => void
+  // Height (px) of an overlay covering the bottom of the plot — the narrow
+  // layout's chat sheet. Fit-to-view and agent viewports centre on the area
+  // above it. Read via getState() when a view is computed, never subscribed.
+  plotBottomInset: number
+  setPlotBottomInset: (px: number) => void
   setViewport: (v: { target: [number, number]; zoom: number } | null) => void
   // Compute target+zoom from the current selectionFilterBuffer bbox and apply.
   // No-op if no selection is active.
@@ -719,6 +724,8 @@ const useAppStore = create<AppState>((set, get) => ({
   viewportEpoch: 0,
   plotChangeEpoch: 0,
   notePlotChange: () => set((state) => ({ plotChangeEpoch: state.plotChangeEpoch + 1 })),
+  plotBottomInset: 0,
+  setPlotBottomInset: (px) => set({ plotBottomInset: px }),
   setViewport: (v) =>
     set((state) => ({
       pendingViewport: v,

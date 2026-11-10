@@ -26,6 +26,7 @@ import SummaryPanel from '../components/SummaryPanel'
 import { ChatPanel } from '../chat/ChatPanel'
 import AttributionCredit from '../components/AttributionCredit'
 import { loadDatasets, saveDatasets } from '../utils/datasets'
+import { fitZoom, insetTarget, recallViewState, rememberViewState } from '../utils/viewport'
 
 const { Sider, Content } = Layout
 
@@ -545,30 +546,32 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     const { minX, maxX, minY, maxY } = embeddingData.bounds
     const centerX = (minX + maxX) / 2
     const centerY = (minY + maxY) / 2
-    const dataWidth = maxX - minX || 1
-    const dataHeight = maxY - minY || 1
 
     // Use container dimensions if available, otherwise a reasonable default
     const el = containerRef.current
     const viewWidth = el?.clientWidth || 800
     const viewHeight = el?.clientHeight || 600
+    // Space covered by an overlay at the bottom (the phone chat sheet). Read,
+    // not subscribed: it only matters when a view is computed.
+    const inset = useAppStore.getState().plotBottomInset
 
-    const padding = 1.1 // 10% padding
-    const zoom = Math.log2(Math.min(
-      viewWidth / (dataWidth * padding),
-      viewHeight / (dataHeight * padding),
-    ))
+    const zoom = fitZoom(embeddingData.bounds, viewWidth, Math.max(1, viewHeight - inset))
 
     const minZoom = zoom - 0.25
     const maxZoom = zoom + 4
 
     if (pendingViewport) {
-      const target: [number, number, number] = [pendingViewport.target[0], pendingViewport.target[1], 0]
-      return { target, zoom: pendingViewport.zoom, minZoom, maxZoom }
+      const [x, y] = insetTarget(pendingViewport.target, pendingViewport.zoom, inset)
+      return { target: [x, y, 0] as [number, number, number], zoom: pendingViewport.zoom, minZoom, maxZoom }
     }
 
-    const target: [number, number, number] = [centerX, centerY, 0]
-    return { target, zoom, minZoom, maxZoom }
+    // A remount on the same embedding (the page switching between its narrow
+    // and wide layouts) keeps the camera where the user left it.
+    const recalled = recallViewState(embeddingData)
+    if (recalled) return { ...recalled, minZoom, maxZoom }
+
+    const [x, y] = insetTarget([centerX, centerY], zoom, inset)
+    return { target: [x, y, 0] as [number, number, number], zoom, minZoom, maxZoom }
   }, [embeddingData, pendingViewport])
 
   // Imperative viewport reset for runtime updates.
@@ -598,27 +601,24 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
 
     // Compute target viewState. If pendingViewport is null (reset request),
     // fall back to fit-to-view from bounds + container size.
-    let target: [number, number, number]
+    // Fit into the area left visible above a bottom overlay (the phone chat
+    // sheet); read, not subscribed.
+    const inset = useAppStore.getState().plotBottomInset
+    let center: [number, number]
     let zoom: number
     if (pendingViewport) {
-      target = [pendingViewport.target[0], pendingViewport.target[1], 0]
+      center = pendingViewport.target
       zoom = pendingViewport.zoom
     } else {
       const { minX, maxX, minY, maxY } = embeddingData.bounds
-      const centerX = (minX + maxX) / 2
-      const centerY = (minY + maxY) / 2
-      const dataWidth = maxX - minX || 1
-      const dataHeight = maxY - minY || 1
       const el = containerRef.current
       const viewWidth = el?.clientWidth || 800
       const viewHeight = el?.clientHeight || 600
-      const padding = 1.1
-      target = [centerX, centerY, 0]
-      zoom = Math.log2(Math.min(
-        viewWidth / (dataWidth * padding),
-        viewHeight / (dataHeight * padding),
-      ))
+      center = [(minX + maxX) / 2, (minY + maxY) / 2]
+      zoom = fitZoom(embeddingData.bounds, viewWidth, Math.max(1, viewHeight - inset))
     }
+    const [x, y] = insetTarget(center, zoom, inset)
+    const target: [number, number, number] = [x, y, 0]
     isControlledRef.current = true
     deck.setProps({ viewState: { target, zoom } })
     // Clear pendingViewport without bumping epoch (use setState bypass).
@@ -631,6 +631,8 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
   // Uses ref-based tracking (no React state) per the perf rule.
   const onViewStateChange = useCallback(
     ({ viewState }: { viewState: Record<string, unknown> }) => {
+      const current = useAppStore.getState().embeddingData
+      if (current) rememberViewState(current, viewState as { target: [number, number, number]; zoom: number })
       const deck = deckRef.current?.deck
       if (isControlledRef.current && deck) {
         deck.setProps({ viewState })
