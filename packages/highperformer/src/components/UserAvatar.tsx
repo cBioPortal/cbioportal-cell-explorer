@@ -1,8 +1,9 @@
 import { Button, Popover, Typography } from 'antd'
-import { LoginOutlined, LogoutOutlined } from '@ant-design/icons'
+import { LoginOutlined, LogoutOutlined, SwapOutlined } from '@ant-design/icons'
 import useAppStore from '../store/useAppStore'
 import { t } from './landingTokens'
 import { loginUrl } from '../utils/loginUrl'
+import { signOut, switchAccount } from '../utils/session'
 
 function getInitials(name: string): string {
   return name
@@ -24,7 +25,6 @@ export default function UserAvatar({ showName = false, onDark = false }: UserAva
   const backendInfo = useAppStore((s) => s.backendInfo)
   const authChecked = useAppStore((s) => s.authChecked)
   const user = useAppStore((s) => s.user)
-  const logout = useAppStore((s) => s.logout)
 
   if (!backendInfo?.auth_enabled || !authChecked) return null
 
@@ -50,19 +50,20 @@ export default function UserAvatar({ showName = false, onDark = false }: UserAva
   const displayName = user.name ?? user.email ?? user.sub
   const initials = getInitials(displayName)
 
+  const menuItem = { justifyContent: 'flex-start', fontSize: 13, paddingInline: 8 } as const
   const popoverContent = (
-    <div style={{ minWidth: 140 }}>
-      <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>{displayName}</div>
-      {user.email && user.email !== displayName && (
-        <div style={{ fontSize: 11, color: '#999', marginBottom: 8 }}>{user.email}</div>
-      )}
-      <Button
-        type="text"
-        size="small"
-        icon={<LogoutOutlined />}
-        onClick={() => logout()}
-        style={{ fontSize: 12, color: '#999', padding: 0 }}
-      >
+    <div style={{ minWidth: 190 }}>
+      <div style={{ padding: '0 8px' }}>
+        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>{displayName}</div>
+        {user.email && user.email !== displayName && (
+          <div style={{ fontSize: 11, color: t.textFaint }}>{user.email}</div>
+        )}
+      </div>
+      <div style={{ borderTop: `1px solid ${t.line}`, margin: '8px -12px 4px' }} />
+      <Button type="text" block icon={<SwapOutlined />} onClick={() => switchAccount()} style={{ ...menuItem, color: t.text }}>
+        Switch account
+      </Button>
+      <Button type="text" block icon={<LogoutOutlined />} onClick={() => signOut()} style={{ ...menuItem, color: t.textMuted }}>
         Sign out
       </Button>
     </div>
