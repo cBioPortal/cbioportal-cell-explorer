@@ -39,8 +39,9 @@ export function ChatSheet({ chatAvailable, slug, resumeThreadId, onActiveThreadC
   const height = dragHeight ?? heights[snap]
 
   // The resting height, not the live drag height: the plot re-fits only when
-  // the sheet settles.
-  const restingHeight = heights[snap]
+  // the sheet settles. Capped at half: an agent's zoom is applied before a
+  // full sheet steps down to half, and must be fitted to where it will land.
+  const restingHeight = Math.min(heights[snap], heights.half)
   const setPlotBottomInset = useAppStore((s) => s.setPlotBottomInset)
   useEffect(() => { setPlotBottomInset(restingHeight) }, [restingHeight, setPlotBottomInset])
   useEffect(() => () => setPlotBottomInset(0), [setPlotBottomInset])

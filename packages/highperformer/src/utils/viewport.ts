@@ -45,3 +45,49 @@ export function rememberViewState(
 export function recallViewState(key: object): ViewState | null {
   return remembered && remembered.key === key ? remembered.viewState : null
 }
+
+/** A requested camera: explicit target + zoom, optionally "fit these bounds" (zoom then follows the canvas). */
+export interface PendingViewport {
+  target: [number, number]
+  zoom: number
+  fitBounds?: Bounds
+}
+
+/**
+ * The camera to show for a request on a `viewWidth` × `viewHeight` canvas
+ * whose bottom `inset` px are covered: fit-to-view when `pending` is null, the
+ * requested target otherwise, with `fitBounds` sized to the real canvas.
+ */
+export function resolveViewport(
+  pending: PendingViewport | null,
+  dataBounds: Bounds,
+  viewWidth: number,
+  viewHeight: number,
+  inset: number,
+): { target: [number, number]; zoom: number } {
+  const visibleHeight = Math.max(1, viewHeight - inset)
+  let center: [number, number]
+  let zoom: number
+  if (!pending) {
+    center = [(dataBounds.minX + dataBounds.maxX) / 2, (dataBounds.minY + dataBounds.maxY) / 2]
+    zoom = fitZoom(dataBounds, viewWidth, visibleHeight)
+  } else if (pending.fitBounds) {
+    center = pending.target
+    zoom = fitZoom(pending.fitBounds, viewWidth, visibleHeight)
+  } else {
+    center = pending.target
+    zoom = pending.zoom
+  }
+  return { target: insetTarget(center, zoom, inset), zoom }
+}
+
+/** Apply a camera to deck.gl and remember it, so a remount (layout switch) keeps it. */
+export function commitViewState(
+  deck: { setProps: (props: { viewState: ViewState }) => void },
+  key: object,
+  viewState: { target: [number, number]; zoom: number },
+): void {
+  const vs: ViewState = { target: [viewState.target[0], viewState.target[1], 0], zoom: viewState.zoom }
+  deck.setProps({ viewState: vs })
+  rememberViewState(key, vs)
+}

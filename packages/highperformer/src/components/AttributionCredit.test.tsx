@@ -47,6 +47,19 @@ describe('AttributionCredit', () => {
     expect(screen.getByText('details')).toBeDefined()
   })
 
+  it('sits above a bottom overlay such as the phone chat sheet', () => {
+    openWith(CRC)
+    let el: HTMLElement | null = screen.getByRole('link', { name: 'CC BY 4.0' })
+    while (el && el.style.position !== 'absolute') el = el.parentElement
+    expect(el!.style.bottom).toBe('8px')
+    cleanup()
+    openWith(CRC)
+    act(() => useAppStore.setState({ plotBottomInset: 168 }))
+    el = screen.getByRole('link', { name: 'CC BY 4.0' })
+    while (el && el.style.position !== 'absolute') el = el.parentElement
+    expect(el!.style.bottom).toBe('176px')
+  })
+
   it('shows only the citation when there is no license', () => {
     openWith({ ...CRC, license_name: null, license_url: null })
     expect(screen.getByRole('link', { name: 'Marteau et al., Cancer Cell (2026)' })).toBeDefined()

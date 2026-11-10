@@ -83,6 +83,10 @@ export default function AttributionCredit() {
   const slug = useAppStore((s) => s.datasetSlug)
   const url = useAppStore((s) => s.datasetUrl)
   const selectionTool = useAppStore((s) => s.selectionTool)
+  // Lift the credit above a bottom overlay (the phone chat sheet) so a
+  // licence's attribution stays visible. Its own subscription: the plot that
+  // renders this component does not re-render.
+  const bottomInset = useAppStore((s) => s.plotBottomInset)
   const [open, setOpen] = useState(false)
   const a = resolveAttribution(catalog, { slug, url })
   if (!a) return null
@@ -91,7 +95,7 @@ export default function AttributionCredit() {
     <div
       data-testid="attribution-credit"
       // Don't swallow mouseup from a lasso/rectangle drag ending over the credit.
-      style={selectionTool !== 'pan' ? { ...lineStyle, pointerEvents: 'none' } : lineStyle}
+      style={{ ...lineStyle, bottom: 8 + bottomInset, ...(selectionTool !== 'pan' ? { pointerEvents: 'none' } : {}) }}
     >
       <span style={labelSpan}>
         Data:{' '}

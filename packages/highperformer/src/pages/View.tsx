@@ -27,7 +27,7 @@ import SummaryPanel from '../components/SummaryPanel'
 import { ChatPanel } from '../chat/ChatPanel'
 import AttributionCredit from '../components/AttributionCredit'
 import { loadDatasets, saveDatasets } from '../utils/datasets'
-import { fitZoom, insetTarget, recallViewState, rememberViewState } from '../utils/viewport'
+import { commitViewState, fitZoom, recallViewState, rememberViewState, resolveViewport } from '../utils/viewport'
 
 const { Sider, Content } = Layout
 
@@ -332,10 +332,6 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
   const initialViewState = useMemo(() => {
     if (!embeddingData?.bounds) return { target: [0, 0, 0] as [number, number, number], zoom: 1 }
 
-    const { minX, maxX, minY, maxY } = embeddingData.bounds
-    const centerX = (minX + maxX) / 2
-    const centerY = (minY + maxY) / 2
-
     // Use container dimensions if available, otherwise a reasonable default
     const el = containerRef.current
     const viewWidth = el?.clientWidth || 800
@@ -349,18 +345,14 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     const minZoom = zoom - 0.25
     const maxZoom = zoom + 4
 
-    if (pendingViewport) {
-      const [x, y] = insetTarget(pendingViewport.target, pendingViewport.zoom, inset)
-      return { target: [x, y, 0] as [number, number, number], zoom: pendingViewport.zoom, minZoom, maxZoom }
-    }
-
     // A remount on the same embedding (the page switching between its narrow
-    // and wide layouts) keeps the camera where the user left it.
-    const recalled = recallViewState(embeddingData)
+    // and wide layouts) keeps the camera where it was.
+    const recalled = pendingViewport ? null : recallViewState(embeddingData)
     if (recalled) return { ...recalled, minZoom, maxZoom }
 
-    const [x, y] = insetTarget([centerX, centerY], zoom, inset)
-    return { target: [x, y, 0] as [number, number, number], zoom, minZoom, maxZoom }
+    const view = resolveViewport(pendingViewport, embeddingData.bounds, viewWidth, viewHeight, inset)
+    const [x, y] = view.target
+    return { target: [x, y, 0] as [number, number, number], zoom: view.zoom, minZoom, maxZoom }
   }, [embeddingData, pendingViewport])
 
   // Imperative viewport reset for runtime updates.
@@ -393,23 +385,18 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
     // Fit into the area left visible above a bottom overlay (the phone chat
     // sheet); read, not subscribed.
     const inset = useAppStore.getState().plotBottomInset
-    let center: [number, number]
-    let zoom: number
-    if (pendingViewport) {
-      center = pendingViewport.target
-      zoom = pendingViewport.zoom
-    } else {
-      const { minX, maxX, minY, maxY } = embeddingData.bounds
-      const el = containerRef.current
-      const viewWidth = el?.clientWidth || 800
-      const viewHeight = el?.clientHeight || 600
-      center = [(minX + maxX) / 2, (minY + maxY) / 2]
-      zoom = fitZoom(embeddingData.bounds, viewWidth, Math.max(1, viewHeight - inset))
-    }
-    const [x, y] = insetTarget(center, zoom, inset)
-    const target: [number, number, number] = [x, y, 0]
+    const el = containerRef.current
+    const view = resolveViewport(
+      pendingViewport,
+      embeddingData.bounds,
+      el?.clientWidth || 800,
+      el?.clientHeight || 600,
+      inset,
+    )
     isControlledRef.current = true
-    deck.setProps({ viewState: { target, zoom } })
+    // Remembered too: deck.gl doesn't report programmatic changes through
+    // onViewStateChange, and a layout switch should keep this camera.
+    commitViewState(deck, embeddingData, view)
     // Clear pendingViewport without bumping epoch (use setState bypass).
     if (pendingViewport) {
       useAppStore.setState({ pendingViewport: null })
@@ -873,7 +860,8 @@ function View() {
           ) : (
             <Tabs
               size="small"
-              defaultActiveKey="summary"
+              // Back from the narrow layout mid-conversation: open on the chat.
+              defaultActiveKey={activeThreadId && chatAvailable ? 'chat' : 'summary'}
               className="chat-tabs"
               // Inset the tab labels from the Sider's left border + drag
               // handle so "Summary" / "Chat" don't sit flush against the

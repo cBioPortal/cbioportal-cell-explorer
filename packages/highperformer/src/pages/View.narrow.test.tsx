@@ -24,12 +24,17 @@ vi.mock('../pool/WorkerPool', () => ({
 }))
 vi.mock('../workers/universal.worker.ts?worker', () => ({ default: class MockWorker {} }))
 vi.mock('../hooks/useNarrowLayout', () => ({ useNarrowLayout: () => narrow.value }))
-vi.mock('../components/narrow/NarrowViewLayout', () => ({
-  NarrowViewLayout: (props: Record<string, unknown>) => {
-    narrowProps.push(props)
-    return <div>narrow layout</div>
-  },
-}))
+vi.mock('../components/narrow/NarrowViewLayout', async () => {
+  const React = await import('react')
+  return {
+    NarrowViewLayout: (props: { onActiveThreadChange: (id: string | null) => void }) => {
+      narrowProps.push(props)
+      // Stand in for the sheet's chat opening a thread.
+      React.useEffect(() => { props.onActiveThreadChange('t9') }, [])
+      return <div>narrow layout</div>
+    },
+  }
+})
 vi.mock('../chat/ChatPanel', async () => {
   const React = await import('react')
   return {
@@ -90,6 +95,21 @@ describe('View narrow layout', () => {
     expect(useAppStore.getState().selectionTool).toBe('pan')
   })
 
+  it('switching to wide mid-conversation shows the Chat tab with that thread', () => {
+    narrow.value = true
+    const { rerender } = renderView()
+    narrow.value = false
+    act(() => {
+      rerender(
+        <MemoryRouter initialEntries={['/view?dataset=spectrum']}>
+          <View />
+        </MemoryRouter>,
+      )
+    })
+    expect(screen.getByRole('tab', { name: 'Chat' }).getAttribute('aria-selected')).toBe('true')
+    expect(chatProps[0]).toMatchObject({ resumeThreadId: 't9' })
+  })
+
   it('the active chat thread carries across a layout switch', async () => {
     const { rerender } = renderView()
     fireEvent.click(screen.getByRole('tab', { name: 'Chat' }))
@@ -102,6 +122,7 @@ describe('View narrow layout', () => {
         </MemoryRouter>,
       )
     })
-    expect(narrowProps.at(-1)).toMatchObject({ resumeThreadId: 't1' })
+    // The narrow layout's first render is the hand-over.
+    expect(narrowProps[0]).toMatchObject({ resumeThreadId: 't1' })
   })
 })

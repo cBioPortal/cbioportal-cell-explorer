@@ -27,6 +27,7 @@ export interface EmbeddingData {
 import type { components } from '@cbioportal-cell-explorer/api-client'
 import type { CollectionAttribution } from '../utils/attribution'
 import { classifyHttpFailure, type DatasetLoadError } from './datasetLoadError'
+import type { PendingViewport } from '../utils/viewport'
 
 export type BackendInfo = components['schemas']['InfoResponse']
 export type User = components['schemas']['User']
@@ -297,7 +298,7 @@ export interface AppState {
   // Runtime updates apply via deckRef.current.setProps({viewState}) — the
   // deck.gl prescribed pattern per the perf rule. Once applied, deck.gl is
   // in controlled mode; an onViewStateChange handler keeps it in sync on pan.
-  pendingViewport: { target: [number, number]; zoom: number } | null
+  pendingViewport: PendingViewport | null
   viewportEpoch: number
   // Bumped when a chat action changes what the plot shows (colour, filter,
   // embedding, viewport…). The narrow layout's chat sheet watches it to step
@@ -309,7 +310,7 @@ export interface AppState {
   // above it. Read via getState() when a view is computed, never subscribed.
   plotBottomInset: number
   setPlotBottomInset: (px: number) => void
-  setViewport: (v: { target: [number, number]; zoom: number } | null) => void
+  setViewport: (v: PendingViewport | null) => void
   // Compute target+zoom from the current selectionFilterBuffer bbox and apply.
   // No-op if no selection is active.
   fitViewportToSelection: () => void
@@ -759,7 +760,9 @@ const useAppStore = create<AppState>((set, get) => ({
     const dataHeight = maxY - minY || 1
     const padding = 1.1
     const zoom = Math.log2(Math.min(800 / (dataWidth * padding), 600 / (dataHeight * padding)))
-    get().setViewport({ target: [centerX, centerY], zoom })
+    // `fitBounds` lets View re-fit the zoom to the real canvas (and the area
+    // above a phone's chat sheet); `zoom` is the fallback for an 800x600 view.
+    get().setViewport({ target: [centerX, centerY], zoom, fitBounds: { minX, maxX, minY, maxY } })
   },
 
   // Error state

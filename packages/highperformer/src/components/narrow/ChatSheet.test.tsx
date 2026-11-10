@@ -68,6 +68,16 @@ describe('ChatSheet', () => {
     expect(sheetHeight()).toBe(168)
   })
 
+  it('never reports more than the half height as the plot inset', () => {
+    // A viewport an agent sends while the sheet is full is applied before the
+    // sheet drops to half; fitting to the full sheet would leave no plot.
+    renderSheet()
+    tapHandle()
+    tapHandle()
+    expect(sheetHeight()).toBe(796)
+    expect(useAppStore.getState().plotBottomInset).toBe(422)
+  })
+
   it('drops from full to half when the plot changes', () => {
     renderSheet()
     tapHandle()
