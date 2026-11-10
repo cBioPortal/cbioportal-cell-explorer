@@ -26,9 +26,11 @@ const collapsedIconStyle: React.CSSProperties = {
 interface SummaryPanelProps {
   collapsed?: boolean
   onExpand?: () => void
+  /** Render regardless of `summaryPanelOpen` — for the narrow layout's Summary tab, which has no toolbar to reopen it. */
+  alwaysOpen?: boolean
 }
 
-export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps) {
+export default function SummaryPanel({ collapsed, onExpand, alwaysOpen = false }: SummaryPanelProps) {
   const summaryPanelOpen = useAppStore((s) => s.summaryPanelOpen)
   const selectionGroups = useAppStore((s) => s.selectionGroups)
   const customGroupCommittedCount = useAppStore((s) => s.customGroupCommittedCount)
@@ -71,7 +73,7 @@ export default function SummaryPanel({ collapsed, onExpand }: SummaryPanelProps)
     [selectionGroups, customGroupCommittedCount],
   )
 
-  if (!summaryPanelOpen) return null
+  if (!summaryPanelOpen && !alwaysOpen) return null
 
   // Collapsed view — icon strip
   if (collapsed) {

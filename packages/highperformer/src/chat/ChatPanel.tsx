@@ -1,5 +1,5 @@
 import { Alert, Spin } from "antd";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { chat } from "../api";
 import { ChatPermissionBanner } from "./ChatPermissionBanner";
 import { ChatThreadList } from "./ChatThreadList";
@@ -13,9 +13,25 @@ type PanelMode =
   | { kind: "new" }
   | { kind: "active"; threadId: string; title: string; initialHistory: ChatMessage[] };
 
-export function ChatPanel({ slug }: { slug: string }) {
+type ChatPanelProps = {
+  slug: string;
+  /** Where a fresh panel opens: the thread list (desktop) or a new conversation (phone sheet). */
+  startIn?: "list" | "new";
+  /** A thread to reopen on mount — e.g. the one open before the page switched layouts. Wins over `startIn`. */
+  resumeThreadId?: string | null;
+  /** Told the open thread's id whenever it changes, or null when none is open. */
+  onActiveThreadChange?: (threadId: string | null) => void;
+};
+
+export function ChatPanel({ slug, startIn = "list", resumeThreadId = null, onActiveThreadChange }: ChatPanelProps) {
   const ctxQuery = useChatContext(slug);
-  const [mode, setMode] = useState<PanelMode>({ kind: "list" });
+  const [mode, setMode] = useState<PanelMode>({ kind: startIn });
+
+  // Report through a ref so callers needn't memoise the callback.
+  const onActiveRef = useRef(onActiveThreadChange);
+  onActiveRef.current = onActiveThreadChange;
+  const activeId = mode.kind === "active" ? mode.threadId : null;
+  useEffect(() => { onActiveRef.current?.(activeId); }, [activeId]);
 
   const enterNew = useCallback(() => setMode({ kind: "new" }), []);
   const enterList = useCallback(() => setMode({ kind: "list" }), []);
@@ -42,6 +58,15 @@ export function ChatPanel({ slug }: { slug: string }) {
   const onThreadOpen = useCallback((threadId: string, title: string) => {
     setMode({ kind: "active", threadId, title, initialHistory: [] });
   }, []);
+
+  // Reopen a thread handed over from the other layout. Mount-only: the id is
+  // a starting point, not something to follow.
+  const resumeRef = useRef(resumeThreadId);
+  useEffect(() => {
+    const id = resumeRef.current;
+    resumeRef.current = null;
+    if (id) void enterActive(id);
+  }, [enterActive]);
 
   const data = ctxQuery.data;
 

@@ -697,6 +697,8 @@ describe('applyConfig — new schema fields apply to store', () => {
     expect(pv).not.toBeNull()
     expect(pv!.target[0]).toBe(5)  // (0 + 10) / 2
     expect(pv!.target[1]).toBe(5)  // (0 + 10) / 2
+    // The zoom is fitted to the real canvas when applied, from these bounds.
+    expect(pv!.fitBounds).toEqual({ minX: 0, maxX: 10, minY: 0, maxY: 10 })
   })
 
   it("fitViewportToSelection is a no-op when no selection is active", async () => {

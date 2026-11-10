@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams, useNavigate, Link } from 'react-router-dom'
-import { Button, Collapse, InputNumber, Layout, Popover, Switch, Tabs, Typography, Select, Spin, message, notification } from 'antd'
-import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HolderOutlined, LeftOutlined, LinkOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons'
+import { useSearchParams, Link } from 'react-router-dom'
+import { Layout, Tabs, Typography, Spin, message, notification } from 'antd'
+import { BgColorsOutlined, DatabaseOutlined, DotChartOutlined, HolderOutlined, LeftOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons'
 import { DeckGL } from '@deck.gl/react'
 import { OrthographicView } from '@deck.gl/core'
 import { PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
@@ -10,7 +10,6 @@ import { _StatsWidget as StatsWidget } from '@deck.gl/widgets'
 import { ProfileBar, PROFILE_BAR_HEIGHT, saveProfileSession } from '@cbioportal-cell-explorer/profiler'
 import useAppStore from '../store/useAppStore'
 import type { SpatialSelectionGroup } from '../store/useAppStore'
-import { buildConfigFromState, buildConfigUrl, buildDatasetUrl } from '../config/buildConfig'
 import { usePostMessage } from '../config/usePostMessage'
 import { parseConfig } from '../config/parseConfig'
 import { applyConfig } from '../config/applyConfig'
@@ -18,14 +17,17 @@ import { DatasetStatus } from '../components/DatasetStatus'
 import { applyErrorMessage } from '../config/applyResult'
 import type { AppConfig } from '../config/schema'
 import UserAvatar from '../components/UserAvatar'
-import BrandingHeader from '../components/BrandingHeader'
 import ColorBySection from '../components/ColorBySection'
+import { ControlsPanel, urlLabel } from '../components/ControlsPanel'
+import { NarrowViewLayout } from '../components/narrow/NarrowViewLayout'
+import { useNarrowLayout } from '../hooks/useNarrowLayout'
 import SelectionOverlay from '../components/SelectionOverlay'
 import SelectionToolbar from '../components/SelectionToolbar'
 import SummaryPanel from '../components/SummaryPanel'
 import { ChatPanel } from '../chat/ChatPanel'
 import AttributionCredit from '../components/AttributionCredit'
 import { loadDatasets, saveDatasets } from '../utils/datasets'
+import { commitViewState, fitZoom, recallViewState, rememberViewState, resolveViewport } from '../utils/viewport'
 
 const { Sider, Content } = Layout
 
@@ -150,13 +152,6 @@ function dimColorBuffer(colorBuffer: Uint8Array, filterBuffer: Float32Array): Ui
   return out
 }
 
-function urlLabel(url: string): string {
-  return url.replace(/\/+$/, '').split('/').pop() ?? url
-}
-
-const sectionStyle = { padding: '12px 16px', borderBottom: '1px solid #f0f0f0' } as const
-const labelStyle = { fontSize: 12, fontWeight: 600, color: '#666', textTransform: 'uppercase', marginBottom: 8 } as const
-
 const collapsedIconStyle: React.CSSProperties = {
   fontSize: 16,
   color: '#999',
@@ -186,211 +181,6 @@ function CollapsedSidebar({ onExpand }: { onExpand: () => void }) {
       <div style={{ ...collapsedIconStyle, borderTop: '1px solid #f0f0f0', width: '100%' }}><SettingOutlined /></div>
       <CollapsedAuthIcon />
     </div>
-  )
-}
-
-function AuthSection() {
-  return (
-    <div style={{ padding: '8px 16px', borderTop: '1px solid #f0f0f0' }}>
-      <UserAvatar showName />
-    </div>
-  )
-}
-
-function ShareLinkPopover({ datasetUrl }: { datasetUrl: string }) {
-  const [open, setOpen] = useState(false)
-  const [copied, setCopied] = useState<'dataset' | 'config' | null>(null)
-
-  const handleCopy = (type: 'dataset' | 'config') => {
-    let url: string
-    if (type === 'dataset') {
-      url = buildDatasetUrl(datasetUrl)
-    } else {
-      const config = buildConfigFromState()
-      if (!config) return
-      url = buildConfigUrl(config)
-      if (url.length > 8000) {
-        message.warning('Link copied — URL is very long and may not work in all browsers.')
-      }
-    }
-    navigator.clipboard.writeText(url).catch(() => {
-      message.error('Failed to copy link to clipboard')
-    })
-    setCopied(type)
-    setTimeout(() => {
-      setCopied(null)
-      setOpen(false)
-    }, 1000)
-  }
-
-  const content = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 180 }}>
-      <div
-        style={{ padding: '4px 8px', cursor: 'pointer', borderRadius: 4 }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f5' }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-        onClick={() => handleCopy('dataset')}
-      >
-        <Typography.Text style={{ fontSize: 12 }}>
-          {copied === 'dataset' ? 'Copied!' : 'Share dataset'}
-        </Typography.Text>
-      </div>
-      <div
-        style={{ padding: '4px 8px', cursor: 'pointer', borderRadius: 4 }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f5' }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-        onClick={() => handleCopy('config')}
-      >
-        <Typography.Text style={{ fontSize: 12 }}>
-          {copied === 'config' ? 'Copied!' : 'Share current view'}
-        </Typography.Text>
-      </div>
-    </div>
-  )
-
-  return (
-    <Popover
-      content={content}
-      trigger="click"
-      open={open}
-      onOpenChange={setOpen}
-      placement="bottomLeft"
-    >
-      <LinkOutlined
-        style={{ fontSize: 11, marginLeft: 6, cursor: 'pointer', color: '#999' }}
-      />
-    </Popover>
-  )
-}
-
-function LeftSidebarContent() {
-  const navigate = useNavigate()
-  const datasetUrl = useAppStore((s) => s.datasetUrl)
-  const showHeader = useAppStore((s) => s.showHeader)
-  const showDatasetDropdown = useAppStore((s) => s.showDatasetDropdown)
-  const nObs = useAppStore((s) => s.nObs)
-  const nVar = useAppStore((s) => s.nVar)
-  const obsmKeys = useAppStore((s) => s.obsmKeys)
-  const selectedEmbedding = useAppStore((s) => s.selectedEmbedding)
-  const setSelectedEmbedding = useAppStore((s) => s.setSelectedEmbedding)
-
-  // Saved URLs, plus the current dataset when it is not one of them — a
-  // catalog dataset is listed so the select can show it, but never saved.
-  const datasetOptions = useMemo(() => {
-    const saved = loadDatasets()
-    return datasetUrl && !saved.includes(datasetUrl) ? [datasetUrl, ...saved] : saved
-  }, [datasetUrl])
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        {showHeader && <BrandingHeader />}
-
-        <div style={sectionStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', ...labelStyle }}>
-            <span>
-              Dataset
-              {datasetUrl && (
-                <ShareLinkPopover datasetUrl={datasetUrl} />
-              )}
-            </span>
-            {nObs != null && (
-              <Typography.Text type="secondary" style={{ fontSize: 11, fontWeight: 400, textTransform: 'none' }}>
-                {nObs.toLocaleString()} cells &middot; {(nVar ?? 0).toLocaleString()} genes
-              </Typography.Text>
-            )}
-          </div>
-          {showDatasetDropdown ? (
-            <Select
-              style={{ width: '100%' }}
-              size="small"
-              placeholder="Select dataset"
-              value={datasetUrl}
-              onChange={(url: string) => navigate(`/view?url=${encodeURIComponent(url)}`)}
-              options={datasetOptions.map((url) => ({ label: urlLabel(url), value: url }))}
-            />
-          ) : (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {datasetUrl ? urlLabel(datasetUrl) : 'No dataset'}
-            </Typography.Text>
-          )}
-        </div>
-
-        <div style={sectionStyle}>
-          <div style={labelStyle}>Embedding</div>
-          <Select
-            style={{ width: '100%' }}
-            size="small"
-            placeholder="Select embedding"
-            value={selectedEmbedding}
-            onChange={setSelectedEmbedding}
-            options={obsmKeys.map((key) => ({ label: key, value: key }))}
-            disabled={obsmKeys.length === 0}
-          />
-        </div>
-
-        <ColorBySection />
-      </div>
-
-      <div style={{ borderTop: '1px solid #f0f0f0' }}>
-        <RenderingControls />
-        <AuthSection />
-      </div>
-    </div>
-  )
-}
-
-function RenderingControls() {
-  const pointRadius = useAppStore((s) => s.pointRadius)
-  const setPointRadius = useAppStore((s) => s.setPointRadius)
-  const opacity = useAppStore((s) => s.opacity)
-  const setOpacity = useAppStore((s) => s.setOpacity)
-  const antialiasing = useAppStore((s) => s.antialiasing)
-  const setAntialiasing = useAppStore((s) => s.setAntialiasing)
-  const collisionEnabled = useAppStore((s) => s.collisionEnabled)
-  const setCollisionEnabled = useAppStore((s) => s.setCollisionEnabled)
-  const collisionRadiusScale = useAppStore((s) => s.collisionRadiusScale)
-  const setCollisionRadiusScale = useAppStore((s) => s.setCollisionRadiusScale)
-
-  return (
-    <Collapse
-      ghost
-      size="small"
-      items={[{
-        key: 'rendering',
-        label: <span style={{ fontSize: 12, fontWeight: 600, color: '#666', textTransform: 'uppercase' }}>Rendering</span>,
-        children: (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Point radius (px)</Typography.Text>
-              <InputNumber min={0.5} max={20} step={0.5} size="small" value={pointRadius} onChange={(v) => v != null && setPointRadius(v)} style={{ width: 70 }} />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Opacity</Typography.Text>
-              <InputNumber min={0.01} max={1} step={0.05} size="small" value={opacity} onChange={(v) => v != null && setOpacity(v)} style={{ width: 70 }} />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Antialiasing</Typography.Text>
-              <Switch size="small" checked={antialiasing} onChange={setAntialiasing} />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Collision detection</Typography.Text>
-              <Switch size="small" checked={collisionEnabled} onChange={setCollisionEnabled} />
-            </div>
-
-            {collisionEnabled && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>Collision scale</Typography.Text>
-                <InputNumber min={0.5} max={10} step={0.5} size="small" value={collisionRadiusScale} onChange={(v) => v != null && setCollisionRadiusScale(v)} style={{ width: 70 }} />
-              </div>
-            )}
-          </>
-        ),
-      }]}
-    />
   )
 }
 
@@ -542,33 +332,27 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
   const initialViewState = useMemo(() => {
     if (!embeddingData?.bounds) return { target: [0, 0, 0] as [number, number, number], zoom: 1 }
 
-    const { minX, maxX, minY, maxY } = embeddingData.bounds
-    const centerX = (minX + maxX) / 2
-    const centerY = (minY + maxY) / 2
-    const dataWidth = maxX - minX || 1
-    const dataHeight = maxY - minY || 1
-
     // Use container dimensions if available, otherwise a reasonable default
     const el = containerRef.current
     const viewWidth = el?.clientWidth || 800
     const viewHeight = el?.clientHeight || 600
+    // Space covered by an overlay at the bottom (the phone chat sheet). Read,
+    // not subscribed: it only matters when a view is computed.
+    const inset = useAppStore.getState().plotBottomInset
 
-    const padding = 1.1 // 10% padding
-    const zoom = Math.log2(Math.min(
-      viewWidth / (dataWidth * padding),
-      viewHeight / (dataHeight * padding),
-    ))
+    const zoom = fitZoom(embeddingData.bounds, viewWidth, Math.max(1, viewHeight - inset))
 
     const minZoom = zoom - 0.25
     const maxZoom = zoom + 4
 
-    if (pendingViewport) {
-      const target: [number, number, number] = [pendingViewport.target[0], pendingViewport.target[1], 0]
-      return { target, zoom: pendingViewport.zoom, minZoom, maxZoom }
-    }
+    // A remount on the same embedding (the page switching between its narrow
+    // and wide layouts) keeps the camera where it was.
+    const recalled = pendingViewport ? null : recallViewState(embeddingData)
+    if (recalled) return { ...recalled, minZoom, maxZoom }
 
-    const target: [number, number, number] = [centerX, centerY, 0]
-    return { target, zoom, minZoom, maxZoom }
+    const view = resolveViewport(pendingViewport, embeddingData.bounds, viewWidth, viewHeight, inset)
+    const [x, y] = view.target
+    return { target: [x, y, 0] as [number, number, number], zoom: view.zoom, minZoom, maxZoom }
   }, [embeddingData, pendingViewport])
 
   // Imperative viewport reset for runtime updates.
@@ -598,29 +382,21 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
 
     // Compute target viewState. If pendingViewport is null (reset request),
     // fall back to fit-to-view from bounds + container size.
-    let target: [number, number, number]
-    let zoom: number
-    if (pendingViewport) {
-      target = [pendingViewport.target[0], pendingViewport.target[1], 0]
-      zoom = pendingViewport.zoom
-    } else {
-      const { minX, maxX, minY, maxY } = embeddingData.bounds
-      const centerX = (minX + maxX) / 2
-      const centerY = (minY + maxY) / 2
-      const dataWidth = maxX - minX || 1
-      const dataHeight = maxY - minY || 1
-      const el = containerRef.current
-      const viewWidth = el?.clientWidth || 800
-      const viewHeight = el?.clientHeight || 600
-      const padding = 1.1
-      target = [centerX, centerY, 0]
-      zoom = Math.log2(Math.min(
-        viewWidth / (dataWidth * padding),
-        viewHeight / (dataHeight * padding),
-      ))
-    }
+    // Fit into the area left visible above a bottom overlay (the phone chat
+    // sheet); read, not subscribed.
+    const inset = useAppStore.getState().plotBottomInset
+    const el = containerRef.current
+    const view = resolveViewport(
+      pendingViewport,
+      embeddingData.bounds,
+      el?.clientWidth || 800,
+      el?.clientHeight || 600,
+      inset,
+    )
     isControlledRef.current = true
-    deck.setProps({ viewState: { target, zoom } })
+    // Remembered too: deck.gl doesn't report programmatic changes through
+    // onViewStateChange, and a layout switch should keep this camera.
+    commitViewState(deck, embeddingData, view)
     // Clear pendingViewport without bumping epoch (use setState bypass).
     if (pendingViewport) {
       useAppStore.setState({ pendingViewport: null })
@@ -631,6 +407,8 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
   // Uses ref-based tracking (no React state) per the perf rule.
   const onViewStateChange = useCallback(
     ({ viewState }: { viewState: Record<string, unknown> }) => {
+      const current = useAppStore.getState().embeddingData
+      if (current) rememberViewState(current, viewState as { target: [number, number, number]; zoom: number })
       const deck = deckRef.current?.deck
       if (isControlledRef.current && deck) {
         deck.setProps({ viewState })
@@ -903,6 +681,11 @@ function View() {
     s.catalogDatasets.find((d) => d.slug === datasetSlug),
   )
   const backendInfo = useAppStore((s) => s.backendInfo)
+  const datasetUrl = useAppStore((s) => s.datasetUrl)
+  const narrow = useNarrowLayout()
+  // The open chat thread, so the other layout's chat can reopen it when the
+  // page crosses the narrow/wide threshold (a tablet rotating, a window resized).
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightWidth, setRightWidth] = useState(RIGHT_SIDEBAR_WIDTH)
   const deckRef = useRef<DeckGL>(null)
@@ -914,6 +697,12 @@ function View() {
 
   // Keep the drag hook's ref in sync with the current snapped width
   useEffect(() => { setSnappedRef(rightWidth) }, [rightWidth, setSnappedRef])
+
+  // Narrow screens have no box/lasso tools, and a leftover one would stop the
+  // plot from panning.
+  useEffect(() => {
+    if (narrow && useAppStore.getState().selectionTool !== 'pan') useAppStore.getState().setSelectionTool('pan')
+  }, [narrow])
 
   const configApplied = useRef(false)
 
@@ -995,6 +784,27 @@ function View() {
     )
   }
 
+  const chatAvailable = !!(datasetSlug && backendInfo?.chat_enabled && dataset?.chat_enabled)
+
+  if (narrow) {
+    return (
+      <NarrowViewLayout
+        plot={
+          <>
+            <MemoizedVisualization deckRef={deckRef} />
+            <FilterBanner />
+            <CanvasLoadingOverlay />
+          </>
+        }
+        title={dataset?.name ?? (datasetUrl ? urlLabel(datasetUrl) : '')}
+        chatAvailable={chatAvailable}
+        slug={datasetSlug}
+        resumeThreadId={activeThreadId}
+        onActiveThreadChange={setActiveThreadId}
+      />
+    )
+  }
+
   return (
     <Layout style={{ height: '100vh', background: '#fff' }}>
       <Layout style={{ flex: 1, overflow: 'hidden', paddingBottom: profilerVisible ? PROFILE_BAR_HEIGHT : 0 }}>
@@ -1007,7 +817,7 @@ function View() {
           theme="light"
           style={{ borderRight: leftCollapsed ? undefined : '1px solid #f0f0f0', overflow: 'auto', background: '#fff', transition: 'width 200ms ease' }}
         >
-          {leftCollapsed ? <CollapsedSidebar onExpand={() => setLeftCollapsed(false)} /> : <LeftSidebarContent />}
+          {leftCollapsed ? <CollapsedSidebar onExpand={() => setLeftCollapsed(false)} /> : <ControlsPanel />}
         </Sider>
         <Content style={{ position: 'relative' }}>
           <EdgeTab
@@ -1050,7 +860,8 @@ function View() {
           ) : (
             <Tabs
               size="small"
-              defaultActiveKey="summary"
+              // Back from the narrow layout mid-conversation: open on the chat.
+              defaultActiveKey={activeThreadId && chatAvailable ? 'chat' : 'summary'}
               className="chat-tabs"
               // Inset the tab labels from the Sider's left border + drag
               // handle so "Summary" / "Chat" don't sit flush against the
@@ -1063,12 +874,18 @@ function View() {
                   label: 'Summary',
                   children: <SummaryPanel collapsed={false} onExpand={() => {}} />,
                 },
-                ...(datasetSlug && backendInfo?.chat_enabled && dataset?.chat_enabled
+                ...(chatAvailable && datasetSlug
                   ? [
                       {
                         key: 'chat',
                         label: 'Chat',
-                        children: <ChatPanel slug={datasetSlug} />,
+                        children: (
+                          <ChatPanel
+                            slug={datasetSlug}
+                            resumeThreadId={activeThreadId}
+                            onActiveThreadChange={setActiveThreadId}
+                          />
+                        ),
                       },
                     ]
                   : []),
