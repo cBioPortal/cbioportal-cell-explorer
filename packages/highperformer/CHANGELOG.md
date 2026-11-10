@@ -1,5 +1,11 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.14.0
+
+### Minor Changes
+
+- [#341](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/341) [`677d0ae`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/677d0ae975ae27e3a5404f2066e94fd66775bd58) Thanks [@hweej](https://github.com/hweej)! - Chat without signing in on datasets that allow it: a "Sign in to keep your conversations" note shows while chatting signed out, and hitting the signed-out chat limit shows a plain message instead of an HTTP error.
+
 ## 0.13.0
 
 ### Minor Changes
