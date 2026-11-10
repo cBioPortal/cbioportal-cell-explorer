@@ -5,6 +5,7 @@ import { LockOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons
 import useAppStore from '../store/useAppStore'
 import type { DatasetLoadError } from '../store/datasetLoadError'
 import { loginUrl } from '../utils/loginUrl'
+import { switchAccount } from '../utils/session'
 import { t } from './landingTokens'
 import BrandingHeader from './BrandingHeader'
 import UserAvatar from './UserAvatar'
@@ -116,7 +117,12 @@ export function DatasetStatus({ error, onRetry }: DatasetStatusProps) {
             ? [<Button key="request" type="primary" href={mailto}>Request access</Button>, browse]
             : [browse],
           footer: embedded ? undefined : (
-            <>Wrong account? <a href={loginUrl()}>Sign in with a different account</a></>
+            <>
+              Wrong account?{' '}
+              <a href={loginUrl()} onClick={(ev) => { ev.preventDefault(); void switchAccount() }}>
+                Sign in with a different account
+              </a>
+            </>
           ),
         }
       }
