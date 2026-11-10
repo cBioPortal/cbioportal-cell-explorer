@@ -4,6 +4,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { applyConfig as applyConfigFn } from "../config/applyConfig";
 import { applyErrorMessage } from "../config/applyResult";
+import useAppStore from "../store/useAppStore";
+import { isVisiblePlotChange } from "./plotChange";
 import { initialState, reduce, type State } from "./eventReducer";
 import { deriveSuggestionChips } from "./suggestionChips";
 import type { ChatEvent, ChatMessage, ContextResponse, MessagePart, WireMessage } from "./types";
@@ -114,6 +116,7 @@ export function ConversationView({ slug, ctxData, threadId, initialHistory, onTh
   // (guaranteed by React), so this assignment runs once and stays valid.
   applyConfigCallbackRef.current = (cfg) => {
     applyConfigFn(cfg as Parameters<typeof applyConfigFn>[0]).then((result) => {
+      if (result.ok && isVisiblePlotChange(cfg)) useAppStore.getState().notePlotChange();
       if (!result.ok) {
         dispatch({
           type: "AGENT_EVENT",

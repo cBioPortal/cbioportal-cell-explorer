@@ -299,6 +299,11 @@ export interface AppState {
   // in controlled mode; an onViewStateChange handler keeps it in sync on pan.
   pendingViewport: { target: [number, number]; zoom: number } | null
   viewportEpoch: number
+  // Bumped when a chat action changes what the plot shows (colour, filter,
+  // embedding, viewport…). The narrow layout's chat sheet watches it to step
+  // aside so the change is visible. Not read by Visualization.
+  plotChangeEpoch: number
+  notePlotChange: () => void
   setViewport: (v: { target: [number, number]; zoom: number } | null) => void
   // Compute target+zoom from the current selectionFilterBuffer bbox and apply.
   // No-op if no selection is active.
@@ -712,6 +717,8 @@ const useAppStore = create<AppState>((set, get) => ({
   // Viewport override
   pendingViewport: null,
   viewportEpoch: 0,
+  plotChangeEpoch: 0,
+  notePlotChange: () => set((state) => ({ plotChangeEpoch: state.plotChangeEpoch + 1 })),
   setViewport: (v) =>
     set((state) => ({
       pendingViewport: v,
