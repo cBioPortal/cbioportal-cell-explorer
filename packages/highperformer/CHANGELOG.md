@@ -1,5 +1,13 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.13.0
+
+### Minor Changes
+
+- [#340](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/340) [`21e5f77`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/21e5f773fe44174f8412a3a069a54c98dc59ca3a) Thanks [@hweej](https://github.com/hweej)! - On phones and narrow windows the dataset page shows the plot full-screen with chat in a pull-up sheet; settings and the summary are behind ⚙. When the assistant changes the plot, the sheet steps down so the change is visible.
+
+- [#338](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/338) [`02f5d68`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/02f5d68821b9e536cfa8c41ed00c42c3f9094ad1) Thanks [@hweej](https://github.com/hweej)! - Sign out takes you to the home page, and the next sign-in asks which account to use. A new "Switch account" in the avatar menu (and "Sign in with a different account" on the no-access page) goes straight to the account chooser and returns you to the same page.
+
 ## 0.12.0
 
 ### Minor Changes
