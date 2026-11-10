@@ -290,3 +290,52 @@ describe("ChatPanel", () => {
     await waitFor(() => expect(screen.getByText(/no conversations yet/i)).toBeDefined());
   });
 });
+
+describe("ChatPanel start / resume / report", () => {
+  const thread = { id: "t1", title: "Existing", created_at: "2026-05-11T10:00:00Z",
+                   updated_at: "2026-05-11T10:00:00Z", message_count: 2 };
+  const detail = {
+    id: "t1", title: "Existing",
+    messages: [
+      { role: "user", content: "Q", created_at: "..." },
+      { role: "assistant", content: "A", created_at: "..." },
+    ],
+  };
+
+  it('startIn="new" opens a new conversation', async () => {
+    render(<ChatPanel slug="spectrum" startIn="new" />);
+    await waitFor(() => screen.getByPlaceholderText(/ask anything/i));
+    expect(screen.queryByText(/no conversations yet/i)).toBeNull();
+  });
+
+  it("resumeThreadId reopens that thread", async () => {
+    (chat.getThread as any).mockResolvedValue(detail);
+    render(<ChatPanel slug="spectrum" startIn="new" resumeThreadId="t1" />);
+    await waitFor(() => expect(chat.getThread).toHaveBeenCalledWith("spectrum", "t1"));
+    await waitFor(() => screen.getByText("Existing"));
+  });
+
+  it("reports the active thread, and null after going back", async () => {
+    (chat.listThreads as any).mockResolvedValue({ threads: [thread] });
+    (chat.getThread as any).mockResolvedValue(detail);
+    const onActive = vi.fn();
+    render(<ChatPanel slug="spectrum" onActiveThreadChange={onActive} />);
+    await waitFor(() => screen.getByText("Existing"));
+    fireEvent.click(screen.getByText("Existing"));
+    await waitFor(() => expect(onActive).toHaveBeenLastCalledWith("t1"));
+    fireEvent.click(screen.getByRole("button", { name: /back/i }));
+    await waitFor(() => expect(onActive).toHaveBeenLastCalledWith(null));
+  });
+
+  it("reports a thread opened by the first reply of a new conversation", async () => {
+    const onActive = vi.fn();
+    startMock.mockImplementation(async (_s, _m, _t, onEvent) => {
+      onEvent({ type: "thread_open", thread_id: "t2", title: "New one" });
+    });
+    render(<ChatPanel slug="spectrum" startIn="new" onActiveThreadChange={onActive} />);
+    const input = await waitFor(() => screen.getByPlaceholderText(/ask anything/i));
+    fireEvent.change(input, { target: { value: "hi" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(onActive).toHaveBeenLastCalledWith("t2"));
+  });
+});
