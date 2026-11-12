@@ -1,5 +1,11 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.17.1
+
+### Patch Changes
+
+- [#349](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/349) [`93e0b07`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/93e0b070be5d478165ab6b39c1cd0b649a8d12b8) Thanks [@hweej](https://github.com/hweej)! - A dataset's default view (coloring and labels) is no longer lost on slow connections. Large datasets such as the CRC atlas (4.3M cells) could take over 30 seconds to download on mobile data, after which the default view was silently dropped and the plot stayed gray. Column and gene names are now fetched as soon as the dataset opens instead of after the cell positions, and the wait for them is 2 minutes.
+
 ## 0.17.0
 
 ### Minor Changes
