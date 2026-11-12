@@ -1,6 +1,6 @@
 import { AppConfigSchema, type AppConfig } from './schema'
 import useAppStore, { DEFAULT_OPACITY, DEFAULT_POINT_SIZE } from '../store/useAppStore'
-import { waitForStore } from './waitForStore'
+import { waitForStore, DATASET_LOAD_TIMEOUT_MS } from './waitForStore'
 import { ok, err, type ApplyResult } from './applyResult'
 
 /**
@@ -113,7 +113,7 @@ export async function applyConfig(input: unknown): Promise<ApplyResult> {
 
   if (!metadataReady && datasetLoading) {
     try {
-      await waitForStore(store, (s) => s.obsColumnNames.length > 0)
+      await waitForStore(store, (s) => s.obsColumnNames.length > 0, DATASET_LOAD_TIMEOUT_MS)
     } catch {
       return err({ kind: 'metadata_unavailable', field: 'post-load' })
     }
