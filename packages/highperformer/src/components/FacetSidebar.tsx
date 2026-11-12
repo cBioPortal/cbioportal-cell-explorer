@@ -153,6 +153,7 @@ export default function FacetSidebar({
   onToggle,
   onClear,
   onClearAll,
+  heading = true,
 }: {
   defs: FacetDef[]
   entries: DatasetEntry[]
@@ -160,6 +161,8 @@ export default function FacetSidebar({
   onToggle: (key: string, value: string) => void
   onClear: (key: string) => void
   onClearAll: () => void
+  /** Off inside the phone sheet, whose own title bar names it and clears it. */
+  heading?: boolean
 }) {
   const active = countActiveFilters(filters)
   const ordered = useMemo(() => [...defs].sort((a, b) => a.order - b.order), [defs])
@@ -168,14 +171,16 @@ export default function FacetSidebar({
 
   return (
     <aside className="ce-facets" aria-label="Filters">
-      <div className="ce-facets-head">
-        <span style={labelStyle}>Filter</span>
-        {active > 0 && (
-          <button type="button" className="ce-facet-clear" onClick={onClearAll}>
-            Clear all
-          </button>
-        )}
-      </div>
+      {heading && (
+        <div className="ce-facets-head">
+          <span style={labelStyle}>Filter</span>
+          {active > 0 && (
+            <button type="button" className="ce-facet-clear" onClick={onClearAll}>
+              Clear all
+            </button>
+          )}
+        </div>
+      )}
       {ordered.map((def) => (
         <Facet
           key={def.key}

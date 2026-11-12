@@ -36,7 +36,10 @@ body {
    file is the source of truth for anything referenced from inline styles.
    ───────────────────────────────────────────────────────────────────────── */
 
-.ce-landing {
+/* The tokens are shared with the phone filter sheet, which antd renders
+   outside .ce-landing. */
+.ce-landing,
+.ce-filters-sheet {
   /* Operator-branded via --brand-* (set by applyBrandColors.ts on
      document.documentElement). The literal is the fallback, so an unbranded
      deployment is byte-for-byte what it is today. */
@@ -63,7 +66,9 @@ body {
   --radius: 8px;
   --gutter: 96px;
   --content: min(100% - var(--gutter), 1440px);
+}
 
+.ce-landing {
   min-height: 100vh;
   background: var(--paper);
   color: var(--text);
@@ -811,7 +816,72 @@ body {
   outline-offset: -2px;
 }
 
-/* ── Phone layout: dataset cards ──────────────────────────────────────── */
+/* ── Phone layout: filter button + sheet, dataset cards ─────────────────── */
+
+.ce-filters-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.ce-filters-badge {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.ce-filters-sheet .ce-facets {
+  margin-top: 0;
+}
+
+/* Finger-sized rows; the desktop sidebar's are sized for a pointer. */
+.ce-filters-sheet .ce-facet-value {
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  font-size: 15px;
+  border-bottom: 1px solid var(--mist);
+}
+
+.ce-filters-sheet .ce-facet-value input {
+  width: 18px;
+  height: 18px;
+}
+
+.ce-filters-sheet .ce-facet-value-count {
+  font-size: 13px;
+}
+
+.ce-filters-sheet .ce-facet-more {
+  font-size: 13.5px;
+  padding-top: 8px;
+}
+
+.ce-filters-sheet .ce-facet-search input {
+  font-size: 16px;
+}
+
+.ce-filters-sheet .ant-btn-primary {
+  background: var(--ink);
+}
+
+.ce-filters-sheet .ant-btn-primary:not(:disabled):hover {
+  background: var(--ink-deep);
+}
 
 .ce-cards-head {
   display: flex;
@@ -1017,11 +1087,16 @@ body {
   }
 
   .ce-search-row {
-    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .ce-search-row .ce-search {
-    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  /* Inputs under 16px make iOS zoom the page on focus. */
+  .ce-search-row .ce-search .ant-input {
+    font-size: 16px;
   }
 
 }
