@@ -1,5 +1,11 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.17.0
+
+### Minor Changes
+
+- [#347](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/347) [`57aa939`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/57aa9399f37d1a68897298be5d9f2a682b8ac6eb) Thanks [@hweej](https://github.com/hweej)! - On phones and narrow windows, a dataset's default view no longer turns on category labels when the label column has more than 12 values (e.g. the CRC atlas's 44 cell types), which covered the plot. Labels turned on in Settings or by chat still show; desktop is unchanged.
+
 ## 0.16.0
 
 ### Minor Changes
