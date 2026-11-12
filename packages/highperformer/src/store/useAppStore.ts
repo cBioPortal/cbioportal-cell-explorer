@@ -670,8 +670,8 @@ const useAppStore = create<AppState>((set, get) => ({
       set({ datasetSlug: slug })
       const dv = dataset.default_view
       if (dv) {
-        const { applyConfig } = await import('../config/applyConfig')
-        await applyConfig(dv)
+        const { applyDefaultView } = await import('../config/applyDefaultView')
+        await applyDefaultView(dv)
       }
       return true
     }

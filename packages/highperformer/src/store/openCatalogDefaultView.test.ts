@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const applyConfigMock = vi.fn().mockResolvedValue({ ok: true })
-vi.mock('../config/applyConfig', () => ({ applyConfig: applyConfigMock }))
+vi.mock('../config/applyDefaultView', () => ({ applyDefaultView: applyConfigMock }))
 
 import useAppStore from './useAppStore'
 
