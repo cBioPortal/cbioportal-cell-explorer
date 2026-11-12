@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useNarrowLayout } from './useNarrowLayout'
+import { useNarrowLayout, usePhoneLayout } from './useNarrowLayout'
 
 function fakeMediaQuery(initial: boolean) {
   const listeners = new Set<() => void>()
@@ -52,5 +52,22 @@ describe('useNarrowLayout', () => {
     expect(result.current).toBe(true)
     act(() => media.change(false))
     expect(result.current).toBe(false)
+  })
+})
+
+describe('usePhoneLayout', () => {
+  const original = window.matchMedia
+  afterEach(() => { window.matchMedia = original })
+
+  it('matches phone widths only', () => {
+    const queries: string[] = []
+    const media = fakeMediaQuery(true)
+    window.matchMedia = vi.fn((q: string) => {
+      queries.push(q)
+      return media.mql as unknown as MediaQueryList
+    })
+    const { result } = renderHook(() => usePhoneLayout())
+    expect(result.current).toBe(true)
+    expect(queries).toContain('(max-width: 720px)')
   })
 })
