@@ -1308,6 +1308,27 @@ const useAppStore = create<AppState>((set, get) => ({
         loading: false,
         opacity: DEFAULT_OPACITY,
       })
+      // Fetched now rather than after the embedding: a view's settings need these
+      // names first, and a large embedding can take minutes on slow links.
+      Promise.all([adata.obsColumns(), adata.varNames(), adata.varColumns()]).then(([obsColumnNames, varNamesRaw, varCols]) => {
+        if (get().adata !== adata) return
+        const varNames = varNamesRaw.map((v) => String(v ?? ''))
+
+        // Auto-detect gene label column
+        const colsLower = varCols.map((c) => c.toLowerCase())
+        let detectedCol: string | null = null
+        for (const candidate of GENE_SYMBOL_COLUMNS) {
+          // Exact match first
+          const exactIdx = varCols.indexOf(candidate)
+          if (exactIdx !== -1) { detectedCol = varCols[exactIdx]; break }
+          // Case-insensitive fallback
+          const lowerIdx = colsLower.indexOf(candidate.toLowerCase())
+          if (lowerIdx !== -1) { detectedCol = varCols[lowerIdx]; break }
+        }
+
+        set({ obsColumnNames, varNames, varColumns: varCols, geneLabelColumn: detectedCol })
+        if (detectedCol) get()._resolveGeneLabels()
+      })
       if (defaultKey) get().fetchEmbedding(defaultKey)
     } catch (err) {
       set({ loading: false, loadingError: { kind: 'store_failed', url, detail: err instanceof Error ? err.message : String(err) } })
@@ -1344,25 +1365,6 @@ const useAppStore = create<AppState>((set, get) => ({
       // Build default color buffer for the new embedding
       get().rebuildColorBuffer()
 
-      // Fetch obs column names, var names, and var columns in the background
-      Promise.all([adata.obsColumns(), adata.varNames(), adata.varColumns()]).then(([obsColumnNames, varNamesRaw, varCols]) => {
-        const varNames = varNamesRaw.map((v) => String(v ?? ''))
-
-        // Auto-detect gene label column
-        const colsLower = varCols.map((c) => c.toLowerCase())
-        let detectedCol: string | null = null
-        for (const candidate of GENE_SYMBOL_COLUMNS) {
-          // Exact match first
-          const exactIdx = varCols.indexOf(candidate)
-          if (exactIdx !== -1) { detectedCol = varCols[exactIdx]; break }
-          // Case-insensitive fallback
-          const lowerIdx = colsLower.indexOf(candidate.toLowerCase())
-          if (lowerIdx !== -1) { detectedCol = varCols[lowerIdx]; break }
-        }
-
-        set({ obsColumnNames, varNames, varColumns: varCols, geneLabelColumn: detectedCol })
-        if (detectedCol) get()._resolveGeneLabels()
-      })
     } catch (err) {
       if (err instanceof Error && err.name !== 'AbortError') {
         set({ embeddingLoading: false, _embeddingAbort: null })
