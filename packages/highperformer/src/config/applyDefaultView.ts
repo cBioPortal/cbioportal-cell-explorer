@@ -1,7 +1,7 @@
 import useAppStore from '../store/useAppStore'
 import { NARROW_MAX_WIDTH } from '../hooks/useNarrowLayout'
 import { applyConfig } from './applyConfig'
-import { waitForStore } from './waitForStore'
+import { waitForStore, DATASET_LOAD_TIMEOUT_MS } from './waitForStore'
 import type { ApplyResult } from './applyResult'
 
 /**
@@ -37,7 +37,7 @@ export async function applyDefaultView(view: Record<string, unknown>): Promise<A
     return s.summaryObsData.get(column)?.categoryMap.length ?? 0
   }
   try {
-    await waitForStore(useAppStore, (s) => count(s) > 0)
+    await waitForStore(useAppStore, (s) => count(s) > 0, DATASET_LOAD_TIMEOUT_MS)
   } catch {
     // The column never loaded (or another dataset was opened): leave labels off.
     return result

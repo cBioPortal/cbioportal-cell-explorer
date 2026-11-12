@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { applyConfig } from './applyConfig'
 import useAppStore from '../store/useAppStore'
+import { DATASET_LOAD_TIMEOUT_MS } from './waitForStore'
 
 // Regression: a stored default_view is applied via applyConfig WITHOUT a
 // url/dataset field, right after openCatalogDataset's openDataset() resolves.
@@ -35,5 +36,45 @@ describe('applyConfig — dataset open but obs metadata not yet loaded', () => {
     expect(res.ok).toBe(true)
     expect(setColorMode).toHaveBeenCalledWith('category')
     expect(selectObsColumn).toHaveBeenCalledWith('author_cell_type')
+  })
+
+  describe('a large dataset on a slow connection', () => {
+    afterEach(() => { vi.useRealTimers() })
+
+    const openWithoutColumns = () => {
+      const selectObsColumn = vi.fn((c: string) => useAppStore.setState({ selectedObsColumn: c }))
+      useAppStore.setState({
+        adata: {} as never,
+        obsColumnNames: [],
+        loading: false,
+        categoryMap: [],
+        selectedObsColumn: null,
+        setColorMode: vi.fn() as never,
+        selectObsColumn: selectObsColumn as never,
+      })
+      return selectObsColumn
+    }
+
+    it('keeps waiting past 30 seconds for the obs columns', async () => {
+      vi.useFakeTimers()
+      const selectObsColumn = openWithoutColumns()
+      setTimeout(() => useAppStore.setState({ obsColumnNames: ['cell_type'] }), 60_000)
+
+      const pending = applyConfig({ colorBy: 'category', category: 'cell_type' })
+      await vi.advanceTimersByTimeAsync(60_000)
+
+      expect((await pending).ok).toBe(true)
+      expect(selectObsColumn).toHaveBeenCalledWith('cell_type')
+    })
+
+    it('gives up once the dataset load timeout passes', async () => {
+      vi.useFakeTimers()
+      openWithoutColumns()
+
+      const pending = applyConfig({ colorBy: 'category', category: 'cell_type' })
+      await vi.advanceTimersByTimeAsync(DATASET_LOAD_TIMEOUT_MS)
+
+      expect(await pending).toEqual({ ok: false, reason: { kind: 'metadata_unavailable', field: 'post-load' } })
+    })
   })
 })

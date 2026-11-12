@@ -77,4 +77,20 @@ describe('applyDefaultView', () => {
     expect(result.ok).toBe(false)
     expect(useAppStore.getState().showCategoryLabels).toBe(false)
   })
+
+  it('turns labels on when the category values arrive after 30 seconds', async () => {
+    vi.useFakeTimers()
+    try {
+      setNarrow(true)
+      setTimeout(() => useAppStore.setState({ selectedObsColumn: 'cell_type', categoryMap: categories(5) }), 60_000)
+
+      const pending = applyDefaultView(LABELLED)
+      await vi.advanceTimersByTimeAsync(60_000)
+      await pending
+
+      expect(useAppStore.getState().showCategoryLabels).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

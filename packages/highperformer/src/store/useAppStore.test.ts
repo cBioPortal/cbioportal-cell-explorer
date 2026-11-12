@@ -732,9 +732,10 @@ describe('useAppStore', () => {
         varColumns: vi.fn().mockResolvedValue(['n_cells', 'gene_symbol']),
         varColumn: vi.fn().mockResolvedValue(['TP53', 'BRCA1']),
       }
-      useAppStore.setState({ adata: mockAdata as any })
+      const { AnnDataStore } = await import('@cbioportal-cell-explorer/zarrstore')
+      vi.spyOn(AnnDataStore, 'open').mockResolvedValueOnce({ nObs: 2, nVar: 2, ...mockAdata } as any)
 
-      await useAppStore.getState().fetchEmbedding('X_umap')
+      await useAppStore.getState().openDataset('https://cdn.example.com/genes.zarr')
 
       await vi.waitFor(() => {
         expect(useAppStore.getState().geneLabelColumn).toBe('gene_symbol')
@@ -755,9 +756,10 @@ describe('useAppStore', () => {
         varNames: vi.fn().mockResolvedValue(['ENSG001', 'ENSG002']),
         varColumns: vi.fn().mockResolvedValue(['n_cells']),
       }
-      useAppStore.setState({ adata: mockAdata as any })
+      const { AnnDataStore } = await import('@cbioportal-cell-explorer/zarrstore')
+      vi.spyOn(AnnDataStore, 'open').mockResolvedValueOnce({ nObs: 2, nVar: 2, ...mockAdata } as any)
 
-      await useAppStore.getState().fetchEmbedding('X_umap')
+      await useAppStore.getState().openDataset('https://cdn.example.com/genes.zarr')
 
       await vi.waitFor(() => {
         expect(useAppStore.getState().varColumns).toEqual(['n_cells'])
@@ -1325,7 +1327,7 @@ describe('useAppStore', () => {
 
       const { AnnDataStore } = await import('@cbioportal-cell-explorer/zarrstore')
       const mockOpen = vi.spyOn(AnnDataStore, 'open').mockResolvedValueOnce({
-        nObs: 100, nVar: 50, obsmKeys: () => ['X_umap'],
+        nObs: 100, nVar: 50, obsmKeys: () => ['X_umap'], obsColumns: async () => [], varNames: async () => [], varColumns: async () => [],
       } as any)
 
       await useAppStore.getState().openCatalogDataset('public-ds')
@@ -1333,11 +1335,45 @@ describe('useAppStore', () => {
       mockOpen.mockRestore()
     })
 
+    it('openDataset fetches obs column names without waiting for the embedding', async () => {
+      const { AnnDataStore } = await import('@cbioportal-cell-explorer/zarrstore')
+      const mockOpen = vi.spyOn(AnnDataStore, 'open').mockResolvedValueOnce({
+        nObs: 100, nVar: 50, obsmKeys: () => ['X_umap'],
+        obsm: () => new Promise(() => {}), // positions still downloading
+        obsColumns: async () => ['cell_type'], varNames: async () => [], varColumns: async () => [],
+      } as any)
+
+      await useAppStore.getState().openDataset('https://cdn.example.com/slow.zarr')
+      await vi.waitFor(() => expect(useAppStore.getState().obsColumnNames).toEqual(['cell_type']))
+      expect(useAppStore.getState().embeddingData).toBeNull()
+      mockOpen.mockRestore()
+    })
+
+    it("openDataset drops a replaced dataset's obs column names", async () => {
+      let resolveOld: (names: string[]) => void = () => {}
+      const { AnnDataStore } = await import('@cbioportal-cell-explorer/zarrstore')
+      const mockOpen = vi.spyOn(AnnDataStore, 'open')
+        .mockResolvedValueOnce({
+          nObs: 1, nVar: 1, obsmKeys: () => [],
+          obsColumns: () => new Promise<string[]>((resolve) => { resolveOld = resolve }), varNames: async () => [], varColumns: async () => [],
+        } as any)
+        .mockResolvedValueOnce({ nObs: 1, nVar: 1, obsmKeys: () => [], obsColumns: async () => ['new_col'], varNames: async () => [], varColumns: async () => [] } as any)
+
+      await useAppStore.getState().openDataset('https://cdn.example.com/old.zarr')
+      await useAppStore.getState().openDataset('https://cdn.example.com/new.zarr')
+      await vi.waitFor(() => expect(useAppStore.getState().obsColumnNames).toEqual(['new_col']))
+      resolveOld(['old_col'])
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(useAppStore.getState().obsColumnNames).toEqual(['new_col'])
+      mockOpen.mockRestore()
+    })
+
     it('openDataset uses the default opacity for datasets over 1M cells', async () => {
       useAppStore.setState({ opacity: 0.2 })
       const { AnnDataStore } = await import('@cbioportal-cell-explorer/zarrstore')
       const mockOpen = vi.spyOn(AnnDataStore, 'open').mockResolvedValueOnce({
-        nObs: 2_000_000, nVar: 50, obsmKeys: () => [],
+        nObs: 2_000_000, nVar: 50, obsmKeys: () => [], obsColumns: async () => [], varNames: async () => [], varColumns: async () => [],
       } as any)
 
       await useAppStore.getState().openDataset('https://cdn.example.com/big.zarr')
@@ -1363,7 +1399,7 @@ describe('useAppStore', () => {
 
       const { AnnDataStore } = await import('@cbioportal-cell-explorer/zarrstore')
       const mockOpen = vi.spyOn(AnnDataStore, 'open').mockResolvedValueOnce({
-        nObs: 100, nVar: 50, obsmKeys: () => ['X_umap'],
+        nObs: 100, nVar: 50, obsmKeys: () => ['X_umap'], obsColumns: async () => [], varNames: async () => [], varColumns: async () => [],
       } as any)
 
       await useAppStore.getState().openCatalogDataset('private-ds')
