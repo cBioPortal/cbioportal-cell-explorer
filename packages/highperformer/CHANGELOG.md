@@ -1,5 +1,11 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.16.0
+
+### Minor Changes
+
+- [#345](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/345) [`7953722`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/79537228c176e183f5087389ddaa96a31165f1bd) Thanks [@hweej](https://github.com/hweej)! - Smoother pan and zoom on the plot: a flick glides briefly after release, zoom reaches 256x past fit-to-view (was 16x) and 2x out, and phones and tablets draw the plot at 1x pixel density so panning millions of points stays fluid.
+
 ## 0.15.0
 
 ### Minor Changes
