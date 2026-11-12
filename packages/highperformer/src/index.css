@@ -811,6 +811,126 @@ body {
   outline-offset: -2px;
 }
 
+/* ── Phone layout: dataset cards ──────────────────────────────────────── */
+
+.ce-cards-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  padding-bottom: 4px;
+}
+
+.ce-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* A native select: the phone's own picker opens, not a desktop menu. */
+.ce-sort select {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  padding: 0;
+}
+
+.ce-card {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.ce-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ce-card-name {
+  flex: 1;
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.ce-card-name a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* The whole card is the tap target, not just the words of the name. */
+.ce-card {
+  position: relative;
+}
+
+.ce-card-name a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.ce-card-top .ant-btn,
+.ce-card-collection {
+  position: relative;
+  z-index: 1;
+}
+
+.ce-card-desc {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.ce-card-collection {
+  display: block;
+  /* antd's link colour, which the table's collection links get from Table. */
+  color: #1677ff;
+  text-decoration: none;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 6px;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ce-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ce-card-sep {
+  margin: 0 6px;
+  color: var(--text-faint);
+}
+
+/* StatusLine sets its own top margin for the table cell. */
+.ce-card-meta > div {
+  margin-top: 0 !important;
+}
+
+.ce-cards-pager {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+}
+
 /* Actions are hover-revealed on pointer devices only — on touch there is no
    hover, so they must always be visible. */
 @media (hover: none) {
