@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { commitViewState, fitZoom, insetTarget, recallViewState, rememberViewState, resolveViewport } from './viewport'
+import { PAN_CONTROLLER, commitViewState, fitZoom, insetTarget, plotPixelRatio, recallViewState, rememberViewState, resolveViewport, zoomLimits } from './viewport'
 
 describe('fitZoom', () => {
   it('matches the existing fit', () => {
@@ -58,5 +58,36 @@ describe('commitViewState', () => {
     commitViewState({ setProps }, key, { target: [1, 2], zoom: 3 })
     expect(setProps).toHaveBeenCalledWith({ viewState: { target: [1, 2, 0], zoom: 3 } })
     expect(recallViewState(key)).toEqual({ target: [1, 2, 0], zoom: 3 })
+  })
+})
+
+describe('zoomLimits', () => {
+  it('allows zooming in 256x and out 2x from the fit', () => {
+    expect(zoomLimits(3)).toEqual({ minZoom: 2, maxZoom: 11 })
+  })
+})
+
+describe('PAN_CONTROLLER', () => {
+  it('lets a flick glide after release', () => {
+    expect(PAN_CONTROLLER.inertia).toBe(300)
+  })
+})
+
+describe('plotPixelRatio', () => {
+  const original = window.matchMedia
+  const stub = (coarse: boolean) => {
+    window.matchMedia = vi.fn((q: string) => ({ matches: q === '(pointer: coarse)' && coarse }) as MediaQueryList)
+  }
+
+  it('draws at 1x on touch-first devices', () => {
+    stub(true)
+    expect(plotPixelRatio()).toBe(1)
+    window.matchMedia = original
+  })
+
+  it('keeps the screen density with a mouse or trackpad', () => {
+    stub(false)
+    expect(plotPixelRatio()).toBe(true)
+    window.matchMedia = original
   })
 })
