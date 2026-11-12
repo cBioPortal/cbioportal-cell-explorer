@@ -1,5 +1,11 @@
 # @cbioportal-cell-explorer/highperformer
 
+## 0.15.0
+
+### Minor Changes
+
+- [#343](https://github.com/cBioPortal/cbioportal-cell-explorer/pull/343) [`2844b71`](https://github.com/cBioPortal/cbioportal-cell-explorer/commit/2844b71ffa2901fde33b7a4921917c3433e363cb) Thanks [@hweej](https://github.com/hweej)! - Homepage and collection pages on phones: datasets show as cards with cells, genes, status and collection under the name, plus a sort menu; the homepage filters open in a bottom sheet from a "Filters" button instead of stacking above the list.
+
 ## 0.14.0
 
 ### Minor Changes
