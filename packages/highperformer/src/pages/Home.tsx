@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Input } from 'antd'
-import { SearchOutlined } from '@ant-design/icons'
+import { Button, Drawer, Input } from 'antd'
+import { FilterOutlined, SearchOutlined } from '@ant-design/icons'
 import { loadDatasets, saveDatasets } from '../utils/datasets'
 import useAppStore from '../store/useAppStore'
 import SiteHeader from '../components/SiteHeader'
@@ -9,6 +9,7 @@ import { labelStyle } from '../components/landingTokens'
 import type { Stat } from '../components/OverviewStats'
 import useDatasetProbes from '../hooks/useDatasetProbes'
 import useCatalogQuery from '../hooks/useCatalogQuery'
+import { usePhoneLayout } from '../hooks/useNarrowLayout'
 import FacetSidebar from '../components/FacetSidebar'
 import ActiveFilters from '../components/ActiveFilters'
 import { applyFacetFilters, partitionByAnnotation, countActiveFilters } from '../utils/facets'
@@ -43,7 +44,8 @@ function Home() {
   const collectionCount = useAppStore((s) => s.collections.length)
   const facetDefs = useAppStore((s) => s.facetDefs)
   const user = useAppStore((s) => s.user)
-
+  const phone = usePhoneLayout()
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const facetKeys = useMemo(() => facetDefs.map((f) => f.key), [facetDefs])
   const { filters, query: urlQuery, tab, setQuery, setTab, toggleValue, clearFacet, clearAll } =
@@ -170,6 +172,19 @@ function Home() {
   // Every empty state names a next step — there is always something to do here.
   const activeFilters = countActiveFilters(filters)
 
+  const showFacets = activeTab === 'annotated' && facetDefs.length > 0 && annotated.length > 0
+  const facetSidebar = (heading: boolean) => (
+    <FacetSidebar
+      defs={facetDefs}
+      entries={searched.annotated}
+      filters={filters}
+      onToggle={toggleValue}
+      onClear={clearFacet}
+      onClearAll={clearAll}
+      heading={heading}
+    />
+  )
+
   let emptyText: React.ReactNode
   if (activeFilters > 0) {
     emptyText = (
@@ -211,6 +226,19 @@ function Home() {
             value={query}
             onChange={(e) => setDraft(e.target.value)}
           />
+          {/* On a phone the sidebar would stack above the results and push the
+              first dataset two screens down, so it waits behind this button. */}
+          {phone && showFacets && (
+            <button
+              type="button"
+              className="ce-filters-button"
+              aria-label={activeFilters > 0 ? `Filters, ${activeFilters} active` : 'Filters'}
+              onClick={() => setFiltersOpen(true)}
+            >
+              <FilterOutlined aria-hidden="true" /> Filters
+              {activeFilters > 0 && <span className="ce-filters-badge">{activeFilters}</span>}
+            </button>
+          )}
         </div>
 
         {showTabs && (
@@ -237,16 +265,7 @@ function Home() {
         )}
 
         <div className="ce-results">
-          {activeTab === 'annotated' && facetDefs.length > 0 && annotated.length > 0 && (
-            <FacetSidebar
-              defs={facetDefs}
-              entries={searched.annotated}
-              filters={filters}
-              onToggle={toggleValue}
-              onClear={clearFacet}
-              onClearAll={clearAll}
-            />
-          )}
+          {!phone && showFacets && facetSidebar(true)}
 
           <section className="ce-results-main">
           <ActiveFilters
@@ -255,9 +274,12 @@ function Home() {
             onToggle={toggleValue}
             onClearAll={clearAll}
           />
-          <SectionLabel rule={false}>
-            {visibleCount} {visibleCount === 1 ? 'dataset' : 'datasets'}
-          </SectionLabel>
+          {/* The phone card list states the count itself, beside its sort menu. */}
+          {!phone && (
+            <SectionLabel rule={false}>
+              {visibleCount} {visibleCount === 1 ? 'dataset' : 'datasets'}
+            </SectionLabel>
+          )}
           <DatasetTable
             entries={entries}
             probes={probes}
@@ -280,6 +302,29 @@ function Home() {
           </section>
         </div>
       </main>
+
+      {phone && (
+        <Drawer
+          className="ce-filters-sheet"
+          placement="bottom"
+          size="80%"
+          open={filtersOpen && showFacets}
+          onClose={() => setFiltersOpen(false)}
+          title="Filters"
+          extra={
+            activeFilters > 0 && (
+              <Button type="link" onClick={clearAll}>Clear all</Button>
+            )
+          }
+          footer={
+            <Button type="primary" size="large" block onClick={() => setFiltersOpen(false)}>
+              Show {visibleCount} {visibleCount === 1 ? 'dataset' : 'datasets'}
+            </Button>
+          }
+        >
+          {facetSidebar(false)}
+        </Drawer>
+      )}
     </div>
   )
 }

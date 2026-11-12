@@ -9,6 +9,9 @@ vi.mock('../utils/datasetProbe', () => ({
   probeStore: vi.fn().mockResolvedValue({ ok: true, version: 3, shape: { nObs: 3000, nVar: 500 } }),
 }))
 
+const phone = vi.hoisted(() => ({ value: false }))
+vi.mock('../hooks/useNarrowLayout', () => ({ usePhoneLayout: () => phone.value }))
+
 import useAppStore from '../store/useAppStore'
 import { STORAGE_KEY } from '../utils/datasets'
 import Home from './Home'
@@ -273,5 +276,67 @@ describe('Home', () => {
     setStore({ backendInfo: { auth_enabled: true } as never, user: null })
     renderHome()
     expect(screen.getByText(/Sign in to see the datasets available to you/)).toBeDefined()
+  })
+
+  describe('on phones', () => {
+    beforeEach(() => { phone.value = true })
+    afterEach(() => { phone.value = false })
+
+    it('keeps the filters out of the page until asked for', () => {
+      setStore({ catalogDatasets: [LUNG, BREAST] })
+      const { container } = renderHome()
+      expect(container.querySelector('.ce-facets')).toBeNull()
+      expect(screen.getByRole('button', { name: 'Filters' })).toBeDefined()
+    })
+
+    it('opens the filters in a sheet and closes it on the results button', async () => {
+      setStore({ catalogDatasets: [LUNG, BREAST] })
+      renderHome()
+      fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+
+      const sheet = await screen.findByRole('dialog', { name: 'Filters' })
+      fireEvent.click(within(sheet).getByText('lung'))
+      await waitFor(() => expect(screen.queryByText('Breast Atlas')).toBeNull())
+
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Show 1 dataset' }))
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Filters' })).toBeNull())
+    })
+
+    it('counts active filters on the button', async () => {
+      setStore({ catalogDatasets: [LUNG, BREAST] })
+      renderHome()
+      fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+      const sheet = await screen.findByRole('dialog', { name: 'Filters' })
+      fireEvent.click(within(sheet).getByText('lung'))
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Filters, 1 active' })).toBeDefined(),
+      )
+    })
+
+    it('clears every filter from the sheet', async () => {
+      setStore({ catalogDatasets: [LUNG, BREAST] })
+      renderHome()
+      fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+      const sheet = await screen.findByRole('dialog', { name: 'Filters' })
+      fireEvent.click(within(sheet).getByText('lung'))
+      await waitFor(() => expect(screen.queryByText('Breast Atlas')).toBeNull())
+
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Clear all' }))
+      await waitFor(() => expect(screen.getByText('Breast Atlas')).toBeDefined())
+    })
+
+    it('states the dataset count once', () => {
+      setStore({ catalogDatasets: [LUNG, BREAST] })
+      renderHome()
+      expect(screen.getAllByText('2 datasets')).toHaveLength(1)
+    })
+
+    it('offers no filters button on the unannotated tab', () => {
+      setStore({ catalogDatasets: [LUNG, BREAST] })
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(['https://example.org/mine.zarr']))
+      renderHome()
+      fireEvent.click(screen.getByRole('tab', { name: /Unannotated/ }))
+      expect(screen.queryByRole('button', { name: /^Filters/ })).toBeNull()
+    })
   })
 })

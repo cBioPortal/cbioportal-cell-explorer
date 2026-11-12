@@ -3,6 +3,8 @@ import { Button, ConfigProvider, Table, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { ApartmentOutlined, LinkOutlined, DeleteOutlined } from '@ant-design/icons'
 import StatusLine from './StatusLine'
+import DatasetCards from './DatasetCards'
+import { usePhoneLayout } from '../hooks/useNarrowLayout'
 import { t } from './landingTokens'
 import { formatCount } from '../utils/formatCount'
 import { compareByName, compareByCollection, makeShapeComparator } from '../utils/sortEntries'
@@ -60,6 +62,7 @@ export default function DatasetTable({
   showCollection?: boolean
 }) {
   const navigate = useNavigate()
+  const phone = usePhoneLayout()
 
   const open = (entry: DatasetEntry) => {
     if (entry.kind === 'local' && entry.url) {
@@ -202,6 +205,18 @@ export default function DatasetTable({
       },
     },
   ]
+
+  if (phone) {
+    return (
+      <DatasetCards
+        entries={entries}
+        probes={probes}
+        emptyText={emptyText}
+        onRemove={onRemove}
+        showCollection={showCollection}
+      />
+    )
+  }
 
   const columns = showCollection
     ? allColumns
