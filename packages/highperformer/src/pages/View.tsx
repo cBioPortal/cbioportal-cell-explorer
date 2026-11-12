@@ -27,7 +27,16 @@ import SummaryPanel from '../components/SummaryPanel'
 import { ChatPanel } from '../chat/ChatPanel'
 import AttributionCredit from '../components/AttributionCredit'
 import { loadDatasets, saveDatasets } from '../utils/datasets'
-import { commitViewState, fitZoom, recallViewState, rememberViewState, resolveViewport } from '../utils/viewport'
+import {
+  PAN_CONTROLLER,
+  commitViewState,
+  fitZoom,
+  plotPixelRatio,
+  recallViewState,
+  rememberViewState,
+  resolveViewport,
+  zoomLimits,
+} from '../utils/viewport'
 
 const { Sider, Content } = Layout
 
@@ -342,8 +351,7 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
 
     const zoom = fitZoom(embeddingData.bounds, viewWidth, Math.max(1, viewHeight - inset))
 
-    const minZoom = zoom - 0.25
-    const maxZoom = zoom + 4
+    const { minZoom, maxZoom } = zoomLimits(zoom)
 
     // A remount on the same embedding (the page switching between its narrow
     // and wide layouts) keeps the camera where it was.
@@ -591,7 +599,8 @@ function Visualization({ deckRef }: { deckRef: React.RefObject<DeckGL | null> })
         key={deckKey}
         views={new OrthographicView()}
         initialViewState={initialViewState}
-        controller={selectionTool === 'pan'}
+        controller={selectionTool === 'pan' ? PAN_CONTROLLER : false}
+        useDevicePixels={plotPixelRatio()}
         onViewStateChange={onViewStateChange}
         layers={layers}
         widgets={WIDGETS}

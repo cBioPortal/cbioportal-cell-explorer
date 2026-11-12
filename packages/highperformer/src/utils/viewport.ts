@@ -91,3 +91,25 @@ export function commitViewState(
   deck.setProps({ viewState: vs })
   rememberViewState(key, vs)
 }
+
+/**
+ * How far the camera may move from the fit-to-view zoom: in to 256x, so a
+ * dense cluster in a multi-million-cell atlas separates into cells, and out
+ * to 2x, for room around the plot.
+ */
+export function zoomLimits(fit: number): { minZoom: number; maxZoom: number } {
+  return { minZoom: fit - 1, maxZoom: fit + 8 }
+}
+
+/** deck.gl controller options: a flick keeps gliding briefly after release. */
+export const PAN_CONTROLLER = { inertia: 300 }
+
+/**
+ * deck.gl `useDevicePixels`. On a touch-first device (phone, tablet) the plot
+ * draws at 1x: at the screen's own 3x a phone GPU fills nine times the pixels
+ * for millions of points, and panning stutters. Mouse and trackpad machines
+ * keep full density. Read when the canvas renders, not subscribed.
+ */
+export function plotPixelRatio(): boolean | number {
+  return window.matchMedia('(pointer: coarse)').matches ? 1 : true
+}
